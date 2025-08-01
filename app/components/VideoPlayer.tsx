@@ -11,11 +11,16 @@ interface VideoPlayerProps {
 }
 
 export function VideoPlayer({ video }: VideoPlayerProps) {
+  // 로컬 파일인 경우 스트리밍 API 사용
+  const videoSrc = video.videoUrl.startsWith('/data/videos/') 
+    ? `/api/stream/${video.id}`
+    : video.videoUrl;
+
   return (
     <div className="w-full h-full">
       <MediaPlayer 
         title={video.title} 
-        src={video.videoUrl}
+        src={videoSrc}
         poster={video.thumbnailUrl}
         playsInline
         className="w-full h-full"
