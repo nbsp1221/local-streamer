@@ -1,10 +1,9 @@
 import { useState, useMemo } from 'react';
 import type { Video, PendingVideo, SearchFilters } from '~/types/video';
-import { mockVideos, mockPendingVideos } from '~/data/mockData';
 
-export function useVideoLibrary() {
-  const [videos, setVideos] = useState<Video[]>(mockVideos);
-  const [pendingVideos, setPendingVideos] = useState<PendingVideo[]>(mockPendingVideos);
+export function useVideoLibrary(initialVideos: Video[] = [], initialPendingVideos: PendingVideo[] = []) {
+  const [videos, setVideos] = useState<Video[]>(initialVideos);
+  const [pendingVideos, setPendingVideos] = useState<PendingVideo[]>(initialPendingVideos);
   const [searchFilters, setSearchFilters] = useState<SearchFilters>({
     query: '',
     tags: []

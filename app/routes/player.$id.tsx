@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router";
+import { useParams, Link, useLoaderData } from "react-router";
 import { ArrowLeft, Share2, Download } from "lucide-react";
 import type { Route } from "./+types/player.$id";
 import { Button } from "~/components/ui/button";
@@ -6,6 +6,12 @@ import { Badge } from "~/components/ui/badge";
 import { VideoPlayer } from "~/components/VideoPlayer";
 import { RelatedVideos } from "~/components/RelatedVideos";
 import { useVideoLibrary } from "~/hooks/useVideoLibrary";
+import { getVideos } from "~/services/video-store.server";
+
+export async function loader({ params }: Route.LoaderArgs) {
+  const videos = await getVideos();
+  return { videos };
+}
 
 export function meta({ params }: Route.MetaArgs) {
   return [
@@ -16,7 +22,8 @@ export function meta({ params }: Route.MetaArgs) {
 
 export default function Player() {
   const { id } = useParams();
-  const { videos, toggleTagFilter } = useVideoLibrary();
+  const { videos: initialVideos } = useLoaderData<typeof loader>();
+  const { videos, toggleTagFilter } = useVideoLibrary(initialVideos);
   
   // 현재 비디오 찾기
   const currentVideo = videos.find(video => video.id === id);

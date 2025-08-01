@@ -1,11 +1,25 @@
 import { useState } from "react";
+import { useLoaderData } from "react-router";
 import type { Route } from "./+types/home";
 import { NavBar } from "~/components/NavBar";
 import { VideoGrid } from "~/components/VideoGrid";
 import { VideoModal } from "~/components/VideoModal";
 import { TagFilter } from "~/components/TagFilter";
 import { useVideoLibrary } from "~/hooks/useVideoLibrary";
-import type { Video } from "~/types/video";
+import { getVideos, getPendingVideos } from "~/services/video-store.server";
+import type { Video, PendingVideo } from "~/types/video";
+
+export async function loader({}: Route.LoaderArgs) {
+  const [videos, pendingVideos] = await Promise.all([
+    getVideos(),
+    getPendingVideos()
+  ]);
+  
+  return {
+    videos,
+    pendingVideos
+  };
+}
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -15,6 +29,8 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Home() {
+  const { videos: initialVideos, pendingVideos: initialPendingVideos } = useLoaderData<typeof loader>();
+  
   const {
     videos,
     pendingVideos,
@@ -23,7 +39,7 @@ export default function Home() {
     toggleTagFilter,
     clearTagFilters,
     totalVideos
-  } = useVideoLibrary();
+  } = useVideoLibrary(initialVideos, initialPendingVideos);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
