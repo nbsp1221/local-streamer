@@ -7,11 +7,10 @@ import { Button } from "~/components/ui/button";
 interface NavBarProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  pendingCount: number;
-  onAddVideoClick: () => void;
+  pendingCount?: number;
 }
 
-export function NavBar({ searchQuery, onSearchChange, pendingCount, onAddVideoClick }: NavBarProps) {
+export function NavBar({ searchQuery, onSearchChange, pendingCount = 0 }: NavBarProps) {
   return (
     <nav className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -38,24 +37,25 @@ export function NavBar({ searchQuery, onSearchChange, pendingCount, onAddVideoCl
             </div>
           </div>
 
-          {/* 알림 아이콘 */}
+          {/* 동영상 추가 아이콘 */}
           <div className="flex items-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onAddVideoClick}
-              className="relative"
-            >
-              <Upload className="h-5 w-5" />
-              {pendingCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
-                >
-                  {pendingCount}
-                </Badge>
-              )}
-            </Button>
+            <Link to="/add-videos">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative"
+              >
+                <Upload className="h-5 w-5" />
+                {pendingCount > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                  >
+                    {pendingCount}
+                  </Badge>
+                )}
+              </Button>
+            </Link>
           </div>
         </div>
 

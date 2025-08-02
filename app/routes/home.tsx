@@ -41,7 +41,6 @@ export default function Home() {
     totalVideos
   } = useVideoLibrary(initialVideos, initialPendingVideos);
 
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
@@ -66,7 +65,6 @@ export default function Home() {
         searchQuery={searchFilters.query}
         onSearchChange={updateSearchQuery}
         pendingCount={pendingVideos.length}
-        onAddVideoClick={() => setIsAddModalOpen(true)}
       />
 
       {/* 메인 컨텐츠 */}

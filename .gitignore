@@ -7,3 +7,5 @@
 
 # User data
 /data/
+/incoming/*
+!/incoming/.gitkeep

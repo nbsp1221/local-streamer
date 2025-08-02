@@ -57,7 +57,8 @@ export function useVideoLibrary(initialVideos: Video[] = [], initialPendingVideo
       videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
       duration: Math.floor(Math.random() * 3600) + 300, // 5분-65분 랜덤
       addedAt: new Date(),
-      description: `${metadata.title}에 대한 설명`
+      description: `${metadata.title}에 대한 설명`,
+      format: 'mp4'
     };
 
     setVideos(prev => [newVideo, ...prev]);
