@@ -1,13 +1,92 @@
-# HLS + 이중 암호화 구현 계획
+# HLS 구현 계획 - Phase별 접근법
 
 ## 📋 프로젝트 개요
-PRD 요구사항(UUID 파일 관리, XOR 암호화, 파일 보호)을 만족하면서 HLS의 성능 이점(빠른 시크, 적응형 품질)을 확보하는 하이브리드 스트리밍 시스템 구현
+기존 Range request 스트리밍을 HLS로 업그레이드하여 빠른 시크와 향상된 스트리밍 성능을 제공합니다.
+Phase별로 나누어 단계적 구현 및 검수를 진행합니다.
 
 ## 🎯 핵심 목표
-- ✅ 시크 시 버퍼링 지연 해결 (2초 세그먼트)
-- ✅ Netflix/YouTube 수준 스트리밍 성능
-- ✅ PRD 보안 요구사항 100% 만족
+- ✅ 시크 시 버퍼링 지연 해결
+- ✅ 향상된 스트리밍 성능 제공
 - ✅ 기존 React Router 아키텍처 유지
+- ✅ 점진적 구현을 통한 안정성 확보
+
+## 🚀 Phase별 구현 계획
+
+### **Phase 1: FFmpeg 기반 구축 및 검증** ✅ 완료
+**목표**: ffmpeg-static 설치하고 기본 동작 확인
+- [x] ffmpeg-static, @types/node 설치
+- [x] 간단한 FFmpeg 명령어 실행 테스트 스크립트 작성
+- [x] 기존 big-buck-bunny-test.mp4 → 다른 포맷 변환 테스트
+- [x] ✅ **검수 포인트**: FFmpeg가 정상 작동하는지 확인
+
+**Phase 1 결과**:
+- FFmpeg 버전: 6.0-static 정상 작동 확인
+- 테스트 파일 정보: 9분 56초, H.264/AAC 인코딩 확인
+- 포맷 변환: MP4 → WebM 변환 성공 (706KB 출력 파일 생성)
+- 테스트 스크립트: `scripts/test-ffmpeg.js` 생성
+
+### **Phase 2: 기본 HLS 변환 구현** ✅ 완료
+**목표**: 단일 품질 HLS 변환 (720p)
+- [x] HLS 변환 서비스 함수 구현 (`app/services/hls-converter.server.ts`)
+- [x] 기존 테스트 파일 → .m3u8 + .ts 세그먼트 생성
+- [x] 생성된 파일들 직접 확인
+- [x] ✅ **검수 포인트**: HLS 파일이 올바르게 생성되는지 확인
+
+**Phase 2 결과**:
+- HLS 변환 서비스: `app/services/hls-converter.server.ts` 구현
+- 변환 성공: 9분 56초 MP4 → HLS (720p, 2.5Mbps)
+- 플레이리스트: 1개 .m3u8 파일 (4,158 bytes, HLS v3 표준)
+- 세그먼트: 80개 .ts 파일 (7.5초/개, 마지막 3.96초)
+- 파일 크기: 원본 150.69MB → HLS 121.27MB (20% 압축)
+- 테스트 스크립트: `scripts/test-hls-conversion.js` 생성
+
+### **Phase 3: HLS 서빙 API 구현** ✅ 완료
+**목표**: 생성된 HLS 파일들 웹으로 서빙
+- [x] `/api/hls/:id` 라우트 구현 (m3u8 플레이리스트)
+- [x] `/api/segment/:id/:file` 라우트 구현 (ts 세그먼트)
+- [x] 브라우저에서 직접 m3u8 파일 접근 테스트
+- [x] ✅ **검수 포인트**: API로 HLS 파일 접근 가능한지 확인
+
+**Phase 3 결과**:
+- HLS 플레이리스트 API: `/api/hls/:id` (CORS 헤더 포함)
+- HLS 세그먼트 API: `/api/segment/:id/:file` (Range 요청 지원)
+- 파일 경로 해결: `app/services/hls-resolver.server.ts` 구현
+- 라우트 설정 완료: `app/routes.ts` 업데이트
+- 테스트 스크립트: `scripts/test-hls-api.js` 생성
+- 테스트 결과: 3/4 통과 (플레이리스트, 세그먼트, Range 요청 모두 정상)
+
+### **Phase 4: 프론트엔드 HLS 플레이어 통합** ✅ 완료
+**목표**: VideoPlayer에서 HLS 재생 지원
+- [x] VideoPlayer 컴포넌트에 HLS 감지 로직 추가
+- [x] HLS vs Range request 자동 전환
+- [x] 실제 웹 플레이어에서 HLS 재생 테스트
+- [x] ✅ **검수 포인트**: 브라우저에서 HLS 스트리밍 재생 확인
+
+**Phase 4 결과**:
+- HLS 확인 API: `/api/hls-check/:id` 구현 (5분 캐싱)
+- VideoPlayer 자동 감지: HLS 파일 존재 시 자동 HLS 모드 전환
+- 로딩 상태 처리: 스트리밍 준비 중 표시
+- 개발 디버그: 현재 스트리밍 방식 시각적 표시 (🎞️ HLS / 📺 Range)
+- 테스트 스크립트: `scripts/test-phase4-hls.js` 생성
+- 테스트 결과: 4/4 통과 (HLS API, 자동 감지, 오류 처리, 플레이어 통합)
+
+### **Phase 5: 통합 및 자동화** ⚡ 다음 단계
+**목표**: 파일 업로드 → HLS 변환 → 라이브러리 추가 플로우
+- [ ] 파일 업로드 UI 구현
+- [ ] 업로드 시 자동 HLS 변환 트리거
+- [ ] UUID 기반 파일 관리 통합
+- [ ] ✅ **검수 포인트**: 전체 플로우 동작 확인
+
+## 🔧 기술 스택 (업데이트됨)
+
+### 서버사이드 HLS 처리
+- **ffmpeg-static**: 크로스 플랫폼 FFmpeg 바이너리 제공
+- **child_process.spawn**: FFmpeg 직접 제어 (fluent-ffmpeg 대신)
+- **React Router 7**: 서버 액션으로 변환 API 구현
+
+### 클라이언트사이드 재생
+- **기존 Vidstack**: HLS 지원 기능 활용
+- **자동 감지**: .m3u8 파일 시 HLS 모드 전환
 
 ## 🏗️ 시스템 아키텍처
 
