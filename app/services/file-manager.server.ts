@@ -3,8 +3,10 @@ import { existsSync, statSync } from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import type { PendingVideo } from '~/types/video';
+import { generateSmartThumbnail } from './thumbnail-generator.server';
 
 const INCOMING_DIR = path.join(process.cwd(), 'incoming');
+const THUMBNAILS_DIR = path.join(process.cwd(), 'incoming', 'thumbnails');
 const VIDEOS_DIR = path.join(process.cwd(), 'data', 'videos');
 
 // Supported video formats
@@ -20,6 +22,9 @@ export async function scanIncomingFiles(): Promise<PendingVideo[]> {
       await fs.mkdir(INCOMING_DIR, { recursive: true });
       return [];
     }
+
+    // Ensure thumbnails directory exists
+    await ensureThumbnailsDirectory();
 
     const files = await fs.readdir(INCOMING_DIR);
     const pendingVideos: PendingVideo[] = [];
@@ -38,11 +43,34 @@ export async function scanIncomingFiles(): Promise<PendingVideo[]> {
       // Estimate MIME type
       const mimeType = getMimeType(ext);
 
+      // Generate thumbnail if it doesn't exist
+      let thumbnailUrl: string | undefined;
+      const thumbnailPath = getThumbnailPreviewPath(filename);
+      
+      if (!existsSync(thumbnailPath)) {
+        console.log(`🎬 Generating preview thumbnail for: ${filename}`);
+        try {
+          const result = await generateSmartThumbnail(filePath, thumbnailPath);
+          if (result.success) {
+            thumbnailUrl = getThumbnailPreviewUrl(filename);
+            console.log(`✅ Preview thumbnail generated: ${filename}`);
+          } else {
+            console.log(`⚠️ Failed to generate preview thumbnail: ${filename}`, result.error);
+          }
+        } catch (error) {
+          console.error(`❌ Error generating preview thumbnail for ${filename}:`, error);
+        }
+      } else {
+        // Thumbnail already exists
+        thumbnailUrl = getThumbnailPreviewUrl(filename);
+      }
+
       pendingVideos.push({
         filename,
         size: stat.size,
         type: mimeType,
-        path: filePath
+        path: filePath,
+        thumbnailUrl
       });
     }
 
@@ -147,5 +175,59 @@ export async function ensureVideosDirectory(): Promise<void> {
   if (!existsSync(VIDEOS_DIR)) {
     await fs.mkdir(VIDEOS_DIR, { recursive: true });
     console.log('Videos directory created:', VIDEOS_DIR);
+  }
+}
+
+/**
+ * Check if thumbnails directory exists and create if not
+ */
+export async function ensureThumbnailsDirectory(): Promise<void> {
+  if (!existsSync(THUMBNAILS_DIR)) {
+    await fs.mkdir(THUMBNAILS_DIR, { recursive: true });
+    console.log('Thumbnails directory created:', THUMBNAILS_DIR);
+  }
+}
+
+/**
+ * Get thumbnail preview path for a given filename
+ */
+export function getThumbnailPreviewPath(filename: string): string {
+  const nameWithoutExt = path.parse(filename).name;
+  return path.join(THUMBNAILS_DIR, `${nameWithoutExt}.jpg`);
+}
+
+/**
+ * Get thumbnail preview URL for a given filename
+ */
+export function getThumbnailPreviewUrl(filename: string): string {
+  const nameWithoutExt = path.parse(filename).name;
+  return `/api/thumbnail-preview/${nameWithoutExt}.jpg`;
+}
+
+/**
+ * Check if temporary thumbnail exists for a video file
+ */
+export function tempThumbnailExists(filename: string): boolean {
+  return existsSync(getThumbnailPreviewPath(filename));
+}
+
+/**
+ * Move temporary thumbnail to library directory
+ */
+export async function moveTempThumbnailToLibrary(filename: string, videoId: string): Promise<boolean> {
+  const tempThumbnailPath = getThumbnailPreviewPath(filename);
+  const libraryThumbnailPath = path.join(VIDEOS_DIR, videoId, 'thumbnail.jpg');
+  
+  if (!existsSync(tempThumbnailPath)) {
+    return false;
+  }
+  
+  try {
+    await fs.rename(tempThumbnailPath, libraryThumbnailPath);
+    console.log(`✅ Moved temporary thumbnail: ${tempThumbnailPath} → ${libraryThumbnailPath}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to move temporary thumbnail:', error);
+    return false;
   }
 }

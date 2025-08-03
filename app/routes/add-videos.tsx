@@ -238,7 +238,25 @@ export default function AddVideos() {
                     {/* File Information */}
                     <div className="flex items-start justify-between">
                       <div className="flex items-start gap-3">
-                        <FileVideo className="h-5 w-5 mt-1 text-muted-foreground" />
+                        {file.thumbnailUrl ? (
+                          <div className="flex-shrink-0">
+                            <img 
+                              src={file.thumbnailUrl} 
+                              alt={`Preview of ${file.filename}`}
+                              className="w-16 h-9 object-cover rounded border"
+                              onError={(e) => {
+                                // Fallback to file icon if thumbnail fails to load
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const fallback = target.nextElementSibling as HTMLElement;
+                                if (fallback) fallback.style.display = 'block';
+                              }}
+                            />
+                            <FileVideo className="h-5 w-5 mt-1 text-muted-foreground hidden" />
+                          </div>
+                        ) : (
+                          <FileVideo className="h-5 w-5 mt-1 text-muted-foreground" />
+                        )}
                         <div>
                           <h3 className="font-medium">{file.filename}</h3>
                           <div className="flex items-center gap-2 mt-1">

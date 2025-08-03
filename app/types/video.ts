@@ -25,6 +25,7 @@ export interface PendingVideo {
   size: number; // bytes
   type: string;
   path: string;
+  thumbnailUrl?: string; // Optional thumbnail preview URL
 }
 
 export interface VideoLibrary {
