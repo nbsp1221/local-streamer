@@ -1,6 +1,7 @@
 import type { Route } from "./+types/api.add-to-library";
 import { moveToLibrary, getVideoInfo, ensureVideosDirectory } from "~/services/file-manager.server";
 import { addVideo } from "~/services/video-store.server";
+import { generateSmartThumbnail } from "~/services/thumbnail-generator.server";
 import type { Video } from "~/types/video";
 import path from "path";
 
@@ -35,12 +36,29 @@ export async function action({ request }: Route.ActionArgs) {
     const newFilepath = `/data/videos/${videoId}/video${ext}`;
     const videoInfo = getVideoInfo(path.join(process.cwd(), 'data', 'videos', videoId, `video${ext}`));
 
+    // Generate thumbnail asynchronously (don't block the main process)
+    const videoPath = path.join(process.cwd(), 'data', 'videos', videoId, `video${ext}`);
+    const thumbnailPath = path.join(process.cwd(), 'data', 'videos', videoId, 'thumbnail.jpg');
+    
+    // Start thumbnail generation in background
+    generateSmartThumbnail(videoPath, thumbnailPath)
+      .then((result) => {
+        if (result.success) {
+          console.log(`✅ Thumbnail generated for video: ${title}`);
+        } else {
+          console.log(`⚠️ Failed to generate thumbnail for video: ${title}`, result.error);
+        }
+      })
+      .catch((error) => {
+        console.error(`❌ Unexpected error generating thumbnail for video: ${title}`, error);
+      });
+
     // Create Video object
     const video: Video = {
       id: videoId,
       title: title.trim(),
       tags: tags.filter(tag => tag.trim().length > 0).map(tag => tag.trim()),
-      thumbnailUrl: '/images/video-placeholder.jpg', // Default thumbnail (to be implemented later)
+      thumbnailUrl: `/api/thumbnail/${videoId}`, // Use API endpoint for thumbnail
       videoUrl: newFilepath,
       duration: videoInfo.duration,
       addedAt: new Date(),
