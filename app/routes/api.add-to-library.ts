@@ -68,8 +68,7 @@ export async function action({ request }: Route.ActionArgs) {
       duration: videoInfo.duration,
       addedAt: new Date(),
       description: description?.trim() || undefined,
-      format: videoInfo.format as any, // Type assertion (can be improved later)
-      hlsInfo: undefined // HLS to be implemented later
+      format: videoInfo.format as any // Type assertion (can be improved later)
     };
 
     // Save to database

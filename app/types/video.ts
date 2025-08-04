@@ -1,11 +1,4 @@
-export type VideoFormat = 'mp4' | 'hls' | 'webm' | 'mkv' | 'avi';
-
-export interface HLSInfo {
-  segmentCount: number;
-  segmentDuration: number;
-  totalSizeMB: number;
-  quality: '480p' | '720p' | '1080p';
-}
+export type VideoFormat = 'mp4' | 'webm' | 'mkv' | 'avi';
 
 export interface Video {
   id: string;
@@ -17,7 +10,6 @@ export interface Video {
   addedAt: Date;
   description?: string;
   format: VideoFormat;
-  hlsInfo?: HLSInfo;
 }
 
 export interface PendingVideo {
