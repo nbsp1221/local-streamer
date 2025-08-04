@@ -38,6 +38,7 @@ export default function Home() {
     updateSearchQuery,
     toggleTagFilter,
     clearTagFilters,
+    deleteVideo,
     totalVideos
   } = useVideoLibrary(initialVideos, initialPendingVideos);
 
@@ -98,6 +99,7 @@ export default function Home() {
           isOpen={isVideoModalOpen}
           onClose={handleCloseVideoModal}
           onTagClick={handleTagClick}
+          onDelete={deleteVideo}
         />
       </main>
     </div>

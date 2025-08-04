@@ -9,4 +9,5 @@ export default [
   route("api/thumbnail-preview/:filename", "routes/api/thumbnail-preview.$filename.ts"),
   route("api/scan-incoming", "routes/api/scan-incoming.ts"),
   route("api/add-to-library", "routes/api/add-to-library.ts"),
+  route("api/delete/:id", "routes/api/delete.$id.ts"),
 ] satisfies RouteConfig;

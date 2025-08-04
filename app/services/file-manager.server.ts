@@ -305,3 +305,25 @@ export async function moveTempThumbnailToLibrary(filename: string, videoId: stri
     return false;
   }
 }
+
+/**
+ * Delete video files and directory completely
+ */
+export async function deleteVideoFiles(videoId: string): Promise<void> {
+  const videoDir = path.join(VIDEOS_DIR, videoId);
+  
+  // Check if video directory exists
+  if (!existsSync(videoDir)) {
+    console.warn(`⚠️ Video directory not found: ${videoDir}`);
+    return;
+  }
+  
+  try {
+    // Remove entire video directory and all its contents
+    await fs.rm(videoDir, { recursive: true, force: true });
+    console.log(`✅ Video files deleted successfully: ${videoId}`);
+  } catch (error) {
+    console.error(`❌ Failed to delete video files for ${videoId}:`, error);
+    throw new Error(`Failed to delete video files: ${error}`);
+  }
+}

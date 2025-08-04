@@ -98,9 +98,23 @@ export async function addVideo(video: Video): Promise<void> {
 
 // 비디오 삭제
 export async function deleteVideo(videoId: string): Promise<void> {
-  const videos = await getVideos();
-  const filteredVideos = videos.filter(video => video.id !== videoId);
-  await saveVideos(filteredVideos);
+  // Import deleteVideoFiles function
+  const { deleteVideoFiles } = await import('./file-manager.server');
+  
+  try {
+    // Delete physical files first
+    await deleteVideoFiles(videoId);
+    
+    // Then remove from metadata
+    const videos = await getVideos();
+    const filteredVideos = videos.filter(video => video.id !== videoId);
+    await saveVideos(filteredVideos);
+    
+    console.log(`✅ Video completely deleted: ${videoId}`);
+  } catch (error) {
+    console.error(`❌ Failed to delete video ${videoId}:`, error);
+    throw new Error(`Failed to delete video: ${error}`);
+  }
 }
 
 // 비디오 찾기

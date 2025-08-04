@@ -70,6 +70,29 @@ export function useVideoLibrary(initialVideos: Video[] = [], initialPendingVideo
     return videos.find(video => video.id === id);
   };
 
+  // 비디오 삭제
+  const deleteVideo = async (videoId: string): Promise<void> => {
+    try {
+      const response = await fetch(`/api/delete/${videoId}`, {
+        method: 'DELETE'
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete video');
+      }
+
+      // 삭제 성공 시 로컬 상태에서 제거
+      setVideos(prev => prev.filter(video => video.id !== videoId));
+      
+      console.log(`Video deleted successfully: ${result.title} (${videoId})`);
+    } catch (error) {
+      console.error('Failed to delete video:', error);
+      throw error; // Re-throw to allow UI to handle error
+    }
+  };
+
   return {
     videos: filteredVideos,
     pendingVideos,
@@ -79,6 +102,7 @@ export function useVideoLibrary(initialVideos: Video[] = [], initialPendingVideo
     clearTagFilters,
     addVideo,
     findVideoById,
+    deleteVideo,
     totalVideos: videos.length
   };
 }
