@@ -1,4 +1,4 @@
-import type { Route } from "./+types/api.scan-incoming";
+import type { Route } from "./+types/scan-incoming";
 import { scanIncomingFiles, ensureIncomingDirectory } from "~/services/file-manager.server";
 
 export async function loader({}: Route.LoaderArgs) {

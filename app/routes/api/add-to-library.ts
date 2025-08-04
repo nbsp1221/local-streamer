@@ -1,4 +1,4 @@
-import type { Route } from "./+types/api.add-to-library";
+import type { Route } from "./+types/add-to-library";
 import { moveToLibrary, getVideoInfo, ensureVideosDirectory, moveTempThumbnailToLibrary } from "~/services/file-manager.server";
 import { addVideo } from "~/services/video-store.server";
 import { generateSmartThumbnail } from "~/services/thumbnail-generator.server";
