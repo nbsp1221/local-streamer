@@ -1,7 +1,9 @@
 import { promises as fs } from 'fs';
 import { existsSync, statSync } from 'fs';
 import path from 'path';
+import { spawn } from 'child_process';
 import { v4 as uuidv4 } from 'uuid';
+import ffmpegStatic from 'ffmpeg-static';
 import type { PendingVideo } from '~/types/video';
 import { generateSmartThumbnail } from './thumbnail-generator.server';
 
@@ -126,17 +128,89 @@ export async function moveToLibrary(filename: string): Promise<string> {
 }
 
 /**
- * Extract video file information (basic info only for now)
+ * Extract duration from FFmpeg stderr output
  */
-export function getVideoInfo(filePath: string) {
+function parseDurationFromStderr(stderr: string): number | undefined {
+  const durationMatch = stderr.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
+  if (durationMatch) {
+    const hours = parseInt(durationMatch[1]);
+    const minutes = parseInt(durationMatch[2]);
+    const seconds = parseInt(durationMatch[3]);
+    const centiseconds = parseInt(durationMatch[4]);
+    
+    return hours * 3600 + minutes * 60 + seconds + centiseconds / 100;
+  }
+  return undefined;
+}
+
+/**
+ * Extract video duration using ffmpeg
+ */
+export async function extractVideoDuration(filePath: string): Promise<number> {
+  if (!ffmpegStatic) {
+    console.warn('FFmpeg binary not found, returning duration 0');
+    return 0;
+  }
+
+  if (!existsSync(filePath)) {
+    console.warn(`Video file not found: ${filePath}, returning duration 0`);
+    return 0;
+  }
+
+  return new Promise((resolve) => {
+    // Use ffmpeg to extract duration from stderr
+    const ffmpegArgs = [
+      '-i', filePath,
+      '-f', 'null',
+      '-'
+    ];
+
+    const ffmpeg = spawn(ffmpegStatic!, ffmpegArgs);
+    
+    let stderr = '';
+
+    ffmpeg.stderr?.on('data', (data: Buffer) => {
+      stderr += data.toString();
+    });
+
+    ffmpeg.on('close', (code: number | null) => {
+      const duration = parseDurationFromStderr(stderr);
+      
+      if (duration !== undefined) {
+        const roundedDuration = Math.round(duration);
+        console.log(`✅ Video duration extracted: ${roundedDuration}s for ${path.basename(filePath)}`);
+        resolve(roundedDuration);
+      } else {
+        console.warn(`⚠️ Could not extract duration from ffmpeg output for ${path.basename(filePath)}`);
+        if (stderr) {
+          console.warn('FFmpeg stderr snippet:', stderr.substring(0, 500));
+        }
+        resolve(0);
+      }
+    });
+
+    ffmpeg.on('error', (err: Error) => {
+      console.warn(`⚠️ FFmpeg process error: ${err.message}, returning duration 0`);
+      resolve(0);
+    });
+  });
+}
+
+/**
+ * Extract video file information
+ */
+export async function getVideoInfo(filePath: string) {
   const stat = statSync(filePath);
   const ext = path.extname(filePath).toLowerCase();
+  
+  // Extract duration using ffprobe
+  const duration = await extractVideoDuration(filePath);
   
   return {
     size: stat.size,
     format: ext.slice(1), // Remove dot from extension
     mimeType: getMimeType(ext),
-    duration: 0 // Set to 0 for now, can measure actual duration with FFprobe later
+    duration
   };
 }
 

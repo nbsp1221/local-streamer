@@ -34,7 +34,7 @@ export async function action({ request }: Route.ActionArgs) {
     // Extract moved file information
     const ext = path.extname(filename);
     const newFilepath = `/data/videos/${videoId}/video${ext}`;
-    const videoInfo = getVideoInfo(path.join(process.cwd(), 'data', 'videos', videoId, `video${ext}`));
+    const videoInfo = await getVideoInfo(path.join(process.cwd(), 'data', 'videos', videoId, `video${ext}`));
 
     // Handle thumbnail (try to move temp thumbnail first, generate if not available)
     const videoPath = path.join(process.cwd(), 'data', 'videos', videoId, `video${ext}`);
