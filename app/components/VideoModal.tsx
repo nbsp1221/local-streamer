@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Play, Clock, Trash2, X } from "lucide-react";
+import { Play, Clock, Trash2, X, Edit } from "lucide-react";
 import { useState } from "react";
 import {
   Dialog,
@@ -13,6 +13,7 @@ import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
 import { AspectRatio } from "~/components/ui/aspect-ratio";
 import type { Video } from "~/types/video";
+import { EditVideoForm } from "./EditVideoForm";
 
 interface VideoModalProps {
   video: Video | null;
@@ -20,11 +21,13 @@ interface VideoModalProps {
   onClose: () => void;
   onTagClick?: (tag: string) => void;
   onDelete?: (videoId: string) => Promise<void>;
+  onUpdate?: (videoId: string, updates: { title: string; tags: string[]; description?: string }) => Promise<void>;
 }
 
-export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete }: VideoModalProps) {
+export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpdate }: VideoModalProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   if (!video) return null;
 
@@ -65,20 +68,60 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete }: Vid
     setShowDeleteConfirm(false);
   };
 
+  const handleEditClick = () => {
+    setIsEditMode(true);
+  };
+
+  const handleEditCancel = () => {
+    setIsEditMode(false);
+  };
+
+  const handleEditSave = async (data: { title: string; tags: string[]; description?: string }) => {
+    if (!onUpdate) return;
+    
+    try {
+      await onUpdate(video.id, data);
+      setIsEditMode(false);
+      // The parent component should handle refreshing the video data
+    } catch (error) {
+      console.error('Failed to update video:', error);
+      // TODO: Show toast error message
+    }
+  };
+
   return (
     <>
       {/* 메인 비디오 모달 */}
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsEditMode(false);
+          onClose();
+        }
+      }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold line-clamp-2">
-              {video.title}
-            </DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-lg font-semibold line-clamp-2">
+                {isEditMode ? '비디오 정보 수정' : video.title}
+              </DialogTitle>
+              {!isEditMode && onUpdate && (
+                <Button variant="outline" size="sm" onClick={handleEditClick}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
             <DialogDescription className="sr-only">
               {video.description || `${video.title} 비디오 정보 및 재생 옵션`}
             </DialogDescription>
           </DialogHeader>
 
+          {isEditMode ? (
+            <EditVideoForm
+              video={video}
+              onSave={handleEditSave}
+              onCancel={handleEditCancel}
+            />
+          ) : (
           <div className="space-y-6">
             {/* 썸네일 영역 */}
             <div className="relative overflow-hidden rounded-lg bg-muted">
@@ -168,6 +211,7 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete }: Vid
               </Button>
             </div>
           </div>
+          )}
         </DialogContent>
       </Dialog>
 

@@ -59,6 +59,30 @@ export default function Home() {
     setSelectedVideo(null);
   };
 
+  const handleUpdateVideo = async (videoId: string, updates: { title: string; tags: string[]; description?: string }) => {
+    try {
+      const response = await fetch(`/api/update/${videoId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update video');
+      }
+
+      // Reload the page to refresh data
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to update video:', error);
+      throw error;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* 네비게이션 바 */}
@@ -100,6 +124,7 @@ export default function Home() {
           onClose={handleCloseVideoModal}
           onTagClick={handleTagClick}
           onDelete={deleteVideo}
+          onUpdate={handleUpdateVideo}
         />
       </main>
     </div>

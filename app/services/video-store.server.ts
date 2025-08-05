@@ -122,3 +122,26 @@ export async function findVideoById(videoId: string): Promise<Video | null> {
   const videos = await getVideos();
   return videos.find(video => video.id === videoId) || null;
 }
+
+// 비디오 업데이트
+export async function updateVideo(videoId: string, updates: Partial<Omit<Video, 'id' | 'addedAt'>>): Promise<Video | null> {
+  const videos = await getVideos();
+  const videoIndex = videos.findIndex(video => video.id === videoId);
+  
+  if (videoIndex === -1) {
+    return null;
+  }
+  
+  // 기존 비디오 정보에 업데이트 병합
+  const updatedVideo = {
+    ...videos[videoIndex],
+    ...updates,
+    id: videoId, // ID는 변경 불가
+    addedAt: videos[videoIndex].addedAt // 추가 날짜는 변경 불가
+  };
+  
+  videos[videoIndex] = updatedVideo;
+  await saveVideos(videos);
+  
+  return updatedVideo;
+}
