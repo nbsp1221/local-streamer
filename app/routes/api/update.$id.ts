@@ -1,7 +1,11 @@
 import type { Route } from "./+types/update.$id";
 import { updateVideo, findVideoById } from "~/services/video-store.server";
+import { requireAuth } from "~/utils/auth.server";
 
 export async function action({ request, params }: Route.ActionArgs) {
+  // 인증 확인
+  await requireAuth(request);
+  
   const videoId = params.id;
   
   if (request.method !== 'PUT' && request.method !== 'PATCH') {

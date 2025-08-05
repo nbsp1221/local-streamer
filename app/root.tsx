@@ -5,10 +5,20 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLoaderData,
 } from "react-router";
 
 import type { Route } from "./+types/root";
+import { getOptionalUser, toPublicUser } from "~/utils/auth.server";
+import { AuthInitializer } from "~/components/AuthInitializer";
 import "./app.css";
+
+export async function loader({ request }: Route.LoaderArgs) {
+  const user = await getOptionalUser(request);
+  return {
+    user: user ? toPublicUser(user) : null
+  };
+}
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -42,7 +52,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  const { user } = useLoaderData<typeof loader>();
+  
+  return (
+    <>
+      <AuthInitializer initialUser={user} />
+      <Outlet />
+    </>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

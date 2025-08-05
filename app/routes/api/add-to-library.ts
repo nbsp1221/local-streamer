@@ -2,6 +2,7 @@ import type { Route } from "./+types/add-to-library";
 import { moveToLibrary, getVideoInfo, ensureVideosDirectory, moveTempThumbnailToLibrary } from "~/services/file-manager.server";
 import { addVideo } from "~/services/video-store.server";
 import { generateSmartThumbnail } from "~/services/thumbnail-generator.server";
+import { requireAuth } from "~/utils/auth.server";
 import type { Video } from "~/types/video";
 import path from "path";
 
@@ -13,6 +14,9 @@ interface AddToLibraryRequest {
 }
 
 export async function action({ request }: Route.ActionArgs) {
+  // 인증 확인
+  await requireAuth(request);
+  
   try {
     const body: AddToLibraryRequest = await request.json();
     const { filename, title, tags, description } = body;

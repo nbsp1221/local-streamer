@@ -1,7 +1,11 @@
 import type { Route } from "./+types/scan-incoming";
 import { scanIncomingFiles, ensureIncomingDirectory } from "~/services/file-manager.server";
+import { requireAuth } from "~/utils/auth.server";
 
-export async function loader({}: Route.LoaderArgs) {
+export async function loader({ request }: Route.LoaderArgs) {
+  // 인증 확인
+  await requireAuth(request);
+  
   try {
     // Ensure incoming directory exists
     await ensureIncomingDirectory();

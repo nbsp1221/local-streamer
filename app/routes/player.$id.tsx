@@ -7,8 +7,12 @@ import { VideoPlayer } from "~/components/VideoPlayer";
 import { RelatedVideos } from "~/components/RelatedVideos";
 import { useVideoLibrary } from "~/hooks/useVideoLibrary";
 import { getVideos } from "~/services/video-store.server";
+import { requireAuth } from "~/utils/auth.server";
 
-export async function loader({ params }: Route.LoaderArgs) {
+export async function loader({ request, params }: Route.LoaderArgs) {
+  // 서버사이드 인증 체크
+  await requireAuth(request);
+  
   const videos = await getVideos();
   return { videos };
 }

@@ -1,8 +1,9 @@
 import { Link } from "react-router";
-import { Search, Upload } from "lucide-react";
+import { Search, Upload, LogOut, User } from "lucide-react";
 import { Input } from "~/components/ui/input";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { useAuthUser, useAuthStore } from "~/stores/auth-store";
 
 interface NavBarProps {
   searchQuery: string;
@@ -11,6 +12,17 @@ interface NavBarProps {
 }
 
 export function NavBar({ searchQuery, onSearchChange, pendingCount = 0 }: NavBarProps) {
+  const user = useAuthUser();
+  const logout = useAuthStore((state) => state.logout);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
   return (
     <nav className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -37,8 +49,9 @@ export function NavBar({ searchQuery, onSearchChange, pendingCount = 0 }: NavBar
             </div>
           </div>
 
-          {/* 동영상 추가 아이콘 */}
-          <div className="flex items-center">
+          {/* 오른쪽 메뉴 */}
+          <div className="flex items-center space-x-2">
+            {/* 동영상 추가 아이콘 */}
             <Link to="/add-videos">
               <Button
                 variant="ghost"
@@ -56,6 +69,24 @@ export function NavBar({ searchQuery, onSearchChange, pendingCount = 0 }: NavBar
                 )}
               </Button>
             </Link>
+
+            {/* 사용자 정보 및 로그아웃 */}
+            {user && (
+              <>
+                <div className="hidden sm:flex items-center space-x-2 text-sm text-muted-foreground">
+                  <User className="h-4 w-4" />
+                  <span>{user.email}</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleLogout}
+                  title="Logout"
+                >
+                  <LogOut className="h-5 w-5" />
+                </Button>
+              </>
+            )}
           </div>
         </div>
 

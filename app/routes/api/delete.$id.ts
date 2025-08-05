@@ -1,7 +1,11 @@
 import type { Route } from "./+types/delete.$id";
 import { deleteVideo, findVideoById } from "~/services/video-store.server";
+import { requireAuth } from "~/utils/auth.server";
 
 export async function action({ request, params }: Route.ActionArgs) {
+  // 인증 확인
+  await requireAuth(request);
+  
   const { id } = params;
 
   // Only allow DELETE method

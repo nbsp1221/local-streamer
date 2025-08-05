@@ -6,9 +6,11 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Badge } from "~/components/ui/badge";
-import { Alert } from "~/components/ui/alert";
+import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Separator } from "~/components/ui/separator";
 import type { PendingVideo } from "~/types/video";
+import type { Route } from "./+types/add-videos";
+import { requireAuth } from "~/utils/auth.server";
 
 interface ScanResponse {
   success: boolean;
@@ -22,6 +24,12 @@ interface AddResponse {
   videoId?: string;
   message?: string;
   error?: string;
+}
+
+export async function loader({ request }: Route.LoaderArgs) {
+  // 서버사이드 인증 체크
+  await requireAuth(request);
+  return {};
 }
 
 export function meta() {
@@ -196,15 +204,19 @@ export default function AddVideos() {
         </div>
         {/* Alert Messages */}
         {error && (
-          <Alert className="mb-6 border-destructive">
-            <div className="text-destructive">{error}</div>
+          <Alert variant="destructive" className="mb-6">
+            <AlertDescription>
+              {error}
+            </AlertDescription>
           </Alert>
         )}
 
         {successMessage && (
           <Alert className="mb-6 border-green-500 bg-green-50 dark:bg-green-950">
             <Check className="h-4 w-4 text-green-600" />
-            <div className="text-green-700 dark:text-green-300">{successMessage}</div>
+            <AlertDescription className="text-green-700 dark:text-green-300">
+              {successMessage}
+            </AlertDescription>
           </Alert>
         )}
 

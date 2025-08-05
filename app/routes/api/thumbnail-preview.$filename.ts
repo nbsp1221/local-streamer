@@ -1,9 +1,13 @@
 import { createReadStream, existsSync, statSync } from 'fs';
 import { join } from 'path';
+import { requireAuth } from '~/utils/auth.server';
 
 const THUMBNAILS_DIR = join(process.cwd(), 'incoming', 'thumbnails');
 
-export async function loader({ params }: { params: { filename: string } }) {
+export async function loader({ request, params }: { request: Request; params: { filename: string } }) {
+  // 인증 확인
+  await requireAuth(request);
+  
   const { filename } = params;
   
   // Construct thumbnail path

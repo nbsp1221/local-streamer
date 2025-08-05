@@ -1,11 +1,15 @@
 import { createReadStream, existsSync, statSync } from 'fs';
 import { join } from 'path';
 import { findVideoById } from '~/services/video-store.server';
+import { requireAuth } from '~/utils/auth.server';
 
 // Default placeholder image path
 const PLACEHOLDER_IMAGE = '/images/video-placeholder.jpg';
 
-export async function loader({ params }: { params: { id: string } }) {
+export async function loader({ request, params }: { request: Request; params: { id: string } }) {
+  // 인증 확인
+  await requireAuth(request);
+  
   const { id } = params;
   
   // Find video information

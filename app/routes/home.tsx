@@ -7,9 +7,13 @@ import { VideoModal } from "~/components/VideoModal";
 import { TagFilter } from "~/components/TagFilter";
 import { useVideoLibrary } from "~/hooks/useVideoLibrary";
 import { getVideos, getPendingVideos } from "~/services/video-store.server";
+import { requireAuth } from "~/utils/auth.server";
 import type { Video, PendingVideo } from "~/types/video";
 
-export async function loader({}: Route.LoaderArgs) {
+export async function loader({ request }: Route.LoaderArgs) {
+  // 서버사이드 인증 체크
+  await requireAuth(request);
+  
   const [videos, pendingVideos] = await Promise.all([
     getVideos(),
     getPendingVideos()

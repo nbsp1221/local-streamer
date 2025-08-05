@@ -1,8 +1,12 @@
 import { createReadStream, statSync } from 'fs';
 import { join } from 'path';
 import { findVideoById } from '~/services/video-store.server';
+import { requireAuth } from '~/utils/auth.server';
 
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {
+  // 인증 확인
+  await requireAuth(request);
+  
   const { id } = params;
   
   // 비디오 정보 조회
