@@ -2,6 +2,7 @@ import { createReadStream, existsSync, statSync } from 'fs';
 import { join } from 'path';
 import { findVideoById } from '~/services/video-store.server';
 import { requireAuth } from '~/utils/auth.server';
+import { config } from '~/configs';
 
 // Default placeholder image path
 const PLACEHOLDER_IMAGE = '/images/video-placeholder.jpg';
@@ -19,7 +20,7 @@ export async function loader({ request, params }: { request: Request; params: { 
   }
 
   // Construct thumbnail path
-  const thumbnailPath = join(process.cwd(), 'data', 'videos', id, 'thumbnail.jpg');
+  const thumbnailPath = join(config.paths.videos, id, 'thumbnail.jpg');
   
   // Check if thumbnail exists
   if (!existsSync(thumbnailPath)) {

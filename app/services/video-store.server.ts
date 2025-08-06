@@ -2,10 +2,11 @@ import { promises as fs } from 'fs';
 import { existsSync } from 'fs';
 import path from 'path';
 import type { Video, PendingVideo } from '~/types/video';
+import { config } from '~/configs';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const VIDEOS_FILE = path.join(DATA_DIR, 'videos.json');
-const PENDING_FILE = path.join(DATA_DIR, 'pending.json');
+const DATA_DIR = config.paths.data;
+const VIDEOS_FILE = config.paths.videosJson;
+const PENDING_FILE = config.paths.pendingJson;
 
 // 디렉토리와 파일이 존재하는지 확인하고 없으면 생성
 async function ensureDataFiles() {

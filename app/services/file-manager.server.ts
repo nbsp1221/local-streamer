@@ -6,13 +6,14 @@ import { v4 as uuidv4 } from 'uuid';
 import ffmpegStatic from 'ffmpeg-static';
 import type { PendingVideo } from '~/types/video';
 import { generateSmartThumbnail } from './thumbnail-generator.server';
+import { config } from '~/configs';
 
-const INCOMING_DIR = path.join(process.cwd(), 'incoming');
-const THUMBNAILS_DIR = path.join(process.cwd(), 'incoming', 'thumbnails');
-const VIDEOS_DIR = path.join(process.cwd(), 'data', 'videos');
+const INCOMING_DIR = config.paths.incoming;
+const THUMBNAILS_DIR = config.paths.thumbnails;
+const VIDEOS_DIR = config.paths.videos;
 
 // Supported video formats
-const SUPPORTED_FORMATS = ['.mp4', '.avi', '.mkv', '.mov', '.webm', '.m4v', '.flv', '.wmv'];
+const SUPPORTED_FORMATS = config.constants.supportedVideoFormats;
 
 /**
  * Scan video files in the incoming folder and return list

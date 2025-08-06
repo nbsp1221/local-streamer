@@ -2,6 +2,7 @@ import { createReadStream, statSync } from 'fs';
 import { join } from 'path';
 import { findVideoById } from '~/services/video-store.server';
 import { requireAuth } from '~/utils/auth.server';
+import { config } from '~/configs';
 
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {
   // 인증 확인
@@ -22,7 +23,7 @@ export async function loader({ request, params }: { request: Request; params: { 
   }
 
   // 로컬 파일 경로 구성
-  const filePath = join(process.cwd(), video.videoUrl);
+  const filePath = join(config.paths.root, video.videoUrl);
   
   try {
     const stat = statSync(filePath);

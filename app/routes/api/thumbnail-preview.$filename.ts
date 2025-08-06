@@ -1,8 +1,9 @@
 import { createReadStream, existsSync, statSync } from 'fs';
 import { join } from 'path';
 import { requireAuth } from '~/utils/auth.server';
+import { config } from '~/configs';
 
-const THUMBNAILS_DIR = join(process.cwd(), 'incoming', 'thumbnails');
+const THUMBNAILS_DIR = config.paths.thumbnails;
 
 export async function loader({ request, params }: { request: Request; params: { filename: string } }) {
   // 인증 확인

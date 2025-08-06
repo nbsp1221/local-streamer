@@ -4,17 +4,13 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as argon2 from 'argon2';
 import type { User, CreateUserData, PublicUser } from '~/types/auth';
+import { config } from '~/configs';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const DATA_DIR = config.paths.data;
+const USERS_FILE = config.paths.usersJson;
 
 // Argon2 설정 (2025 권장 설정)
-const ARGON2_OPTIONS = {
-  type: argon2.argon2id,
-  memoryCost: 2 ** 16, // 64MB
-  timeCost: 3,         // 3 iterations
-  parallelism: 1,      // 1 thread
-};
+const ARGON2_OPTIONS = config.security.argon2;
 
 // 디렉토리와 파일이 존재하는지 확인하고 없으면 생성
 async function ensureDataFiles() {

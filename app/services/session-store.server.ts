@@ -3,21 +3,22 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import type { Session, CookieOptions } from '~/types/auth';
+import { config } from '~/configs';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+const DATA_DIR = config.paths.data;
+const SESSIONS_FILE = config.paths.sessionsJson;
 
 // 세션 설정
-const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7일 (밀리초)
-const SESSION_REFRESH_THRESHOLD = 4 * 24 * 60 * 60 * 1000; // 4일 (세션 갱신 기준)
+const SESSION_DURATION = config.security.session.duration;
+const SESSION_REFRESH_THRESHOLD = config.security.session.refreshThreshold;
 
-export const COOKIE_NAME = 'session_id';
+export const COOKIE_NAME = config.security.session.cookieName;
 
 // 쿠키 옵션 생성
 export function getCookieOptions(maxAge?: number): CookieOptions {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: config.server.isProduction,
     sameSite: 'lax',
     maxAge: maxAge || SESSION_DURATION / 1000, // 초 단위
     path: '/'

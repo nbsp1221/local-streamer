@@ -5,6 +5,7 @@ import { generateSmartThumbnail } from "~/services/thumbnail-generator.server";
 import { requireAuth } from "~/utils/auth.server";
 import type { Video } from "~/types/video";
 import path from "path";
+import { config } from "~/configs";
 
 interface AddToLibraryRequest {
   filename: string;
@@ -38,11 +39,11 @@ export async function action({ request }: Route.ActionArgs) {
     // Extract moved file information
     const ext = path.extname(filename);
     const newFilepath = `/data/videos/${videoId}/video${ext}`;
-    const videoInfo = await getVideoInfo(path.join(process.cwd(), 'data', 'videos', videoId, `video${ext}`));
+    const videoInfo = await getVideoInfo(path.join(config.paths.videos, videoId, `video${ext}`));
 
     // Handle thumbnail (try to move temp thumbnail first, generate if not available)
-    const videoPath = path.join(process.cwd(), 'data', 'videos', videoId, `video${ext}`);
-    const thumbnailPath = path.join(process.cwd(), 'data', 'videos', videoId, 'thumbnail.jpg');
+    const videoPath = path.join(config.paths.videos, videoId, `video${ext}`);
+    const thumbnailPath = path.join(config.paths.videos, videoId, 'thumbnail.jpg');
     
     // Try to move temporary thumbnail first
     const tempThumbnailMoved = await moveTempThumbnailToLibrary(filename, videoId);
