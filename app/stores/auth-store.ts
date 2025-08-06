@@ -40,7 +40,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       
       if (data.success && data.user) {
         set({ user: data.user, isAuthenticated: true });
-        // 성공적인 로그인 시 페이지 새로고침하여 최신 상태 반영
+        // Refresh page on successful login to reflect latest state
         window.location.href = '/';
         return { success: true };
       } else {

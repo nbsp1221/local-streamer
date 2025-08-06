@@ -27,7 +27,7 @@ export function NavBar({ searchQuery, onSearchChange, pendingCount = 0 }: NavBar
     <nav className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
-          {/* 로고 */}
+          {/* Logo */}
           <Link to="/" className="flex items-center space-x-3">
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
               <Upload className="h-5 w-5 text-primary-foreground" />
@@ -35,13 +35,13 @@ export function NavBar({ searchQuery, onSearchChange, pendingCount = 0 }: NavBar
             <h1 className="text-xl font-bold">Local Streamer</h1>
           </Link>
 
-          {/* 검색창 */}
+          {/* Search bar */}
           <div className="hidden md:flex flex-1 justify-center px-8">
             <div className="w-full max-w-lg relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="제목, 태그로 검색..."
+                placeholder="Search by title, tags..."
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 className="pl-10"
@@ -49,9 +49,9 @@ export function NavBar({ searchQuery, onSearchChange, pendingCount = 0 }: NavBar
             </div>
           </div>
 
-          {/* 오른쪽 메뉴 */}
+          {/* Right menu */}
           <div className="flex items-center space-x-2">
-            {/* 동영상 추가 아이콘 */}
+            {/* Add video icon */}
             <Link to="/add-videos">
               <Button
                 variant="ghost"
@@ -70,7 +70,7 @@ export function NavBar({ searchQuery, onSearchChange, pendingCount = 0 }: NavBar
               </Button>
             </Link>
 
-            {/* 사용자 정보 및 로그아웃 */}
+            {/* User info and logout */}
             {user && (
               <>
                 <div className="hidden sm:flex items-center space-x-2 text-sm text-muted-foreground">
@@ -90,13 +90,13 @@ export function NavBar({ searchQuery, onSearchChange, pendingCount = 0 }: NavBar
           </div>
         </div>
 
-        {/* 모바일 검색창 */}
+        {/* Mobile search bar */}
         <div className="md:hidden pb-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
-              placeholder="제목, 태그로 검색..."
+              placeholder="Search by title, tags..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="pl-10"

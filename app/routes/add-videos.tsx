@@ -27,7 +27,7 @@ interface AddResponse {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  // 서버사이드 인증 체크
+  // Server-side authentication check
   await requireAuth(request);
   return {};
 }

@@ -10,7 +10,7 @@ import { getVideos } from "~/services/video-store.server";
 import { requireAuth } from "~/utils/auth.server";
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  // 서버사이드 인증 체크
+  // Server-side authentication check
   await requireAuth(request);
   
   const videos = await getVideos();
@@ -19,8 +19,8 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
 export function meta({ params }: Route.MetaArgs) {
   return [
-    { title: `비디오 재생 - Local Streamer` },
-    { name: "description", content: "로컬 비디오 스트리밍" },
+    { title: `Video Player - Local Streamer` },
+    { name: "description", content: "Local video streaming" },
   ];
 }
 
@@ -29,10 +29,10 @@ export default function Player() {
   const { videos: initialVideos } = useLoaderData<typeof loader>();
   const { videos, toggleTagFilter } = useVideoLibrary(initialVideos);
   
-  // 현재 비디오 찾기
+  // Find current video
   const currentVideo = videos.find(video => video.id === id);
   
-  // 관련 비디오 (같은 태그 포함, 현재 비디오 제외)
+  // Related videos (same tags, excluding current video)
   const relatedVideos = videos
     .filter(video => 
       video.id !== id && 
@@ -44,9 +44,9 @@ export default function Player() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">비디오를 찾을 수 없습니다</h1>
+          <h1 className="text-2xl font-bold mb-2">Video not found</h1>
           <Link to="/">
-            <Button>홈으로 돌아가기</Button>
+            <Button>Back to Home</Button>
           </Link>
         </div>
       </div>
@@ -59,14 +59,14 @@ export default function Player() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* 상단 네비게이션 */}
+      {/* Top navigation */}
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center gap-4">
             <Link to="/">
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                라이브러리
+                Library
               </Button>
             </Link>
             <div className="flex-1" />
@@ -80,23 +80,23 @@ export default function Player() {
         </div>
       </div>
 
-      {/* 메인 컨텐츠 */}
+      {/* Main content */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          {/* 플레이어 및 정보 영역 */}
+          {/* Player and info area */}
           <div className="lg:col-span-2 space-y-4 lg:space-y-6">
-            {/* 비디오 플레이어 */}
+            {/* Video player */}
             <div className="aspect-video bg-black rounded-lg overflow-hidden">
               <VideoPlayer video={currentVideo} />
             </div>
 
-            {/* 비디오 정보 */}
+            {/* Video info */}
             <div className="space-y-3 lg:space-y-4">
               <h1 className="text-xl lg:text-2xl font-bold leading-tight">
                 {currentVideo.title}
               </h1>
 
-              {/* 태그들 */}
+              {/* Tags */}
               <div className="flex flex-wrap gap-1.5 lg:gap-2">
                 {currentVideo.tags.map((tag) => (
                   <Badge
@@ -110,27 +110,27 @@ export default function Player() {
                 ))}
               </div>
 
-              {/* 설명 */}
+              {/* Description */}
               {currentVideo.description && (
                 <div className="space-y-2">
-                  <h3 className="text-sm lg:text-base font-semibold">설명</h3>
+                  <h3 className="text-sm lg:text-base font-semibold">Description</h3>
                   <p className="text-sm lg:text-base text-muted-foreground leading-relaxed">
                     {currentVideo.description}
                   </p>
                 </div>
               )}
 
-              {/* 메타데이터 */}
+              {/* Metadata */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 lg:gap-4 text-sm text-muted-foreground">
                 <div>
-                  <span className="font-medium">재생시간:</span>
+                  <span className="font-medium">Duration:</span>
                   <span className="ml-2">
                     {Math.floor(currentVideo.duration / 60)}:
                     {(currentVideo.duration % 60).toString().padStart(2, '0')}
                   </span>
                 </div>
                 <div>
-                  <span className="font-medium">추가일:</span>
+                  <span className="font-medium">Added:</span>
                   <span className="ml-2">
                     {currentVideo.addedAt.toLocaleDateString()}
                   </span>
@@ -139,7 +139,7 @@ export default function Player() {
             </div>
           </div>
 
-          {/* 관련 비디오 사이드바 */}
+          {/* Related videos sidebar */}
           <div className="lg:col-span-1">
             <RelatedVideos videos={relatedVideos} onTagClick={handleTagClick} />
           </div>

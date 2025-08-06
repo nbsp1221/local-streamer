@@ -13,19 +13,19 @@ import {
 } from '~/services/session-store.server';
 import type { User, PublicUser } from '~/types/auth';
 
-// Request에서 사용자 정보 추출 (인증 필수)
+// Extract user info from request (authentication required)
 export async function requireAuth(request: Request): Promise<User> {
-  // 먼저 관리자 계정이 있는지 확인
+  // Check if admin account exists first
   const adminExists = await hasAdminUser();
   if (!adminExists) {
-    // 관리자가 없으면 설정 페이지로 리다이렉트
+    // Redirect to setup page if no admin exists
     throw redirect('/setup');
   }
 
   const user = await getOptionalUser(request);
   
   if (!user) {
-    // 현재 URL을 저장해서 로그인 후 돌아갈 수 있도록 함
+    // Save current URL to return after login
     const url = new URL(request.url);
     const redirectTo = url.pathname + url.search;
     const searchParams = new URLSearchParams([['redirectTo', redirectTo]]);
@@ -36,17 +36,17 @@ export async function requireAuth(request: Request): Promise<User> {
   return user;
 }
 
-// Request에서 사용자 정보 추출 (선택적)
+// Extract user info from request (optional)
 export async function getOptionalUser(request: Request): Promise<User | null> {
   const sessionId = getSessionIdFromRequest(request);
   if (!sessionId) return null;
   
   try {
-    // 세션 조회 및 자동 갱신
+    // Get session and auto-refresh
     const session = await refreshSession(sessionId);
     if (!session) return null;
     
-    // 사용자 정보 조회
+    // Get user info
     const user = await findUserById(session.userId);
     return user;
   } catch (error) {
@@ -55,26 +55,26 @@ export async function getOptionalUser(request: Request): Promise<User | null> {
   }
 }
 
-// 공개 사용자 정보 반환 (패스워드 해시 제외)
+// Return public user info (exclude password hash)
 export function toPublicUser(user: User): PublicUser {
   const { passwordHash, ...publicUser } = user;
   return publicUser;
 }
 
-// 사용자 세션 생성 및 쿠키 설정
+// Create user session and set cookie
 export async function createUserSession(
   user: User,
   request: Request,
   redirectTo: string = '/'
 ): Promise<Response> {
-  // User-Agent와 IP 주소 추출
+  // Extract User-Agent and IP address
   const userAgent = request.headers.get('User-Agent') || undefined;
   const ipAddress = getClientIP(request);
   
-  // 새 세션 생성
+  // Create new session
   const session = await createSession(user.id, userAgent, ipAddress);
   
-  // 쿠키 설정
+  // Set cookie
   const cookieOptions = getCookieOptions();
   const cookieString = serializeCookie(COOKIE_NAME, session.id, cookieOptions);
   
@@ -85,7 +85,7 @@ export async function createUserSession(
   });
 }
 
-// 로그아웃 처리
+// Handle logout
 export async function logout(request: Request, redirectTo: string = '/login'): Promise<Response> {
   const sessionId = getSessionIdFromRequest(request);
   
@@ -100,12 +100,12 @@ export async function logout(request: Request, redirectTo: string = '/login'): P
   });
 }
 
-// 초기 설정 필요 여부 확인
+// Check if initial setup is required
 export async function checkSetupRequired(): Promise<boolean> {
   return !(await hasAdminUser());
 }
 
-// 관리자 권한 확인
+// Verify admin privileges
 export async function requireAdmin(request: Request): Promise<User> {
   const user = await requireAuth(request);
   
@@ -116,7 +116,7 @@ export async function requireAdmin(request: Request): Promise<User> {
   return user;
 }
 
-// 현재 사용자 또는 관리자 권한 확인
+// Verify current user or admin privileges
 export async function requireOwnerOrAdmin(request: Request, targetUserId: string): Promise<User> {
   const user = await requireAuth(request);
   
@@ -127,9 +127,9 @@ export async function requireOwnerOrAdmin(request: Request, targetUserId: string
   return user;
 }
 
-// 클라이언트 IP 주소 추출
+// Extract client IP address
 export function getClientIP(request: Request): string | undefined {
-  // Reverse proxy headers 체크
+  // Check reverse proxy headers
   const forwarded = request.headers.get('X-Forwarded-For');
   if (forwarded) {
     return forwarded.split(',')[0].trim();
@@ -149,7 +149,7 @@ export function getClientIP(request: Request): string | undefined {
   return undefined;
 }
 
-// 세션 유효성 검사 (미들웨어용)
+// Validate session (for middleware)
 export async function validateSessionMiddleware(request: Request): Promise<{
   user: User | null;
   sessionValid: boolean;
@@ -168,7 +168,7 @@ export async function validateSessionMiddleware(request: Request): Promise<{
     
     const user = await findUserById(session.userId);
     if (!user) {
-      // 사용자가 삭제된 경우 세션도 삭제
+      // Delete session if user was deleted
       await deleteSession(sessionId);
       return { user: null, sessionValid: false };
     }
@@ -180,7 +180,7 @@ export async function validateSessionMiddleware(request: Request): Promise<{
   }
 }
 
-// API 응답 생성 헬퍼
+// API response helper
 export function createAuthResponse(success: boolean, data?: any, error?: string) {
   return Response.json({
     success,
@@ -189,7 +189,7 @@ export function createAuthResponse(success: boolean, data?: any, error?: string)
   });
 }
 
-// 인증 실패 응답 생성
+// Create unauthorized response
 export function createUnauthorizedResponse(message: string = 'Authentication required') {
   return Response.json(
     { success: false, error: message },
@@ -197,7 +197,7 @@ export function createUnauthorizedResponse(message: string = 'Authentication req
   );
 }
 
-// 권한 없음 응답 생성
+// Create forbidden response
 export function createForbiddenResponse(message: string = 'Insufficient permissions') {
   return Response.json(
     { success: false, error: message },
@@ -205,13 +205,13 @@ export function createForbiddenResponse(message: string = 'Insufficient permissi
   );
 }
 
-// 이메일 유효성 검사
+// Validate email
 export function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 }
 
-// 패스워드 강도 검사 (단순화)
+// Check password strength (simplified)
 export function isValidPassword(password: string): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
   
@@ -225,9 +225,9 @@ export function isValidPassword(password: string): { valid: boolean; errors: str
   };
 }
 
-// 로그인 실패 시 지연 (무차별 대입 공격 방어)
+// Add delay on login failure (brute force protection)
 export async function addLoginDelay(): Promise<void> {
-  // 500ms ~ 1500ms 랜덤 지연
+  // 500ms ~ 1500ms random delay
   const delay = Math.floor(Math.random() * 1000) + 500;
   await new Promise(resolve => setTimeout(resolve, delay));
 }

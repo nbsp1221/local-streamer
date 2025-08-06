@@ -6,7 +6,7 @@ const DATA_DIR = join(process.cwd(), 'data');
 const VIDEOS_FILE = join(DATA_DIR, 'videos.json');
 const PENDING_FILE = join(DATA_DIR, 'pending.json');
 
-// 예시 데이터
+// Sample data
 const sampleVideos = [
   {
     "id": "sample-1",
@@ -16,19 +16,19 @@ const sampleVideos = [
     "videoUrl": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
     "duration": 1800,
     "addedAt": new Date().toISOString(),
-    "description": "Local Streamer에 오신 것을 환영합니다!"
+    "description": "Welcome to Local Streamer!"
   }
 ];
 
 const samplePending = [];
 
-// 데이터 디렉토리 생성
+// Create data directory
 if (!existsSync(DATA_DIR)) {
   mkdirSync(DATA_DIR, { recursive: true });
   console.log('✅ Created data directory');
 }
 
-// JSON 파일 초기화 (기존 파일이 없는 경우만)
+// Initialize JSON files (only if existing files don't exist)
 if (!existsSync(VIDEOS_FILE)) {
   writeFileSync(VIDEOS_FILE, JSON.stringify(sampleVideos, null, 2));
   console.log('✅ Created videos.json with sample data');

@@ -11,7 +11,7 @@ export function VideoGrid({ videos, onQuickView, onTagClick }: VideoGridProps) {
   if (videos.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-muted-foreground">검색 결과가 없습니다.</p>
+        <p className="text-muted-foreground">No videos found.</p>
       </div>
     );
   }

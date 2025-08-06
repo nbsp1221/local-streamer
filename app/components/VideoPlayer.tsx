@@ -2,7 +2,7 @@ import { MediaPlayer, MediaProvider } from '@vidstack/react';
 import { defaultLayoutIcons, DefaultVideoLayout } from '@vidstack/react/player/layouts/default';
 import type { Video } from '~/types/video';
 
-// Vidstack 스타일 imports
+// Vidstack style imports
 import '@vidstack/react/player/styles/default/theme.css';
 import '@vidstack/react/player/styles/default/layouts/video.css';
 

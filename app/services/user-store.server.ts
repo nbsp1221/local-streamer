@@ -9,18 +9,18 @@ import { config } from '~/configs';
 const DATA_DIR = config.paths.data;
 const USERS_FILE = config.paths.usersJson;
 
-// Argon2 설정 (2025 권장 설정)
+// Argon2 configuration (2025 recommended settings)
 const ARGON2_OPTIONS = config.security.argon2;
 
-// 디렉토리와 파일이 존재하는지 확인하고 없으면 생성
+// Ensure directory and files exist, create if they don't
 async function ensureDataFiles() {
   try {
-    // 데이터 디렉토리 생성
+    // Create data directory
     if (!existsSync(DATA_DIR)) {
       await fs.mkdir(DATA_DIR, { recursive: true });
     }
 
-    // users.json 파일 생성
+    // Create users.json file
     if (!existsSync(USERS_FILE)) {
       await fs.writeFile(USERS_FILE, '[]', 'utf-8');
     }
@@ -30,14 +30,14 @@ async function ensureDataFiles() {
   }
 }
 
-// 사용자 목록 조회
+// Get all users
 export async function getUsers(): Promise<User[]> {
   try {
     await ensureDataFiles();
     const content = await fs.readFile(USERS_FILE, 'utf-8');
     const users = JSON.parse(content);
     
-    // Date 객체 복원
+    // Restore Date objects
     return users.map((user: any) => ({
       ...user,
       createdAt: new Date(user.createdAt),
@@ -49,12 +49,12 @@ export async function getUsers(): Promise<User[]> {
   }
 }
 
-// 사용자 목록 저장
+// Save users list
 export async function saveUsers(users: User[]): Promise<void> {
   try {
     await ensureDataFiles();
     
-    // Date 객체를 ISO 문자열로 변환
+    // Convert Date objects to ISO strings
     const serializedUsers = users.map(user => ({
       ...user,
       createdAt: user.createdAt.toISOString(),
@@ -68,7 +68,7 @@ export async function saveUsers(users: User[]): Promise<void> {
   }
 }
 
-// 패스워드 해싱
+// Hash password
 export async function hashPassword(password: string): Promise<string> {
   try {
     return await argon2.hash(password, ARGON2_OPTIONS);
@@ -78,7 +78,7 @@ export async function hashPassword(password: string): Promise<string> {
   }
 }
 
-// 패스워드 검증
+// Verify password
 export async function verifyPassword(hash: string, password: string): Promise<boolean> {
   try {
     return await argon2.verify(hash, password);
@@ -88,17 +88,17 @@ export async function verifyPassword(hash: string, password: string): Promise<bo
   }
 }
 
-// 새 사용자 생성
+// Create new user
 export async function createUser(userData: CreateUserData): Promise<User> {
   const users = await getUsers();
   
-  // 이메일 중복 체크
+  // Check for duplicate email
   const existingUser = users.find(user => user.email.toLowerCase() === userData.email.toLowerCase());
   if (existingUser) {
     throw new Error('User with this email already exists');
   }
   
-  // 패스워드 해싱
+  // Hash password
   const passwordHash = await hashPassword(userData.password);
   
   const newUser: User = {
@@ -116,25 +116,25 @@ export async function createUser(userData: CreateUserData): Promise<User> {
   return newUser;
 }
 
-// 이메일로 사용자 찾기
+// Find user by email
 export async function findUserByEmail(email: string): Promise<User | null> {
   const users = await getUsers();
   return users.find(user => user.email.toLowerCase() === email.toLowerCase()) || null;
 }
 
-// ID로 사용자 찾기
+// Find user by ID
 export async function findUserById(userId: string): Promise<User | null> {
   const users = await getUsers();
   return users.find(user => user.id === userId) || null;
 }
 
-// 공개 사용자 정보 반환 (패스워드 해시 제외)
+// Return public user info (exclude password hash)
 export function toPublicUser(user: User): PublicUser {
   const { passwordHash, ...publicUser } = user;
   return publicUser;
 }
 
-// 사용자 인증
+// Authenticate user
 export async function authenticateUser(email: string, password: string): Promise<User | null> {
   const user = await findUserByEmail(email);
   if (!user) {
@@ -145,13 +145,13 @@ export async function authenticateUser(email: string, password: string): Promise
   return isValid ? user : null;
 }
 
-// 관리자 사용자 존재 여부 확인
+// Check if admin user exists
 export async function hasAdminUser(): Promise<boolean> {
   const users = await getUsers();
   return users.some(user => user.role === 'admin');
 }
 
-// 사용자 업데이트
+// Update user
 export async function updateUser(userId: string, updates: Partial<Omit<User, 'id' | 'createdAt'>>): Promise<User | null> {
   const users = await getUsers();
   const userIndex = users.findIndex(user => user.id === userId);
@@ -160,7 +160,7 @@ export async function updateUser(userId: string, updates: Partial<Omit<User, 'id
     return null;
   }
   
-  // 패스워드 업데이트 시 해싱
+  // Hash password if updating
   if (updates.passwordHash && typeof updates.passwordHash === 'string') {
     updates.passwordHash = await hashPassword(updates.passwordHash);
   }
@@ -168,8 +168,8 @@ export async function updateUser(userId: string, updates: Partial<Omit<User, 'id
   const updatedUser = {
     ...users[userIndex],
     ...updates,
-    id: userId, // ID는 변경 불가
-    createdAt: users[userIndex].createdAt, // 생성일은 변경 불가
+    id: userId, // ID cannot be changed
+    createdAt: users[userIndex].createdAt, // Creation date cannot be changed
     updatedAt: new Date()
   };
   
@@ -179,7 +179,7 @@ export async function updateUser(userId: string, updates: Partial<Omit<User, 'id
   return updatedUser;
 }
 
-// 사용자 삭제
+// Delete user
 export async function deleteUser(userId: string): Promise<void> {
   const users = await getUsers();
   const filteredUsers = users.filter(user => user.id !== userId);

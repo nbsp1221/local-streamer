@@ -11,7 +11,7 @@ import { requireAuth } from "~/utils/auth.server";
 import type { Video, PendingVideo } from "~/types/video";
 
 export async function loader({ request }: Route.LoaderArgs) {
-  // 서버사이드 인증 체크
+  // Server-side authentication check
   await requireAuth(request);
   
   const [videos, pendingVideos] = await Promise.all([
@@ -27,8 +27,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "Local Streamer - 내 라이브러리" },
-    { name: "description", content: "개인 비디오 라이브러리" },
+    { title: "Local Streamer - My Library" },
+    { name: "description", content: "Personal video library" },
   ];
 }
 
@@ -89,30 +89,30 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* 네비게이션 바 */}
+      {/* Navigation bar */}
       <NavBar
         searchQuery={searchFilters.query}
         onSearchChange={updateSearchQuery}
         pendingCount={pendingVideos.length}
       />
 
-      {/* 메인 컨텐츠 */}
+      {/* Main content */}
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold mb-2">내 라이브러리</h1>
+          <h1 className="text-2xl font-bold mb-2">My Library</h1>
           <p className="text-muted-foreground">
-            총 {totalVideos}개의 비디오 • {videos.length}개 표시 중
+            Total {totalVideos} videos • Showing {videos.length}
           </p>
         </div>
 
-        {/* 태그 필터 */}
+        {/* Tag filter */}
         <TagFilter
           activeTags={searchFilters.tags}
           onTagRemove={toggleTagFilter}
           onClearAll={clearTagFilters}
         />
 
-        {/* 비디오 그리드 */}
+        {/* Video grid */}
         <div className="mt-6">
           <VideoGrid 
             videos={videos}
@@ -121,7 +121,7 @@ export default function Home() {
           />
         </div>
 
-        {/* 비디오 모달 */}
+        {/* Video modal */}
         <VideoModal
           video={selectedVideo}
           isOpen={isVideoModalOpen}

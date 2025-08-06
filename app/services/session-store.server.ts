@@ -8,32 +8,32 @@ import { config } from '~/configs';
 const DATA_DIR = config.paths.data;
 const SESSIONS_FILE = config.paths.sessionsJson;
 
-// 세션 설정
+// Session configuration
 const SESSION_DURATION = config.security.session.duration;
 const SESSION_REFRESH_THRESHOLD = config.security.session.refreshThreshold;
 
 export const COOKIE_NAME = config.security.session.cookieName;
 
-// 쿠키 옵션 생성
+// Create cookie options
 export function getCookieOptions(maxAge?: number): CookieOptions {
   return {
     httpOnly: true,
     secure: config.server.isProduction,
     sameSite: 'lax',
-    maxAge: maxAge || SESSION_DURATION / 1000, // 초 단위
+    maxAge: maxAge || SESSION_DURATION / 1000, // in seconds
     path: '/'
   };
 }
 
-// 디렉토리와 파일이 존재하는지 확인하고 없으면 생성
+// Ensure directory and files exist, create if they don't
 async function ensureDataFiles() {
   try {
-    // 데이터 디렉토리 생성
+    // Create data directory
     if (!existsSync(DATA_DIR)) {
       await fs.mkdir(DATA_DIR, { recursive: true });
     }
 
-    // sessions.json 파일 생성
+    // Create sessions.json file
     if (!existsSync(SESSIONS_FILE)) {
       await fs.writeFile(SESSIONS_FILE, '[]', 'utf-8');
     }
@@ -43,14 +43,14 @@ async function ensureDataFiles() {
   }
 }
 
-// 세션 목록 조회
+// Get all sessions
 export async function getSessions(): Promise<Session[]> {
   try {
     await ensureDataFiles();
     const content = await fs.readFile(SESSIONS_FILE, 'utf-8');
     const sessions = JSON.parse(content);
     
-    // Date 객체 복원
+    // Restore Date objects
     return sessions.map((session: any) => ({
       ...session,
       createdAt: new Date(session.createdAt),
@@ -62,12 +62,12 @@ export async function getSessions(): Promise<Session[]> {
   }
 }
 
-// 세션 목록 저장
+// Save sessions list
 export async function saveSessions(sessions: Session[]): Promise<void> {
   try {
     await ensureDataFiles();
     
-    // Date 객체를 ISO 문자열로 변환
+    // Convert Date objects to ISO strings
     const serializedSessions = sessions.map(session => ({
       ...session,
       createdAt: session.createdAt.toISOString(),
@@ -81,7 +81,7 @@ export async function saveSessions(sessions: Session[]): Promise<void> {
   }
 }
 
-// 만료된 세션 정리
+// Clean up expired sessions
 export async function cleanupExpiredSessions(): Promise<void> {
   const sessions = await getSessions();
   const now = new Date();
@@ -93,13 +93,13 @@ export async function cleanupExpiredSessions(): Promise<void> {
   }
 }
 
-// 새 세션 생성
+// Create new session
 export async function createSession(
   userId: string,
   userAgent?: string,
   ipAddress?: string
 ): Promise<Session> {
-  // 먼저 만료된 세션들을 정리
+  // Clean up expired sessions first
   await cleanupExpiredSessions();
   
   const sessions = await getSessions();
@@ -120,7 +120,7 @@ export async function createSession(
   return newSession;
 }
 
-// 세션 조회
+// Get session
 export async function getSession(sessionId: string): Promise<Session | null> {
   if (!sessionId) return null;
   
@@ -129,7 +129,7 @@ export async function getSession(sessionId: string): Promise<Session | null> {
   
   if (!session) return null;
   
-  // 세션 만료 확인
+  // Check session expiration
   if (session.expiresAt <= new Date()) {
     await deleteSession(sessionId);
     return null;
@@ -138,7 +138,7 @@ export async function getSession(sessionId: string): Promise<Session | null> {
   return session;
 }
 
-// 사용자 ID로 세션들 조회
+// Get sessions by user ID
 export async function getSessionsByUserId(userId: string): Promise<Session[]> {
   const sessions = await getSessions();
   const now = new Date();
@@ -148,7 +148,7 @@ export async function getSessionsByUserId(userId: string): Promise<Session[]> {
   );
 }
 
-// 세션 갱신 (만료 시간 연장)
+// Refresh session (extend expiration time)
 export async function refreshSession(sessionId: string): Promise<Session | null> {
   const sessions = await getSessions();
   const sessionIndex = sessions.findIndex(s => s.id === sessionId);
@@ -158,13 +158,13 @@ export async function refreshSession(sessionId: string): Promise<Session | null>
   const session = sessions[sessionIndex];
   const now = new Date();
   
-  // 세션이 만료되었으면 null 반환
+  // Return null if session expired
   if (session.expiresAt <= now) {
     await deleteSession(sessionId);
     return null;
   }
   
-  // 세션 갱신이 필요한지 확인 (남은 시간이 4일 미만인 경우)
+  // Check if session needs refresh (less than 4 days remaining)
   const timeUntilExpiry = session.expiresAt.getTime() - now.getTime();
   if (timeUntilExpiry < SESSION_REFRESH_THRESHOLD) {
     session.expiresAt = new Date(now.getTime() + SESSION_DURATION);
@@ -176,21 +176,21 @@ export async function refreshSession(sessionId: string): Promise<Session | null>
   return session;
 }
 
-// 세션 삭제
+// Delete session
 export async function deleteSession(sessionId: string): Promise<void> {
   const sessions = await getSessions();
   const filteredSessions = sessions.filter(session => session.id !== sessionId);
   await saveSessions(filteredSessions);
 }
 
-// 사용자의 모든 세션 삭제
+// Delete all user sessions
 export async function deleteUserSessions(userId: string): Promise<void> {
   const sessions = await getSessions();
   const filteredSessions = sessions.filter(session => session.userId !== userId);
   await saveSessions(filteredSessions);
 }
 
-// 세션 유효성 검증 (추가 보안 체크)
+// Validate session (additional security checks)
 export async function validateSession(
   sessionId: string,
   userAgent?: string,
@@ -200,18 +200,18 @@ export async function validateSession(
   
   if (!session) return null;
   
-  // 선택적: User-Agent 검증 (보안 강화)
+  // Optional: User-Agent validation (security enhancement)
   if (session.userAgent && userAgent && session.userAgent !== userAgent) {
     console.warn(`Session ${sessionId}: User-Agent mismatch`);
-    // 엄격한 보안이 필요한 경우 세션 무효화
+    // Invalidate session if strict security is required
     // await deleteSession(sessionId);
     // return null;
   }
   
-  // 선택적: IP 주소 검증 (보안 강화)
+  // Optional: IP address validation (security enhancement)
   if (session.ipAddress && ipAddress && session.ipAddress !== ipAddress) {
     console.warn(`Session ${sessionId}: IP address mismatch`);
-    // 엄격한 보안이 필요한 경우 세션 무효화
+    // Invalidate session if strict security is required
     // await deleteSession(sessionId);
     // return null;
   }
@@ -219,7 +219,7 @@ export async function validateSession(
   return session;
 }
 
-// 쿠키 문자열 생성
+// Create cookie string
 export function serializeCookie(name: string, value: string, options: CookieOptions): string {
   let cookie = `${name}=${value}`;
   
@@ -246,7 +246,7 @@ export function serializeCookie(name: string, value: string, options: CookieOpti
   return cookie;
 }
 
-// 쿠키 삭제용 문자열 생성
+// Create delete cookie string
 export function getDeleteCookieString(name: string): string {
   return serializeCookie(name, '', {
     ...getCookieOptions(),
@@ -254,7 +254,7 @@ export function getDeleteCookieString(name: string): string {
   });
 }
 
-// Request에서 세션 ID 추출
+// Extract session ID from request
 export function getSessionIdFromRequest(request: Request): string | null {
   const cookieHeader = request.headers.get('Cookie');
   if (!cookieHeader) return null;

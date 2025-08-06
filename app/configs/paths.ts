@@ -9,7 +9,7 @@ export const paths = {
   videos: path.join(ROOT_DIR, 'data', 'videos'),
   thumbnails: path.join(ROOT_DIR, 'incoming', 'thumbnails'),
   
-  // JSON 파일들
+  // JSON files
   videosJson: path.join(ROOT_DIR, 'data', 'videos.json'),
   usersJson: path.join(ROOT_DIR, 'data', 'users.json'),
   sessionsJson: path.join(ROOT_DIR, 'data', 'sessions.json'),

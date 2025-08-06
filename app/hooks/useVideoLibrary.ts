@@ -9,15 +9,15 @@ export function useVideoLibrary(initialVideos: Video[] = [], initialPendingVideo
     tags: []
   });
 
-  // 필터링된 비디오 목록
+  // Filtered video list
   const filteredVideos = useMemo(() => {
     return videos.filter(video => {
-      // 검색어 필터링
+      // Query filtering
       const matchesQuery = !searchFilters.query || 
         video.title.toLowerCase().includes(searchFilters.query.toLowerCase()) ||
         video.tags.some(tag => tag.toLowerCase().includes(searchFilters.query.toLowerCase()));
 
-      // 태그 필터링
+      // Tag filtering
       const matchesTags = searchFilters.tags.length === 0 ||
         searchFilters.tags.every(filterTag => 
           video.tags.some(videoTag => videoTag.toLowerCase() === filterTag.toLowerCase())
@@ -27,12 +27,12 @@ export function useVideoLibrary(initialVideos: Video[] = [], initialPendingVideo
     });
   }, [videos, searchFilters]);
 
-  // 검색어 업데이트
+  // Update search query
   const updateSearchQuery = (query: string) => {
     setSearchFilters(prev => ({ ...prev, query }));
   };
 
-  // 태그 필터 토글
+  // Toggle tag filter
   const toggleTagFilter = (tag: string) => {
     setSearchFilters(prev => ({
       ...prev,
@@ -42,12 +42,12 @@ export function useVideoLibrary(initialVideos: Video[] = [], initialPendingVideo
     }));
   };
 
-  // 태그 필터 초기화
+  // Clear tag filters
   const clearTagFilters = () => {
     setSearchFilters(prev => ({ ...prev, tags: [] }));
   };
 
-  // 비디오 추가 (더미 구현)
+  // Add video (dummy implementation)
   const addVideo = (pendingVideo: PendingVideo, metadata: { title: string; tags: string[] }) => {
     const newVideo: Video = {
       id: crypto.randomUUID(),
@@ -55,9 +55,9 @@ export function useVideoLibrary(initialVideos: Video[] = [], initialPendingVideo
       tags: metadata.tags,
       thumbnailUrl: `https://images.unsplash.com/photo-${Math.floor(Math.random() * 1000000000)}?w=600&h=400&fit=crop`,
       videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-      duration: Math.floor(Math.random() * 3600) + 300, // 5분-65분 랜덤
+      duration: Math.floor(Math.random() * 3600) + 300, // 5-65 minutes random
       addedAt: new Date(),
-      description: `${metadata.title}에 대한 설명`,
+      description: `Description for ${metadata.title}`,
       format: 'mp4'
     };
 
@@ -65,12 +65,12 @@ export function useVideoLibrary(initialVideos: Video[] = [], initialPendingVideo
     setPendingVideos(prev => prev.filter(pv => pv.filename !== pendingVideo.filename));
   };
 
-  // 비디오 찾기
+  // Find video
   const findVideoById = (id: string): Video | undefined => {
     return videos.find(video => video.id === id);
   };
 
-  // 비디오 삭제
+  // Delete video
   const deleteVideo = async (videoId: string): Promise<void> => {
     try {
       const response = await fetch(`/api/delete/${videoId}`, {
@@ -83,7 +83,7 @@ export function useVideoLibrary(initialVideos: Video[] = [], initialPendingVideo
         throw new Error(result.error || 'Failed to delete video');
       }
 
-      // 삭제 성공 시 로컬 상태에서 제거
+      // Remove from local state on successful deletion
       setVideos(prev => prev.filter(video => video.id !== videoId));
       
       console.log(`Video deleted successfully: ${result.title} (${videoId})`);

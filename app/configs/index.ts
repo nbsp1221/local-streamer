@@ -5,7 +5,7 @@ import { server } from './server';
 
 export { paths, security, constants, server };
 
-// 전체 설정을 하나의 객체로 export
+// Export all configs as a single object
 export const config = {
   paths,
   security,

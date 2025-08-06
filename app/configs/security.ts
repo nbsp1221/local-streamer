@@ -2,8 +2,8 @@ import * as argon2 from 'argon2';
 
 export const security = {
   session: {
-    duration: 7 * 24 * 60 * 60 * 1000, // 7일 (밀리초)
-    refreshThreshold: 4 * 24 * 60 * 60 * 1000, // 4일 (세션 갱신 기준)
+    duration: 7 * 24 * 60 * 60 * 1000, // 7 days (milliseconds)
+    refreshThreshold: 4 * 24 * 60 * 60 * 1000, // 4 days (session refresh threshold)
     cookieName: 'session_id',
   },
   

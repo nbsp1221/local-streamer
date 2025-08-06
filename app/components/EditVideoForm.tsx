@@ -17,9 +17,9 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 const formSchema = z.object({
-  title: z.string().min(1, "제목은 필수입니다").max(200, "제목은 200자 이내로 입력하세요"),
+  title: z.string().min(1, "Title is required").max(200, "Title must be within 200 characters"),
   tags: z.string(),
-  description: z.string().max(1000, "설명은 1000자 이내로 입력하세요").optional(),
+  description: z.string().max(1000, "Description must be within 1000 characters").optional(),
 });
 
 type FormData = {
@@ -68,9 +68,9 @@ export function EditVideoForm({ video, onSave, onCancel }: EditVideoFormProps) {
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>제목</FormLabel>
+              <FormLabel>Title</FormLabel>
               <FormControl>
-                <Input placeholder="비디오 제목을 입력하세요" {...field} />
+                <Input placeholder="Enter video title" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -82,10 +82,10 @@ export function EditVideoForm({ video, onSave, onCancel }: EditVideoFormProps) {
           name="tags"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>태그</FormLabel>
+              <FormLabel>Tags</FormLabel>
               <FormControl>
                 <Input 
-                  placeholder="태그를 쉼표로 구분하여 입력하세요 (예: 액션, 코미디)" 
+                  placeholder="Enter tags separated by commas (e.g., action, comedy)" 
                   {...field} 
                 />
               </FormControl>
@@ -99,10 +99,10 @@ export function EditVideoForm({ video, onSave, onCancel }: EditVideoFormProps) {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>설명 (선택)</FormLabel>
+              <FormLabel>Description (optional)</FormLabel>
               <FormControl>
                 <Textarea 
-                  placeholder="비디오에 대한 설명을 입력하세요" 
+                  placeholder="Enter video description" 
                   className="resize-none"
                   rows={4}
                   {...field} 
@@ -115,16 +115,16 @@ export function EditVideoForm({ video, onSave, onCancel }: EditVideoFormProps) {
         
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
-            취소
+            Cancel
           </Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                저장 중...
+                Saving...
               </>
             ) : (
-              '저장'
+              'Save'
             )}
           </Button>
         </div>

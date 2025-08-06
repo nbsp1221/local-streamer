@@ -25,7 +25,7 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
   }
   
   try {
-    // 이미 관리자가 있는지 확인
+    // Check if admin already exists
     const adminExists = await hasAdminUser();
     if (adminExists) {
       return Response.json(
@@ -34,11 +34,11 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
       );
     }
     
-    // 요청 데이터 파싱
+    // Parse request data
     const formData = await request.json();
     const { email, password } = formData;
     
-    // 입력값 검증
+    // Validate input values
     if (!email || !password) {
       return Response.json(
         { success: false, error: 'Email and password are required' },
@@ -46,7 +46,7 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
       );
     }
     
-    // 이메일 유효성 검사
+    // Email validation check
     if (!isValidEmail(email)) {
       return Response.json(
         { success: false, error: 'Invalid email address' },

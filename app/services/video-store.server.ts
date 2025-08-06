@@ -8,20 +8,20 @@ const DATA_DIR = config.paths.data;
 const VIDEOS_FILE = config.paths.videosJson;
 const PENDING_FILE = config.paths.pendingJson;
 
-// 디렉토리와 파일이 존재하는지 확인하고 없으면 생성
+// Ensure directory and files exist, create if they don't
 async function ensureDataFiles() {
   try {
-    // 데이터 디렉토리 생성
+    // Create data directory
     if (!existsSync(DATA_DIR)) {
       await fs.mkdir(DATA_DIR, { recursive: true });
     }
 
-    // videos.json 파일 생성
+    // Create videos.json file
     if (!existsSync(VIDEOS_FILE)) {
       await fs.writeFile(VIDEOS_FILE, '[]', 'utf-8');
     }
 
-    // pending.json 파일 생성
+    // Create pending.json file
     if (!existsSync(PENDING_FILE)) {
       await fs.writeFile(PENDING_FILE, '[]', 'utf-8');
     }
@@ -31,14 +31,14 @@ async function ensureDataFiles() {
   }
 }
 
-// 비디오 목록 조회
+// Get video list
 export async function getVideos(): Promise<Video[]> {
   try {
     await ensureDataFiles();
     const content = await fs.readFile(VIDEOS_FILE, 'utf-8');
     const videos = JSON.parse(content);
     
-    // Date 객체 복원
+    // Restore Date objects
     return videos.map((video: any) => ({
       ...video,
       addedAt: new Date(video.addedAt)
@@ -49,12 +49,12 @@ export async function getVideos(): Promise<Video[]> {
   }
 }
 
-// 비디오 목록 저장
+// Save video list
 export async function saveVideos(videos: Video[]): Promise<void> {
   try {
     await ensureDataFiles();
     
-    // Date 객체를 ISO 문자열로 변환
+    // Convert Date objects to ISO strings
     const serializedVideos = videos.map(video => ({
       ...video,
       addedAt: video.addedAt.toISOString()
@@ -67,7 +67,7 @@ export async function saveVideos(videos: Video[]): Promise<void> {
   }
 }
 
-// 대기 중인 비디오 목록 조회
+// Get pending videos list
 export async function getPendingVideos(): Promise<PendingVideo[]> {
   try {
     await ensureDataFiles();
@@ -79,7 +79,7 @@ export async function getPendingVideos(): Promise<PendingVideo[]> {
   }
 }
 
-// 대기 중인 비디오 목록 저장
+// Save pending videos list
 export async function savePendingVideos(pendingVideos: PendingVideo[]): Promise<void> {
   try {
     await ensureDataFiles();
@@ -90,14 +90,14 @@ export async function savePendingVideos(pendingVideos: PendingVideo[]): Promise<
   }
 }
 
-// 새 비디오 추가
+// Add new video
 export async function addVideo(video: Video): Promise<void> {
   const videos = await getVideos();
-  videos.unshift(video); // 최신 비디오를 맨 앞에 추가
+  videos.unshift(video); // Add newest video to the front
   await saveVideos(videos);
 }
 
-// 비디오 삭제
+// Delete video
 export async function deleteVideo(videoId: string): Promise<void> {
   // Import deleteVideoFiles function
   const { deleteVideoFiles } = await import('./file-manager.server');
@@ -118,13 +118,13 @@ export async function deleteVideo(videoId: string): Promise<void> {
   }
 }
 
-// 비디오 찾기
+// Find video
 export async function findVideoById(videoId: string): Promise<Video | null> {
   const videos = await getVideos();
   return videos.find(video => video.id === videoId) || null;
 }
 
-// 비디오 업데이트
+// Update video
 export async function updateVideo(videoId: string, updates: Partial<Omit<Video, 'id' | 'addedAt'>>): Promise<Video | null> {
   const videos = await getVideos();
   const videoIndex = videos.findIndex(video => video.id === videoId);
@@ -133,12 +133,12 @@ export async function updateVideo(videoId: string, updates: Partial<Omit<Video, 
     return null;
   }
   
-  // 기존 비디오 정보에 업데이트 병합
+  // Merge updates with existing video info
   const updatedVideo = {
     ...videos[videoIndex],
     ...updates,
-    id: videoId, // ID는 변경 불가
-    addedAt: videos[videoIndex].addedAt // 추가 날짜는 변경 불가
+    id: videoId, // ID cannot be changed
+    addedAt: videos[videoIndex].addedAt // Added date cannot be changed
   };
   
   videos[videoIndex] = updatedVideo;

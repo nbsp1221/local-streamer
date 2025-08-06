@@ -33,10 +33,10 @@ export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
 
   return (
     <div className="group relative">
-      {/* 메인 링크 영역 */}
+      {/* Main link area */}
       <Link to={`/player/${video.id}`} className="block">
         <div className="space-y-3">
-          {/* 썸네일 영역 */}
+          {/* Thumbnail area */}
           <div className="relative overflow-hidden rounded-lg bg-muted">
             <AspectRatio ratio={16 / 9}>
               <img
@@ -46,20 +46,20 @@ export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
                 loading="lazy"
               />
               
-              {/* 재생 버튼 오버레이 */}
+              {/* Play button overlay */}
               <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-black">
                   <Play className="h-5 w-5 fill-current" />
                 </div>
               </div>
               
-              {/* 재생시간 배지 */}
+              {/* Duration badge */}
               <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-black/80 px-1.5 py-0.5 text-xs text-white">
                 <Clock className="h-3 w-3" />
                 {formatDuration(video.duration)}
               </div>
               
-              {/* 퀵뷰 버튼 */}
+              {/* Quick view button */}
               {onQuickView && (
                 <div className="absolute top-2 right-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                   <Button
@@ -75,13 +75,13 @@ export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
             </AspectRatio>
           </div>
 
-          {/* 비디오 정보 */}
+          {/* Video info */}
           <div className="space-y-2">
             <h3 className="font-semibold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
               {video.title}
             </h3>
             
-            {/* 추가된 날짜 */}
+            {/* Added date */}
             <p className="text-xs text-muted-foreground">
               {video.addedAt.toLocaleDateString()}
             </p>
@@ -89,7 +89,7 @@ export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
         </div>
       </Link>
       
-      {/* 태그들 - Link 외부에 배치 */}
+      {/* Tags - placed outside Link */}
       <div className="flex flex-wrap gap-1 mt-2">
         {video.tags.slice(0, 3).map((tag) => (
           <Badge 
