@@ -100,14 +100,18 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
       }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <div className="flex items-center justify-between">
-              <DialogTitle className="text-lg font-semibold line-clamp-2">
+            <div className="space-y-3">
+              <DialogTitle className="text-lg font-semibold line-clamp-2 pr-8">
                 {isEditMode ? 'Edit Video Information' : video.title}
               </DialogTitle>
+              
               {!isEditMode && onUpdate && (
-                <Button variant="outline" size="sm" onClick={handleEditClick}>
-                  <Edit className="h-4 w-4" />
-                </Button>
+                <div className="flex justify-start">
+                  <Button variant="ghost" size="sm" onClick={handleEditClick}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Info
+                  </Button>
+                </div>
               )}
             </div>
             <DialogDescription className="sr-only">
@@ -193,19 +197,21 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
 
             {/* Action buttons */}
             <div className="flex gap-3 pt-4 border-t">
-              <Link to={`/player/${video.id}`} onClick={onClose} className="flex-1">
-                <Button className="w-full" size="lg">
+              <Button asChild className="flex-1" size="default">
+                <Link to={`/player/${video.id}`} onClick={onClose}>
                   <Play className="mr-2 h-4 w-4" />
                   Watch
-                </Button>
-              </Link>
+                </Link>
+              </Button>
+              
               {onDelete && (
-                <Button variant="destructive" onClick={handleDeleteClick}>
+                <Button variant="destructive" size="default" onClick={handleDeleteClick}>
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete
                 </Button>
               )}
-              <Button variant="outline" onClick={onClose}>
+              
+              <Button variant="outline" size="default" onClick={onClose}>
                 <X className="mr-2 h-4 w-4" />
                 Close
               </Button>
