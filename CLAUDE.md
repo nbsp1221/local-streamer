@@ -43,7 +43,7 @@ The PRD.md outlines a comprehensive video streaming platform with:
 - File management system with preparation folder and library folder
 - UUID-based file identification and XOR encryption for protection
 - YouTube-inspired UI/UX for library browsing and video playback
-- Docker deployment with PC agent for file monitoring
+- Docker deployment with backend service for file management
 
 ## Development Notes
 
@@ -52,6 +52,10 @@ The PRD.md outlines a comprehensive video streaming platform with:
 - TailwindCSS is integrated via Vite plugin
 - The app includes proper error boundaries and meta/link functions
 - Font loading uses Google Fonts (Inter)
+
+### Language Policy
+- **Web UI and source code**: English only (user-facing text, component names, variable names, comments)
+- **Documentation files**: Korean is acceptable (PRD.md, implementation plans, etc.)
 
 ## Git Commit Convention
 
