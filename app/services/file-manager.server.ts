@@ -91,6 +91,25 @@ export async function scanIncomingFiles(): Promise<PendingVideo[]> {
  * Move file from incoming to videos directory with encryption and rename with UUID
  */
 export async function moveToLibrary(filename: string): Promise<string> {
+  // Validate filename to prevent path traversal attacks
+  if (!filename || typeof filename !== 'string') {
+    throw new Error('Invalid filename: filename must be a non-empty string');
+  }
+  
+  // Check for path traversal sequences and directory separators
+  if (filename.includes('..') || 
+      filename.includes('/') || 
+      filename.includes('\\') || 
+      filename.includes('\0') ||
+      path.isAbsolute(filename)) {
+    throw new Error('Invalid filename: path traversal or absolute paths not allowed');
+  }
+  
+  // Ensure filename doesn't start with special characters
+  if (filename.startsWith('.') || filename.startsWith('-')) {
+    throw new Error('Invalid filename: cannot start with . or -');
+  }
+  
   const sourcePath = path.join(INCOMING_DIR, filename);
   
   // Check if source file exists
