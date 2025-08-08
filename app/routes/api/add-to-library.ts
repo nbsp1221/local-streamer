@@ -1,11 +1,11 @@
 import type { Route } from "./+types/add-to-library";
 import { moveToLibrary, getVideoInfo, ensureVideosDirectory, moveTempThumbnailToLibrary } from "~/services/file-manager.server";
 import { addVideo } from "~/services/video-store.server";
-import { generateSmartThumbnail } from "~/services/thumbnail-generator.server";
 import { requireAuth } from "~/utils/auth.server";
 import type { Video } from "~/types/video";
 import path from "path";
 import { config } from "~/configs";
+import { security } from "~/configs/security";
 
 interface AddToLibraryRequest {
   filename: string;
@@ -38,29 +38,28 @@ export async function action({ request }: Route.ActionArgs) {
     
     // Extract moved file information
     const ext = path.extname(filename);
-    const newFilepath = `/data/videos/${videoId}/video${ext}`;
-    const videoInfo = await getVideoInfo(path.join(config.paths.videos, videoId, `video${ext}`));
+    const newFilepath = `/data/videos/${videoId}/video${ext}`; // Keep original format for database
+    
+    // Get video info from encrypted file
+    const encryptedFilename = `video${security.encryption.encryptedExtension}${ext}`;
+    const encryptedVideoPath = path.join(config.paths.videos, videoId, encryptedFilename);
+    const videoInfo = await getVideoInfo(encryptedVideoPath);
 
     // Handle thumbnail (try to move temp thumbnail first, generate if not available)
-    const videoPath = path.join(config.paths.videos, videoId, `video${ext}`);
     const thumbnailPath = path.join(config.paths.videos, videoId, 'thumbnail.jpg');
     
     // Try to move temporary thumbnail first
     const tempThumbnailMoved = await moveTempThumbnailToLibrary(filename, videoId);
     
     if (!tempThumbnailMoved) {
-      // No temporary thumbnail available, generate new one in background
-      generateSmartThumbnail(videoPath, thumbnailPath)
-        .then((result) => {
-          if (result.success) {
-            console.log(`✅ Thumbnail generated for video: ${title}`);
-          } else {
-            console.log(`⚠️ Failed to generate thumbnail for video: ${title}`, result.error);
-          }
-        })
-        .catch((error) => {
-          console.error(`❌ Unexpected error generating thumbnail for video: ${title}`, error);
-        });
+      // No temporary thumbnail available
+      // Note: Encrypted files can't be processed by FFmpeg directly
+      // TODO: Implement thumbnail generation with temporary decryption if needed
+      console.log(`⚠️ Skipping thumbnail generation for encrypted video: ${title} (${videoId})`);
+      console.log(`   Consider generating thumbnails before encryption or implementing decryption support`);
+      
+      // For now, skip thumbnail generation for encrypted files
+      // Future: implement temporary decryption for FFmpeg processing
     }
 
     // Create Video object
