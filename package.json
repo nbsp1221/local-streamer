@@ -7,6 +7,9 @@
     "dev": "react-router dev",
     "init-data": "node scripts/init-data.js",
     "start": "react-router-serve ./build/server/index.js",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {
@@ -42,11 +45,13 @@
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@types/uuid": "^10.0.0",
+    "@vitest/ui": "^3.2.4",
     "tailwindcss": "^4.1.4",
     "tw-animate-css": "^1.3.6",
     "typescript": "^5.8.3",
     "vite": "^6.3.3",
-    "vite-tsconfig-paths": "^5.1.4"
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.4"
   },
   "packageManager": "bun@1.2.17"
 }
