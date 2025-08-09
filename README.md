@@ -1,87 +1,96 @@
-# Welcome to React Router!
+# Local Streamer
 
-A modern, production-ready template for building full-stack React applications using React Router.
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+Personal media server application for streaming local video files through a web interface. Built with React Router v7 and pure Bun runtime.
 
 ## Features
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+- 🎬 Stream local video files through web browser
+- 🔐 User authentication and session management
+- 📁 File management with preparation and library folders
+- 🔒 XOR encryption for video file protection
+- 🎨 YouTube-inspired UI for video browsing
+- ⚡ Pure Bun runtime for maximum performance
 
 ## Getting Started
 
-### Installation
-
-Install the dependencies:
-
-```bash
-npm install
-```
-
 ### Development
 
-Start the development server with HMR:
+```bash
+# Install dependencies
+bun install
+
+# Start development server
+bun dev
+```
+
+Access at http://localhost:5173
+
+### Production
 
 ```bash
-npm run dev
+# Build application
+bun run build
+
+# Start production server
+bun start
 ```
 
-Your application will be available at `http://localhost:5173`.
+## Docker Deployment
 
-## Building for Production
-
-Create a production build:
+### Quick Start
 
 ```bash
-npm run build
+# Start the application
+docker-compose up -d
+
+# Access at http://localhost:3000
 ```
 
-## Deployment
+### Features
 
-### Docker Deployment
+✅ **Pure Bun runtime** - Fast, modern JavaScript runtime  
+✅ **Security hardened** - Non-root user, minimal capabilities  
+✅ **Health monitoring** - Auto-restart on failure  
+✅ **Persistent storage** - Data and videos preserved  
 
-To build and run using Docker:
+### Volumes
+
+- `./data` - Application data and JSON files
+- `./incoming` - Video upload staging area
+
+### Commands
 
 ```bash
-docker build -t my-app .
+# Start
+docker-compose up -d
 
-# Run the container
-docker run -p 3000:3000 my-app
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down
+
+# Update
+docker-compose pull && docker-compose up -d
 ```
 
-The containerized application can be deployed to any platform that supports Docker, including:
+### Environment
 
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
+Create `.env` file for customization (optional):
 
-### DIY Deployment
-
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
+```bash
+cp .env.example .env
 ```
 
-## Styling
+## Technology Stack
 
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
+- **Frontend**: React Router v7 with SSR
+- **Runtime**: Bun (pure Bun, no Node.js)
+- **Styling**: TailwindCSS v4
+- **Database**: JSON files with async write queue
+- **Video**: FFmpeg for thumbnails and streaming
+- **Encryption**: XOR encryption for file protection
 
 ---
 
-Built with ❤️ using React Router.
+Built with ❤️ using React Router and Bun.
