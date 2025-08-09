@@ -54,7 +54,10 @@ export async function getSessions(): Promise<Session[]> {
     return sessions.map((session: any) => ({
       ...session,
       createdAt: new Date(session.createdAt),
-      expiresAt: new Date(session.expiresAt)
+      updatedAt: new Date(session.updatedAt || session.createdAt),
+      expiresAt: new Date(session.expiresAt),
+      lastAccessedAt: session.lastAccessedAt ? new Date(session.lastAccessedAt) : undefined,
+      isActive: session.isActive !== undefined ? session.isActive : true
     }));
   } catch (error) {
     console.error('Failed to load sessions:', error);
@@ -71,7 +74,9 @@ export async function saveSessions(sessions: Session[]): Promise<void> {
     const serializedSessions = sessions.map(session => ({
       ...session,
       createdAt: session.createdAt.toISOString(),
-      expiresAt: session.expiresAt.toISOString()
+      updatedAt: session.updatedAt.toISOString(),
+      expiresAt: session.expiresAt.toISOString(),
+      lastAccessedAt: session.lastAccessedAt?.toISOString()
     }));
     
     await fs.writeFile(SESSIONS_FILE, JSON.stringify(serializedSessions, null, 2), 'utf-8');
@@ -85,7 +90,9 @@ export async function saveSessions(sessions: Session[]): Promise<void> {
 export async function cleanupExpiredSessions(): Promise<void> {
   const sessions = await getSessions();
   const now = new Date();
-  const validSessions = sessions.filter(session => session.expiresAt > now);
+  const validSessions = sessions.filter(session => 
+    session.expiresAt > now && session.isActive
+  );
   
   if (validSessions.length !== sessions.length) {
     await saveSessions(validSessions);
@@ -109,9 +116,12 @@ export async function createSession(
     id: uuidv4(),
     userId,
     createdAt: now,
+    updatedAt: now,
     expiresAt: new Date(now.getTime() + SESSION_DURATION),
     userAgent,
-    ipAddress
+    ipAddress,
+    isActive: true,
+    lastAccessedAt: now
   };
   
   sessions.push(newSession);

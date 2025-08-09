@@ -11,9 +11,12 @@ export interface Session {
   id: string;
   userId: string;
   createdAt: Date;
+  updatedAt: Date;
   expiresAt: Date;
   userAgent?: string;
   ipAddress?: string;
+  isActive: boolean;
+  lastAccessedAt?: Date;
 }
 
 export interface CreateUserData {

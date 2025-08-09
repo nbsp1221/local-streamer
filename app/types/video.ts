@@ -4,19 +4,21 @@ export interface Video {
   id: string;
   title: string;
   tags: string[];
-  thumbnailUrl: string;
+  thumbnailUrl?: string;
   videoUrl: string;
   duration: number; // seconds
   addedAt: Date;
   description?: string;
-  format: VideoFormat;
+  format: string;
 }
 
 export interface PendingVideo {
+  id: string;
   filename: string;
   size: number; // bytes
-  type: string;
-  path: string;
+  type: string; // mime type
+  format: string;
+  path?: string;
   thumbnailUrl?: string; // Optional thumbnail preview URL
 }
 

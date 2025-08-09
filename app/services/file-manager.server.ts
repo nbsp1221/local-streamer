@@ -71,9 +71,11 @@ export async function scanIncomingFiles(): Promise<PendingVideo[]> {
       }
 
       pendingVideos.push({
+        id: uuidv4(), // Generate UUID for each pending video
         filename,
         size: stat.size,
         type: mimeType,
+        format: ext.slice(1), // Remove the dot from extension
         path: filePath,
         thumbnailUrl
       });

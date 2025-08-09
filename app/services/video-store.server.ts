@@ -1,115 +1,63 @@
-import { promises as fs } from 'fs';
-import { existsSync } from 'fs';
-import path from 'path';
 import type { Video, PendingVideo } from '~/types/video';
-import { config } from '~/configs';
-
-const DATA_DIR = config.paths.data;
-const VIDEOS_FILE = config.paths.videosJson;
-const PENDING_FILE = config.paths.pendingJson;
-
-// Ensure directory and files exist, create if they don't
-async function ensureDataFiles() {
-  try {
-    // Create data directory
-    if (!existsSync(DATA_DIR)) {
-      await fs.mkdir(DATA_DIR, { recursive: true });
-    }
-
-    // Create videos.json file
-    if (!existsSync(VIDEOS_FILE)) {
-      await fs.writeFile(VIDEOS_FILE, '[]', 'utf-8');
-    }
-
-    // Create pending.json file
-    if (!existsSync(PENDING_FILE)) {
-      await fs.writeFile(PENDING_FILE, '[]', 'utf-8');
-    }
-  } catch (error) {
-    console.error('Failed to ensure data files:', error);
-    throw new Error('Failed to initialize data files');
-  }
-}
+import type { CreateVideoInput, UpdateVideoInput } from '~/repositories/interfaces/VideoRepository';
+import { getVideoRepository, getPendingVideoRepository } from '~/repositories';
 
 // Get video list
 export async function getVideos(): Promise<Video[]> {
-  try {
-    await ensureDataFiles();
-    const content = await fs.readFile(VIDEOS_FILE, 'utf-8');
-    const videos = JSON.parse(content);
-    
-    // Restore Date objects
-    return videos.map((video: any) => ({
-      ...video,
-      addedAt: new Date(video.addedAt)
-    }));
-  } catch (error) {
-    console.error('Failed to load videos:', error);
-    return [];
-  }
+  const videoRepository = getVideoRepository();
+  return videoRepository.findAll();
 }
 
-// Save video list
+// Save video list (legacy function - now handled internally by repository)
 export async function saveVideos(videos: Video[]): Promise<void> {
-  try {
-    await ensureDataFiles();
-    
-    // Convert Date objects to ISO strings
-    const serializedVideos = videos.map(video => ({
-      ...video,
-      addedAt: video.addedAt.toISOString()
-    }));
-    
-    await fs.writeFile(VIDEOS_FILE, JSON.stringify(serializedVideos, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Failed to save videos:', error);
-    throw new Error('Failed to save videos');
-  }
+  // This function is now handled internally by the repository
+  // Kept for backward compatibility but should be avoided
+  console.warn('saveVideos is deprecated. Use repository methods directly.');
 }
 
 // Get pending videos list
 export async function getPendingVideos(): Promise<PendingVideo[]> {
-  try {
-    await ensureDataFiles();
-    const content = await fs.readFile(PENDING_FILE, 'utf-8');
-    return JSON.parse(content);
-  } catch (error) {
-    console.error('Failed to load pending videos:', error);
-    return [];
-  }
+  const pendingVideoRepository = getPendingVideoRepository();
+  return pendingVideoRepository.findAll();
 }
 
-// Save pending videos list
+// Save pending videos list (legacy function - now handled internally by repository)
 export async function savePendingVideos(pendingVideos: PendingVideo[]): Promise<void> {
-  try {
-    await ensureDataFiles();
-    await fs.writeFile(PENDING_FILE, JSON.stringify(pendingVideos, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Failed to save pending videos:', error);
-    throw new Error('Failed to save pending videos');
-  }
+  // This function is now handled internally by the repository
+  // Kept for backward compatibility but should be avoided
+  console.warn('savePendingVideos is deprecated. Use repository methods directly.');
 }
 
 // Add new video
 export async function addVideo(video: Video): Promise<void> {
-  const videos = await getVideos();
-  videos.unshift(video); // Add newest video to the front
-  await saveVideos(videos);
+  const videoRepository = getVideoRepository();
+  
+  // Convert Video to CreateVideoInput
+  const createInput: CreateVideoInput = {
+    title: video.title,
+    tags: video.tags,
+    videoUrl: video.videoUrl,
+    thumbnailUrl: video.thumbnailUrl,
+    duration: video.duration,
+    format: video.format,
+    description: video.description
+  };
+  
+  await videoRepository.create(createInput);
 }
 
 // Delete video
 export async function deleteVideo(videoId: string): Promise<void> {
   // Import deleteVideoFiles function
   const { deleteVideoFiles } = await import('./file-manager.server');
+  const videoRepository = getVideoRepository();
   
   try {
     // Delete physical files first
     await deleteVideoFiles(videoId);
     
     // Then remove from metadata
-    const videos = await getVideos();
-    const filteredVideos = videos.filter(video => video.id !== videoId);
-    await saveVideos(filteredVideos);
+    await videoRepository.delete(videoId);
     
     console.log(`✅ Video completely deleted: ${videoId}`);
   } catch (error) {
@@ -120,29 +68,24 @@ export async function deleteVideo(videoId: string): Promise<void> {
 
 // Find video
 export async function findVideoById(videoId: string): Promise<Video | null> {
-  const videos = await getVideos();
-  return videos.find(video => video.id === videoId) || null;
+  const videoRepository = getVideoRepository();
+  return videoRepository.findById(videoId);
 }
 
 // Update video
 export async function updateVideo(videoId: string, updates: Partial<Omit<Video, 'id' | 'addedAt'>>): Promise<Video | null> {
-  const videos = await getVideos();
-  const videoIndex = videos.findIndex(video => video.id === videoId);
+  const videoRepository = getVideoRepository();
   
-  if (videoIndex === -1) {
-    return null;
-  }
-  
-  // Merge updates with existing video info
-  const updatedVideo = {
-    ...videos[videoIndex],
-    ...updates,
-    id: videoId, // ID cannot be changed
-    addedAt: videos[videoIndex].addedAt // Added date cannot be changed
+  // Convert updates to UpdateVideoInput format
+  const updateInput: UpdateVideoInput = {
+    title: updates.title,
+    tags: updates.tags,
+    videoUrl: updates.videoUrl,
+    thumbnailUrl: updates.thumbnailUrl,
+    duration: updates.duration,
+    format: updates.format,
+    description: updates.description
   };
   
-  videos[videoIndex] = updatedVideo;
-  await saveVideos(videos);
-  
-  return updatedVideo;
+  return videoRepository.update(videoId, updateInput);
 }
