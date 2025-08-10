@@ -15,19 +15,19 @@ export const security = {
   },
   
   encryption: {
-    // XOR 암호화 키 (환경변수에서 가져오거나 기본값 사용)
+    // XOR encryption key (from environment variable or default value)
     xorKey: process.env.XOR_ENCRYPTION_KEY || 'local-streamer-default-xor-key-2024-v1',
     
-    // 스트리밍 시 사용할 청크 크기 (64KB)
+    // Chunk size for streaming (64KB)
     chunkSize: 64 * 1024,
     
-    // 암호화 알고리즘 식별자 (향후 다른 알고리즘 추가 대비)
+    // Encryption algorithm identifier (for future algorithm additions)
     algorithm: 'xor-256',
     
-    // 암호화된 파일 확장자
+    // Encrypted file extension
     encryptedExtension: '.encrypted',
     
-    // 키 검증용 해시 길이
+    // Key validation hash length
     keyHashLength: 8,
   },
 };

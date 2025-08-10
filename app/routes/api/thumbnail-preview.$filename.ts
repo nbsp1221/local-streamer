@@ -6,7 +6,7 @@ import { config } from '~/configs';
 const THUMBNAILS_DIR = config.paths.thumbnails;
 
 export async function loader({ request, params }: { request: Request; params: { filename: string } }) {
-  // 인증 확인
+  // Authentication check
   await requireAuth(request);
   
   const { filename } = params;

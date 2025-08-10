@@ -1,7 +1,7 @@
 import { Transform } from 'stream';
 
 /**
- * XOR 암호화 설정 인터페이스
+ * XOR encryption configuration interface
  */
 export interface XORConfig {
   key: string;
@@ -9,10 +9,10 @@ export interface XORConfig {
 }
 
 /**
- * XOR 암호화/복호화 클래스
+ * XOR encryption/decryption class
  * 
- * XOR 암호화는 대칭키 방식으로 같은 키로 암호화와 복호화를 수행합니다.
- * 스트리밍 비디오 파일의 보호를 위해 설계되었습니다.
+ * XOR encryption uses symmetric key approach performing both encryption and decryption with the same key.
+ * Designed for protecting streaming video files.
  */
 export class XORCrypto {
   private keyBuffer: Buffer;
@@ -30,11 +30,11 @@ export class XORCrypto {
   }
 
   /**
-   * 단일 데이터 청크에 XOR 연산을 수행합니다.
+   * Performs XOR operation on a single data chunk.
    * 
-   * @param data - 암호화/복호화할 데이터
-   * @param offset - 키에서 시작할 오프셋 위치 (스트리밍 시 연속성 보장)
-   * @returns XOR 연산이 적용된 데이터
+   * @param data - Data to encrypt/decrypt
+   * @param offset - Starting offset position in the key (ensures continuity during streaming)
+   * @returns Data with XOR operation applied
    */
   encryptChunk(data: Buffer, offset: number = 0): Buffer {
     const result = Buffer.alloc(data.length);
@@ -48,11 +48,11 @@ export class XORCrypto {
   }
 
   /**
-   * 복호화용 Transform 스트림을 생성합니다.
-   * Range Request를 지원하기 위해 시작 오프셋을 받습니다.
+   * Creates a Transform stream for decryption.
+   * Accepts starting offset to support Range Requests.
    * 
-   * @param startOffset - 파일 내에서 시작할 바이트 위치
-   * @returns Transform 스트림
+   * @param startOffset - Starting byte position in the file
+   * @returns Transform stream
    */
   createDecryptStream(startOffset: number = 0): Transform {
     let currentOffset = startOffset;
@@ -71,11 +71,11 @@ export class XORCrypto {
   }
 
   /**
-   * 암호화용 Transform 스트림을 생성합니다.
-   * 파일을 저장할 때 사용됩니다.
+   * Creates a Transform stream for encryption.
+   * Used when saving files.
    * 
-   * @param startOffset - 파일 내에서 시작할 바이트 위치 (기본값: 0)
-   * @returns Transform 스트림
+   * @param startOffset - Starting byte position in the file (default: 0)
+   * @returns Transform stream
    */
   createEncryptStream(startOffset: number = 0): Transform {
     let currentOffset = startOffset;
@@ -94,8 +94,8 @@ export class XORCrypto {
   }
 
   /**
-   * 키 정보를 안전하게 반환합니다 (디버깅용)
-   * 실제 키는 노출하지 않고 길이와 해시만 반환합니다.
+   * Safely returns key information (for debugging).
+   * Returns only length and hash without exposing actual key.
    */
   getKeyInfo() {
     return {
@@ -106,7 +106,7 @@ export class XORCrypto {
 }
 
 /**
- * 기본 XOR 암호화 인스턴스 생성 함수
+ * Default XOR encryption instance creation function
  */
 export function createXORCrypto(key: string, encoding?: BufferEncoding): XORCrypto {
   return new XORCrypto({ key, encoding });

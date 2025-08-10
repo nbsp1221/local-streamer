@@ -3,7 +3,7 @@ import { updateVideo, findVideoById } from "~/services/video-store.server";
 import { requireAuth } from "~/utils/auth.server";
 
 export async function action({ request, params }: Route.ActionArgs) {
-  // 인증 확인
+  // Authentication check
   await requireAuth(request);
   
   const videoId = params.id;

@@ -5,7 +5,7 @@ import { createSession, serializeCookie, getCookieOptions, COOKIE_NAME } from "~
 import type { SetupFormData, SetupResponse } from "~/types/auth";
 
 export async function loader(): Promise<Response> {
-  // 이미 관리자가 있는지 확인
+  // Check if admin already exists
   const adminExists = await hasAdminUser();
   
   const response: SetupResponse = {
@@ -54,7 +54,7 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
       );
     }
     
-    // 패스워드 강도 검사
+    // Password strength check
     const passwordValidation = isValidPassword(password);
     if (!passwordValidation.valid) {
       return Response.json(
@@ -63,7 +63,7 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
       );
     }
     
-    // 관리자 계정 생성
+    // Create admin account
     const newUser = await createUser({
       email,
       password,
@@ -72,18 +72,18 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
     
     console.log(`✅ Admin user created: ${newUser.email} (${newUser.id})`);
     
-    // User-Agent와 IP 주소 추출
+    // Extract User-Agent and IP address
     const userAgent = request.headers.get('User-Agent') || undefined;
     const ipAddress = getClientIP(request);
     
-    // 새 세션 생성 (자동 로그인)
+    // Create new session (auto login)
     const session = await createSession(newUser.id, userAgent, ipAddress);
     
-    // 쿠키 설정
+    // Set cookie
     const cookieOptions = getCookieOptions();
     const cookieString = serializeCookie(COOKIE_NAME, session.id, cookieOptions);
     
-    // JSON 응답 반환 (쿠키 포함)
+    // Return JSON response (with cookie)
     return Response.json(
       { 
         success: true, 
@@ -99,7 +99,7 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
   } catch (error) {
     console.error('Setup error:', error);
     
-    // 지연 추가 (보안)
+    // Add delay (security)
     await addLoginDelay();
     
     if (error instanceof Error) {

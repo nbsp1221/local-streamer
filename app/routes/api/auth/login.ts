@@ -13,11 +13,11 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
   }
   
   try {
-    // 요청 데이터 파싱
+    // Parse request data
     const formData: LoginFormData = await request.json();
     const { email, password } = formData;
     
-    // 입력값 검증
+    // Validate input values
     if (!email || !password) {
       await addLoginDelay();
       return Response.json(
@@ -26,7 +26,7 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
       );
     }
     
-    // 이메일 형식 검증
+    // Validate email format
     if (!isValidEmail(email)) {
       await addLoginDelay();
       return Response.json(
@@ -35,11 +35,11 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
       );
     }
     
-    // 사용자 인증
+    // Authenticate user
     const user = await authenticateUser(email, password);
     
     if (!user) {
-      // 실패 시 지연 추가 (무차별 대입 공격 방어)
+      // Add delay on failure (brute force attack protection)
       await addLoginDelay();
       return Response.json(
         { success: false, error: 'Invalid email or password' },
@@ -49,18 +49,18 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
     
     console.log(`✅ User logged in: ${user.email} (${user.id})`);
     
-    // User-Agent와 IP 주소 추출
+    // Extract User-Agent and IP address
     const userAgent = request.headers.get('User-Agent') || undefined;
     const ipAddress = getClientIP(request);
     
-    // 새 세션 생성
+    // Create new session
     const session = await createSession(user.id, userAgent, ipAddress);
     
-    // 쿠키 설정
+    // Set cookie
     const cookieOptions = getCookieOptions();
     const cookieString = serializeCookie(COOKIE_NAME, session.id, cookieOptions);
     
-    // JSON 응답 반환 (쿠키 포함)
+    // Return JSON response (with cookie)
     return Response.json(
       { 
         success: true, 
@@ -76,7 +76,7 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
   } catch (error) {
     console.error('Login error:', error);
     
-    // 에러 시에도 지연 추가
+    // Add delay even on error
     await addLoginDelay();
     
     return Response.json(

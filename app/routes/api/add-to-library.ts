@@ -15,7 +15,7 @@ interface AddToLibraryRequest {
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  // 인증 확인
+  // Authentication check
   await requireAuth(request);
   
   try {

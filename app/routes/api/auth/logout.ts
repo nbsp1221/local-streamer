@@ -10,24 +10,24 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
   }
   
   try {
-    // redirectTo 파라미터 확인
+    // Check redirectTo parameter
     const url = new URL(request.url);
     const redirectTo = url.searchParams.get('redirectTo') || '/login';
     
     console.log('🚪 User logged out');
     
-    // 로그아웃 처리 (세션 삭제 및 리다이렉션)
+    // Process logout (delete session and redirect)
     return await logout(request, redirectTo);
     
   } catch (error) {
     console.error('Logout error:', error);
     
-    // 에러가 발생해도 로그아웃 처리
+    // Process logout even on error
     return await logout(request, '/login');
   }
 }
 
-// GET 요청도 지원 (URL로 직접 로그아웃 가능)
+// Also supports GET requests (direct logout via URL)
 export async function loader({ request }: Route.LoaderArgs): Promise<Response> {
   try {
     console.log('🚪 User logged out (GET)');

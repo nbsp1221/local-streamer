@@ -8,7 +8,7 @@ import { config } from '~/configs';
 const PLACEHOLDER_IMAGE = '/images/video-placeholder.jpg';
 
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {
-  // 인증 확인
+  // Authentication check
   await requireAuth(request);
   
   const { id } = params;

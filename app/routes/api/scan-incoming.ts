@@ -3,7 +3,7 @@ import { scanIncomingFiles, ensureIncomingDirectory } from "~/services/file-mana
 import { requireAuth } from "~/utils/auth.server";
 
 export async function loader({ request }: Route.LoaderArgs) {
-  // 인증 확인
+  // Authentication check
   await requireAuth(request);
   
   try {
