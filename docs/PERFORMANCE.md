@@ -194,6 +194,38 @@ If nginx is not feasible, migrate from Express to Fastify:
 - Better static file serving performance
 - Still 2-3x slower than nginx but significant improvement
 
+### Priority 4: FFmpeg Concurrency Control 🔥
+
+**Problem**: Multiple simultaneous thumbnail generation crashes PC
+
+**Solution**: Simple job queue
+```typescript
+// app/lib/job-queue.ts
+export class SimpleJobQueue {
+  private running = 0;
+  private readonly maxConcurrent = 1; // Personal PC limit
+  
+  async add<T>(job: () => Promise<T>): Promise<T> {
+    while (this.running >= this.maxConcurrent) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    this.running++;
+    try {
+      return await job();
+    } finally {
+      this.running--;
+    }
+  }
+}
+
+export const ffmpegQueue = new SimpleJobQueue();
+
+// Usage in thumbnail service
+export const generateThumbnail = (input: string, output: string) =>
+  ffmpegQueue.add(() => executeFfmpeg(input, output));
+```
+
 ## Implementation Strategy
 
 ### Phase 1: Quick Wins (30 minutes)

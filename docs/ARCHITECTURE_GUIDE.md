@@ -1,236 +1,484 @@
-# Local Streamer Architecture & Refactoring Guide (2025)
+# Local Streamer Architecture Guide
 
-Purpose: A concise, opinionated guide to architecture choices and refactoring directions for this project. It distills industry practices (Remix/React Router, Hexagonal/Clean Architecture, lightweight DDD) so contributors don’t need to re-search the same topics.
+**Version**: 2.0  
+**Created**: 2025-01-07  
+**Target**: Personal video streaming server  
+**Tech Stack**: React Router v7 + TypeScript + Bun
 
-- Scope: Backend-facing app code (Remix/React Router server routes, services, file I/O, streaming), not UI styling.
-- Tone: Practical over theoretical. Code examples are intentionally lightweight.
+## 🎯 **Executive Summary**
 
-## 1) TL;DR — Recommendations
+This guide consolidates architectural decisions for Local Streamer, a personal video streaming server. After analyzing various patterns (DDD, Clean Architecture, Hexagonal Architecture), we've concluded that **MVC + UseCase + Repository** provides the optimal balance of maintainability and simplicity for this project's scope.
 
-- Keep routes thin (Remix loaders/actions): input validation → call use case → return typed result/errors.
-- Adopt lightweight Ports & Adapters (Hexagonal/Clean style): define interfaces (ports) in app, implement adapters (JSON/FS/FFmpeg/crypto) separately.
-- Function-first services with manual dependency injection (DI). Use small classes only for stateful, resource-oriented components (locks, queues, crypto streams).
-- Harden streaming: async I/O, proper Range validation (416), ETag/Last-Modified, consistent headers, error paths, and nginx for production video serving.
-- File I/O safety: basename/normalize checks, atomic writes (tmp → rename), a single-writer queue/mutex for JSON.
-- Security: environment-enforced keys (no defaults), signed short-lived URLs if sharing, strict cookies, input validation everywhere.
-- Testing: mock ports in unit tests; add a few integration tests for critical API flows; measure streaming with range curl tests.
-- Tooling consistency: pick Bun or npm and align Dockerfile; add ESLint/Prettier and CI checks.
+### Key Principles
+- **Pragmatic over Perfect**: Choose appropriate complexity for project scale
+- **YAGNI**: You Aren't Gonna Need It - avoid over-engineering
+- **Context-Aware**: Single-user personal project ≠ enterprise application
+- **Maintainable**: Easy to understand and modify for one developer
 
-## 2) Architectural Philosophy (Practical)
+---
 
-### 2.1 Ports & Adapters (Hexagonal)
-Ports define what the application needs (interfaces). Adapters provide concrete implementations (file system, JSON, FFmpeg, crypto). This separates business logic from infrastructure and enables easy swapping (e.g., JSON → SQLite).
+## 📊 **Project Context Analysis**
 
-### 2.2 Clean Architecture (Layering)
-Same spirit as Hexagonal: Presentation → Application (use cases) → Domain (entities/rules). Infrastructure is outside rings. This guide uses the lightest viable layering to avoid ceremony.
+### **What This Is**
+- Personal video streaming server
+- Single user (owner only)
+- Local network access
+- 100-500 video files typical
+- Simple CRUD operations
+- Minimal business logic
 
-### 2.3 DDD (Lightweight)
-DDD is a modeling approach, not an architecture. Use its vocabulary (entities/value objects, ubiquitous language) and keep domain logic in pure modules. Full aggregates/domain events may be overkill at current scale.
+### **What This Is NOT**
+- Multi-tenant SaaS platform
+- High-concurrency system
+- Complex business domain
+- Financial/medical critical system
+- Team development project
 
-### 2.4 Classes vs Functions
-- Prefer function-based services (factory functions returning an object of operations) for simple dependencies and testability.
-- Use small classes for stateful adapters: file write queue, rate limiter, encryption transforms, caches. Encapsulation of internal state and lifecycle is useful here.
+### **Conclusion**: Lightweight architecture patterns are optimal.
 
-### 2.5 DI Style
-Avoid heavy containers. Compose dependencies in a small assembly module (request-scoped if needed). Pass dependencies explicitly into factories.
+---
 
-## 3) Remix/React Router Patterns (Server)
+## 🏗️ **Chosen Architecture: MVC + UseCase + Repository**
 
-- Routes are thin: do validation (Zod), call a use case, and return a `Response`/JSON. Throw `Response` for error flows when idiomatic.
-- Keep SSR on if you need it; treat data mutations in `action` and reads in `loader`.
-- ESM only: import Node core modules via ESM (no `require` in ESM).
-- Use `stream.pipeline` for Node streams and handle abort/error events.
+### **Why This Pattern?**
 
-## 4) Current State — Key Observations
+Based on analysis of enterprise patterns and our project context:
 
-- Storage is JSON/FS-based in `app/services/*-store.server.ts` with direct file I/O and no explicit write concurrency control.
-- Streaming route uses sync I/O and partial Range handling; headers and error behavior can be tightened.
-- FFmpeg thumbnail/duration logic exists; no explicit concurrency control.
-- XOR crypto stream exists; one method uses `require('crypto')` under ESM.
-- Security: default XOR key is allowed; cookie flags are reasonable but can be stricter; path traversal protections can be stronger.
-- Tooling: repo prefers Bun, Dockerfile uses npm. Align one toolchain.
+1. **MVC Foundation**: Well-understood, battle-tested pattern
+2. **UseCase Addition**: Cleanly separates business logic from routes
+3. **Repository Pattern**: Already well-implemented, provides data abstraction
+4. **No CQRS**: Read/write operations aren't complex enough to justify separation
+5. **No Domain Layer**: Business rules are simple, don't need complex domain modeling
 
-## 5) Minimal-Overhead Folder Layout
+### **Pattern Comparison**
 
+| Pattern | Complexity | Learning Curve | Project Fit | Decision |
+|---------|------------|----------------|-------------|----------|
+| Simple MVC | Low | Low | Good | ✅ Base |
+| MVC + UseCase | Medium | Medium | Excellent | ✅ **Chosen** |
+| Clean Architecture | High | High | Over-engineered | ❌ Too much |
+| DDD + CQRS | Very High | Very High | Massive overkill | ❌ Way too much |
+
+---
+
+## 📁 **Folder Structure**
+
+### **Current Structure**
 ```
 app/
-  routes/                  # Remix routes (thin)
-  application/             # use-case factories (function-first)
-  domain/                  # pure types/rules
-  ports/                   # interfaces (repositories, storage, crypto, thumbnail)
-  adapters/
-    json/                  # JsonVideoRepository, JsonUserRepository, JsonSessionRepository
-    fs/                    # FileStorage, WriteQueue
-    ffmpeg/                # ThumbnailService
-    crypto/                # XorEncryption
-  lib/                     # logger, validation, errors, http helpers
-  dependencies.server.ts   # assembly (request-scoped, if needed)
+├── routes/api/              # Route handlers (thick, 80+ lines)
+├── services/               # Mixed responsibilities
+├── repositories/           # ✅ Well implemented
+├── components/             # ✅ React components  
+└── types/                  # ✅ TypeScript definitions
 ```
 
-Keep current `app/components`, `app/types`, and `configs` as-is, moving only cross-cutting helpers into `lib/` where appropriate.
+### **Target Structure**
+```
+app/
+├── modules/                # 🆕 Domain-based organization
+│   ├── video/
+│   │   ├── add-video/
+│   │   │   ├── add-video.route.ts      # Thin controller
+│   │   │   ├── add-video.service.ts    # UseCase logic
+│   │   │   └── add-video.types.ts      # Request/Response types
+│   │   ├── delete-video/
+│   │   ├── update-video/
+│   │   ├── list-videos/
+│   │   └── get-video/
+│   └── auth/
+│       ├── login/
+│       ├── setup/
+│       └── logout/
+│
+├── repositories/           # ✅ Keep existing (already excellent)
+├── services/              # 🔄 Infrastructure services only
+│   ├── file-manager.server.ts
+│   ├── thumbnail-generator.server.ts
+│   └── encryption.server.ts
+│
+├── lib/                   # 🆕 Shared utilities
+│   ├── errors/
+│   ├── result.ts
+│   ├── job-queue.ts
+│   └── validation.ts
+│
+├── components/            # ✅ Keep existing
+├── types/                 # ✅ Keep existing
+└── configs/               # ✅ Keep existing
+```
 
-## 6) Small Code Examples
+### **Benefits of This Structure**
+- 🔍 **Discoverability**: "Where's video upload?" → `modules/video/add-video/`
+- 🧩 **Cohesion**: Related files grouped together
+- 🔧 **Maintenance**: Modify feature in one folder
+- 🚀 **Scalability**: Easy to add new features
+- 👥 **Team Friendly**: Clear ownership boundaries (though single developer here)
 
-### 6.1 Port (interface)
-```ts
-// app/ports/VideoRepository.ts
-import type { Video } from "~/types/video";
+---
 
-export interface VideoRepository {
-  findAll(): Promise<Video[]>;
-  findById(id: string): Promise<Video | null>; 
-  create(input: Omit<Video, "id" | "addedAt">): Promise<Video>;
-  update(id: string, updates: Partial<Omit<Video, "id" | "addedAt">>): Promise<Video | null>;
-  delete(id: string): Promise<boolean>;
+## 💻 **Implementation Patterns**
+
+### **1. Route Handler (Controller) - Keep Thin**
+```typescript
+// app/modules/video/add-video/add-video.route.ts
+export async function action({ request }: Route.ActionArgs) {
+  await requireAuth(request);
+  
+  try {
+    const body = await request.json();
+    const result = await addVideoUseCase(body, createDependencies());
+    
+    return result.success 
+      ? Response.json({ success: true, data: result.data })
+      : Response.json({ success: false, error: result.error });
+      
+  } catch (error) {
+    return handleUnexpectedError(error);
+  }
 }
 ```
 
-### 6.2 Adapter (JSON impl)
-```ts
-// app/adapters/json/JsonVideoRepository.ts
-import { promises as fs } from "fs";
-import type { VideoRepository } from "~/ports/VideoRepository";
-import type { Video } from "~/types/video";
+### **2. UseCase (Service) - Business Logic**
+```typescript
+// app/modules/video/add-video/add-video.service.ts
+export type AddVideoDependencies = {
+  videoRepository: VideoRepository;
+  fileManager: typeof import('~/services/file-manager.server');
+  logger: Logger;
+};
 
-export function createJsonVideoRepository(filePath: string): VideoRepository {
-  async function read(): Promise<Video[]> {
-    const raw = await fs.readFile(filePath, "utf-8").catch(() => "[]");
-    const list = JSON.parse(raw) as any[];
-    return list.map(v => ({ ...v, addedAt: new Date(v.addedAt) }));
+export async function addVideoUseCase(
+  request: AddVideoRequest,
+  deps: AddVideoDependencies
+): Promise<Result<Video, DomainError>> {
+  const { videoRepository, fileManager, logger } = deps;
+  
+  // 1. Input validation
+  const validation = validateAddVideoRequest(request);
+  if (!validation.success) {
+    return validation;
   }
-  async function write(videos: Video[]): Promise<void> {
-    const data = videos.map(v => ({ ...v, addedAt: v.addedAt.toISOString() }));
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
+  
+  // 2. Business logic
+  try {
+    logger.info('Adding video to library', { filename: request.filename });
+    
+    const videoId = generateVideoId();
+    await fileManager.moveToLibrary(request.filename, videoId);
+    
+    const metadata = await extractVideoMetadata(request.filename);
+    const video = createVideoEntity({
+      id: videoId,
+      title: request.title,
+      tags: request.tags,
+      metadata
+    });
+    
+    await videoRepository.save(video);
+    
+    logger.info('Video added successfully', { videoId });
+    return Result.ok(video);
+    
+  } catch (error) {
+    logger.error('Failed to add video', error);
+    return Result.fail(new VideoAdditionError(error.message));
   }
+}
+
+// Pure helper functions
+function validateAddVideoRequest(request: AddVideoRequest): Result<void, ValidationError> {
+  if (!request.filename?.trim()) {
+    return Result.fail(new ValidationError('Filename is required'));
+  }
+  if (!request.title?.trim()) {
+    return Result.fail(new ValidationError('Title is required'));
+  }
+  return Result.ok(undefined);
+}
+
+function createVideoEntity(props: CreateVideoProps): Video {
   return {
-    async findAll() { return read(); },
-    async findById(id) { return (await read()).find(v => v.id === id) ?? null; },
-    async create(input) {
-      const now = new Date();
-      const video: Video = { id: crypto.randomUUID(), addedAt: now, ...input } as Video;
-      const all = await read();
-      all.unshift(video);
-      await write(all);
-      return video;
-    },
-    async update(id, updates) {
-      const all = await read();
-      const i = all.findIndex(v => v.id === id);
-      if (i === -1) return null;
-      all[i] = { ...all[i], ...updates, id, addedAt: all[i].addedAt };
-      await write(all);
-      return all[i];
-    },
-    async delete(id) {
-      const all = await read();
-      const next = all.filter(v => v.id !== id);
-      await write(next);
-      return next.length !== all.length;
-    },
+    id: props.id,
+    title: props.title.trim(),
+    tags: props.tags.filter(tag => tag.trim().length > 0),
+    metadata: props.metadata,
+    addedAt: new Date()
   };
 }
 ```
 
-### 6.3 Service (function-first use case)
-```ts
-// app/application/video-service.ts
-import type { VideoRepository } from "~/ports/VideoRepository";
-
-export function createVideoService(deps: { videoRepo: VideoRepository }) {
-  return {
-    async list() {
-      return deps.videoRepo.findAll();
-    },
-    async create(input: { title: string; tags: string[]; videoUrl: string; thumbnailUrl?: string; duration?: number; format: string; description?: string }) {
-      // Example rule: unique title (simple check)
-      const existing = await deps.videoRepo.findAll();
-      if (existing.some(v => v.title === input.title)) throw new Error("Video title already exists");
-      return deps.videoRepo.create({ ...input, addedAt: undefined } as any);
-    },
-  };
+### **3. Repository (Already Excellent) - Keep As Is**
+```typescript
+// Current implementation is already optimal
+export class JsonVideoRepository extends BaseJsonRepository<Video> {
+  // Well-implemented with proper interfaces ✅
+  // Good concurrency control with JsonWriteQueue ✅ 
+  // Clean separation of concerns ✅
 }
 ```
 
-### 6.4 Route usage (thin Remix action)
-```ts
-// app/routes/api/videos.ts
-import { createVideoService } from "~/application/video-service";
-import { createJsonVideoRepository } from "~/adapters/json/JsonVideoRepository";
+### **4. Result Pattern - Type-Safe Error Handling**
+```typescript
+// app/lib/result.ts
+export type Result<T, E = Error> = 
+  | { success: true; data: T }
+  | { success: false; error: E };
 
-export async function action({ request }: { request: Request }) {
-  const repo = createJsonVideoRepository(process.cwd() + "/data/videos.json");
-  const videoService = createVideoService({ videoRepo: repo });
-  const body = await request.json();
-  // TODO: validate with Zod
-  const created = await videoService.create(body);
-  return Response.json({ success: true, data: created });
+export const Result = {
+  ok: <T>(data: T): Result<T> => ({ success: true, data }),
+  fail: <E>(error: E): Result<never, E> => ({ success: false, error })
+};
+
+// Usage with pattern matching
+if (result.success) {
+  console.log(result.data); // TypeScript knows this is T
+} else {
+  console.error(result.error); // TypeScript knows this is E
 }
 ```
 
-## 7) Streaming Hardening (Key Points)
+---
 
-- Replace sync I/O with async (`fs.promises.stat`); unify both encrypted and plain paths using `stream.pipeline`.
-- Validate Range: reject invalid formats; clamp values; return 416 on out-of-range; always include `Accept-Ranges: bytes`.
-- Add `ETag`/`Last-Modified`; support conditional requests (`If-None-Match`, `If-Modified-Since`) for thumbnails/static responses.
-- Production: serve `/videos/*` via nginx with `sendfile` and `mp4` module; proxy `/api/*` and UI to Remix server.
+## 🔄 **Migration Strategy**
 
-## 8) File I/O Safety
+### **Phase 1: Structure Setup (Week 1)**
+```bash
+# Create new folder structure
+mkdir -p app/modules/{video,auth}
+mkdir -p app/modules/video/{add-video,delete-video,update-video,list-videos,get-video}
+mkdir -p app/modules/auth/{login,setup,logout}
+mkdir -p app/lib/{errors}
 
-- Path traversal: only allow `path.basename(filename)` and ensure normalized path starts with the allowed base directory.
-- Atomic writes: write to `*.tmp` then `rename`.
-- Single-writer queue: serialize writes to JSON files to avoid races.
+# Create base files
+touch app/lib/result.ts
+touch app/lib/job-queue.ts
+```
 
-Example (pseudo):
-```ts
-class WriteQueue {
-  private last = Promise.resolve();
-  enqueue<T>(task: () => Promise<T>): Promise<T> {
-    const run = this.last.then(task, task);
-    this.last = run.then(() => undefined, () => undefined);
-    return run;
+### **Phase 2: Migrate Complex Route (Week 2)**
+**Target**: `app/routes/api/add-to-library.ts` (97 lines → 15 lines)
+
+1. **Extract UseCase Logic**
+   ```typescript
+   // Move business logic from route to service
+   // app/modules/video/add-video/add-video.service.ts
+   ```
+
+2. **Update Route Handler**
+   ```typescript
+   // Simplify route to just call UseCase
+   // app/modules/video/add-video/add-video.route.ts
+   ```
+
+3. **Test Both Versions**
+   ```typescript
+   // Keep old route as backup until new version proven
+   ```
+
+### **Phase 3: Migrate Other Routes (Week 3-4)**
+Apply same pattern to:
+- Delete video
+- Update video  
+- List videos
+- Auth routes
+
+### **Phase 4: Cleanup (Week 5)**
+- Remove old routes
+- Update route configuration
+- Clean up unused files
+
+---
+
+## 🛠️ **Critical Fixes**
+
+### **1. Unified Error Handling**
+**Problem**: Inconsistent error responses across routes
+
+**Solution**: Standardized error handling
+```typescript
+// app/lib/errors/index.ts
+export abstract class DomainError extends Error {
+  abstract statusCode: number;
+  abstract code: string;
+}
+
+export class VideoNotFoundError extends DomainError {
+  statusCode = 404;
+  code = 'VIDEO_NOT_FOUND';
+  
+  constructor(id: string) {
+    super(`Video not found: ${id}`);
   }
 }
+
+// app/lib/errors/error-handler.ts
+export function handleError(error: unknown): Response {
+  if (error instanceof DomainError) {
+    return Response.json({
+      success: false,
+      code: error.code,
+      message: error.message
+    }, { status: error.statusCode });
+  }
+  
+  logger.error('Unexpected error:', error);
+  return Response.json({
+    success: false,
+    message: 'Internal server error'
+  }, { status: 500 });
+}
 ```
 
-## 9) Security Notes
+---
 
-- Do not allow default XOR key in production; require `XOR_ENCRYPTION_KEY`. Consider signed, short-lived URLs instead of relying on obfuscation.
-- Cookies: `HttpOnly`, `Secure` (behind TLS/proxy), `SameSite=strict` when possible. Rate-limit login.
-- Validate inputs with Zod; centralize error formatting.
+## 🧪 **Testing Strategy**
 
-## 10) Performance Notes
+### **Focus Areas**
+1. **UseCase Functions**: Easy to test (pure functions with dependencies)
+2. **Repository Layer**: Already well tested ✅
+3. **Route Integration**: Light testing (happy path + error cases)
 
-- Remove HLS overhead for MVP; prefer direct MP4 + Range.
-- For production streaming speed, let nginx handle `/videos/*` directly.
-- Cache thumbnails and static responses with `Cache-Control`.
+### **Example UseCase Test**
+```typescript
+// app/modules/video/add-video/add-video.test.ts
+describe('addVideoUseCase', () => {
+  const mockDeps = {
+    videoRepository: createMockRepository(),
+    fileManager: createMockFileManager(),
+    logger: createMockLogger()
+  };
 
-## 11) Testing Strategy
+  it('should add video successfully', async () => {
+    const request = {
+      filename: 'test.mp4',
+      title: 'Test Video',
+      tags: ['action']
+    };
 
-- Unit: mock ports (repositories/storage) to test application services.
-- Integration: login, import, stream Range (small byte windows), delete flows.
-- Benchmarks: curl Range tests comparing API vs nginx (after switching).
+    const result = await addVideoUseCase(request, mockDeps);
 
-## 12) Refactoring Roadmap (Small Project Scale)
+    expect(result.success).toBe(true);
+    expect(mockDeps.videoRepository.save).toHaveBeenCalledOnce();
+  });
 
-1. Quick fixes (1–2h)
-   - Replace ESM `require` usages; switch sync fs to async in hot paths; enforce env key; basic Range validation.
-2. Boundary setup (0.5–1d)
-   - Introduce ports; extract JSON adapters from `*-store.server.ts`; create function-first services; add a small `dependencies.server.ts`.
-3. Streaming hardening (0.5–1d)
-   - Unify streaming with `pipeline`; add 416 and headers; document nginx config under `docs/DEPLOYMENT.md`.
-4. Concurrency & I/O (0.5d)
-   - Add write queue + atomic JSON writes; path normalization checks.
-5. Tooling (0.5d)
-   - Align Bun vs npm (and Dockerfile); add ESLint/Prettier; CI for typecheck + tests.
+  it('should fail with empty filename', async () => {
+    const request = { filename: '', title: 'Test', tags: [] };
+    
+    const result = await addVideoUseCase(request, mockDeps);
+    
+    expect(result.success).toBe(false);
+    expect(result.error).toBeInstanceOf(ValidationError);
+  });
+});
+```
 
-## 13) References (curated)
+---
 
-- Remix / React Router official docs (server loaders/actions, SSR patterns)
-- Hexagonal (Ports & Adapters), Clean Architecture summaries
-- DDD lightweight practices in JS/TS
-- Node.js streams and `stream.pipeline` guidance
-- nginx mp4 module/sendfile best practices for static video
+## 🚫 **What We're NOT Doing (And Why)**
 
-This guide aims to stay small, actionable, and specific to this repository. Prefer small, incremental edits over large rewrites.
+### **CQRS (Command Query Responsibility Segregation)**
+**Why Not**: 
+- Read/write operations aren't complex
+- No performance bottlenecks requiring separation
+- JSON file storage doesn't benefit from CQRS
+- Adds unnecessary complexity for single user
 
+### **Domain-Driven Design (Full DDD)**
+**Why Not**:
+- Domain isn't complex (Video, User, Session)
+- No domain experts to collaborate with
+- Business rules are simple
+- Value objects would be overkill
 
+### **Event Sourcing**
+**Why Not**:
+- No need for audit trails
+- State changes are simple
+- Personal use doesn't require event replay
+- JSON storage doesn't support it well
+
+### **Microservices**
+**Why Not**:
+- Single user, single deployment
+- No team boundaries to enforce
+- No independent scaling needs
+- Network overhead would hurt performance
+
+---
+
+## 📈 **Success Metrics**
+
+### **Phase 1 Complete When**:
+- [ ] New folder structure created
+- [ ] One UseCase successfully extracted
+- [ ] Route handler reduced from 80+ lines to <20 lines
+- [ ] Tests pass for extracted UseCase
+
+### **Phase 2 Complete When**:
+- [ ] All major routes converted to UseCase pattern
+- [ ] Error handling standardized
+- [ ] FFmpeg concurrency controlled
+- [ ] No functionality regression
+
+### **Overall Success When**:
+- [ ] New features can be added in 30 minutes (vs current 2+ hours)
+- [ ] Bug fixes require touching only one module
+- [ ] Code is self-documenting (obvious where things belong)
+- [ ] Maintenance overhead reduced
+
+---
+
+## 🎯 **Why This Architecture Works for Local Streamer**
+
+### **Right-Sized Complexity**
+- **Not too simple**: Plain MVC would mix business logic in controllers
+- **Not too complex**: Full DDD/CQRS would be 10x more code for same features
+- **Just right**: Clean separation with minimal overhead
+
+### **Maintenance Benefits**
+- **Single developer friendly**: Easy to remember where things are
+- **Future-proof**: Can add complexity later if needed  
+- **Refactoring safe**: Clear boundaries make changes predictable
+
+### **Performance Considerations**
+- **No over-abstraction**: Direct repository calls, no unnecessary layers
+- **Efficient**: UseCase functions are lightweight
+- **Scalable**: Pattern works for 10 videos or 10,000 videos
+
+---
+
+## 📚 **References & Further Reading**
+
+### **Architectural Patterns**
+- [Clean Architecture by Robert Martin](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+- [Hexagonal Architecture by Alistair Cockburn](https://alistair.cockburn.us/hexagonal-architecture/)
+- [Domain-Driven Hexagon (GitHub)](https://github.com/Sairyss/domain-driven-hexagon) - Excellent reference, but more complex than needed
+
+### **TypeScript/Node.js Specific**
+- [React Router v7 Documentation](https://reactrouter.com/)
+- [Repository Pattern in TypeScript](https://khalilstemmler.com/articles/typescript-domain-driven-design/repository-pattern/)
+
+### **Key Takeaways from Research**
+> "Follow YAGNI and avoid over-complicating solutions" - Domain-Driven Hexagon
+
+> "Complex architectures work best for projects with significant business logic" - Domain-Driven Hexagon
+
+> "Simpler architectures (like MVC) suit CRUD applications with minimal logic" - Domain-Driven Hexagon
+
+---
+
+## 🏁 **Conclusion**
+
+This architecture guide provides a **pragmatic, maintainable solution** that:
+
+1. ✅ **Solves real problems**: Route complexity, error handling, FFmpeg concurrency
+2. ✅ **Avoids over-engineering**: No unnecessary patterns for simple domain
+3. ✅ **Scales appropriately**: Can grow with project needs
+4. ✅ **Developer friendly**: Easy to understand and modify
+5. ✅ **Battle tested**: MVC + UseCase + Repository is proven pattern
+
+**Remember**: The best architecture is the one that solves your problems without creating new ones. For Local Streamer, this balanced approach provides clean code organization without enterprise-level complexity.
+
+---
+
+*"Perfect is the enemy of good. This architecture is good enough to be great."*
