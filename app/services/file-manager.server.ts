@@ -243,8 +243,7 @@ export async function getVideoInfo(filePath: string) {
     size: stat.size,
     format: ext.slice(1), // Remove dot from extension
     mimeType: getMimeType(ext),
-    duration,
-    encrypted: false
+    duration
   };
 }
 

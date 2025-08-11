@@ -135,16 +135,14 @@ describe('HLS Upload System', () => {
       return sources;
     }
 
-    // Test HLS-enabled video (should prefer HLS)
+    // Test HLS-enabled video (should only have HLS)
     const hlsSources = generateSources(videoWithHLS);
-    expect(hlsSources).toHaveLength(2);
+    expect(hlsSources).toHaveLength(1);
     expect(hlsSources[0].type).toBe('hls');
-    expect(hlsSources[1].type).toBe('xor');
 
-    // Test HLS-disabled video (should only have XOR)
-    const xorSources = generateSources(videoWithoutHLS);
-    expect(xorSources).toHaveLength(1);
-    expect(xorSources[0].type).toBe('xor');
+    // Test HLS-disabled video (should have no sources for local videos)
+    const noHlsSources = generateSources(videoWithoutHLS);
+    expect(noHlsSources).toHaveLength(0);
 
     // Test direct video (should use direct URL)
     const directSources = generateSources(directVideo);
