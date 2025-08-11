@@ -19,8 +19,18 @@ export async function loader({ request, params }: { request: Request; params: { 
     throw new Response('Video not found', { status: 404 });
   }
 
-  // Construct thumbnail path
-  const thumbnailPath = join(config.paths.videos, id, 'thumbnail.jpg');
+  // Construct thumbnail path - try to extract directory from videoUrl first
+  let thumbnailPath: string;
+  
+  if (video.videoUrl.startsWith('/data/videos/')) {
+    // Extract directory ID from videoUrl: /data/videos/{ID}/video.mp4
+    const urlParts = video.videoUrl.split('/');
+    const directoryId = urlParts[3]; // Extract the UUID from the path
+    thumbnailPath = join(config.paths.videos, directoryId, 'thumbnail.jpg');
+  } else {
+    // Fallback to using video ID
+    thumbnailPath = join(config.paths.videos, id, 'thumbnail.jpg');
+  }
   
   // Check if thumbnail exists
   if (!existsSync(thumbnailPath)) {

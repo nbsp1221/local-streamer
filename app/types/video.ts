@@ -10,6 +10,10 @@ export interface Video {
   addedAt: Date;
   description?: string;
   format: string;
+  // HLS-related fields
+  hasHLS?: boolean;
+  hlsGeneratedAt?: Date;
+  originalCleanupAt?: Date;
 }
 
 export interface PendingVideo {

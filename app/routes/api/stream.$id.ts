@@ -27,9 +27,38 @@ function getVideoMimeType(filename: string): string {
  * Helper function to find the actual file path (encrypted or unencrypted)
  */
 function findVideoFilePath(video: any): { filePath: string; isEncrypted: boolean } {
-  const videoDir = join(config.paths.root, 'data', 'videos', video.id);
+  // First, try to use videoUrl directly if it points to local files
+  if (video.videoUrl.startsWith('/data/videos/')) {
+    // Extract directory ID from videoUrl: /data/videos/{ID}/video.mp4
+    const urlParts = video.videoUrl.split('/');
+    const directoryId = urlParts[3]; // Extract the UUID from the path
+    const filename = urlParts[urlParts.length - 1]; // Extract filename
+    const originalExt = filename.split('.').pop() || 'mp4';
+    
+    const videoDir = join(config.paths.root, 'data', 'videos', directoryId);
+    
+    // Try encrypted file first (new format)
+    const encryptedPath = join(videoDir, `video${security.encryption.encryptedExtension}.${originalExt}`);
+    if (existsSync(encryptedPath)) {
+      return { filePath: encryptedPath, isEncrypted: true };
+    }
+    
+    // Fall back to unencrypted file (legacy format)
+    const unencryptedPath = join(videoDir, `video.${originalExt}`);
+    if (existsSync(unencryptedPath)) {
+      return { filePath: unencryptedPath, isEncrypted: false };
+    }
+    
+    // Try the exact path from videoUrl
+    const directPath = join(config.paths.root, video.videoUrl);
+    if (existsSync(directPath)) {
+      const isEncrypted = video.videoUrl.includes(security.encryption.encryptedExtension);
+      return { filePath: directPath, isEncrypted };
+    }
+  }
   
-  // Extract original extension from videoUrl
+  // Fallback: use video ID for directory (legacy behavior)
+  const videoDir = join(config.paths.root, 'data', 'videos', video.id);
   const originalExt = video.videoUrl.split('.').pop() || 'mp4';
   
   // Try encrypted file first (new format)
@@ -44,13 +73,7 @@ function findVideoFilePath(video: any): { filePath: string; isEncrypted: boolean
     return { filePath: unencryptedPath, isEncrypted: false };
   }
   
-  // Legacy path from videoUrl
-  const legacyPath = join(config.paths.root, video.videoUrl);
-  if (existsSync(legacyPath)) {
-    return { filePath: legacyPath, isEncrypted: false };
-  }
-  
-  throw new Error(`Video file not found for ID: ${video.id}`);
+  throw new Error(`Video file not found for ID: ${video.id}, videoUrl: ${video.videoUrl}`);
 }
 
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {

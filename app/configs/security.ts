@@ -30,4 +30,49 @@ export const security = {
     // Key validation hash length
     keyHashLength: 8,
   },
+  
+  hls: {
+    // Enable/disable HLS functionality
+    enabled: process.env.HLS_ENABLED === 'true',
+    
+    // Master encryption seed for key derivation
+    masterSeed: process.env.HLS_MASTER_ENCRYPTION_SEED || '',
+    
+    // Key derivation settings
+    keyDerivation: {
+      algorithm: process.env.KEY_DERIVATION_ALGORITHM || 'PBKDF2-SHA256',
+      rounds: parseInt(process.env.KEY_DERIVATION_ROUNDS!) || 100000,
+      saltPrefix: process.env.KEY_SALT_PREFIX || 'local-streamer-hls-v1',
+    },
+    
+    // Authentication settings for key server
+    auth: {
+      secret: process.env.KEY_SERVER_AUTH_SECRET || 'default-auth-secret',
+      allowedOrigins: [
+        'http://localhost:5173',
+        'http://localhost:3000',
+        process.env.FRONTEND_URL,
+      ].filter(Boolean),
+    },
+    
+    // Streaming settings
+    streaming: {
+      segmentDuration: parseInt(process.env.HLS_SEGMENT_DURATION!) || 10,
+      playlistType: 'vod' as const,
+      deleteSegments: true,
+    },
+    
+    // FFmpeg encoding settings
+    encoding: {
+      videoCodec: 'libx264',
+      audioCodec: 'aac',
+      preset: 'medium',
+      crf: 23,
+      maxrate: '2M',
+      bufsize: '4M',
+      audioBitrate: '128k',
+      audioChannels: 2,
+      audioSampleRate: 44100,
+    },
+  },
 };

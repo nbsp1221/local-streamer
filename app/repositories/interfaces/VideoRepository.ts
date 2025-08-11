@@ -5,6 +5,7 @@ import type { BaseRepository } from "./BaseRepository";
  * Input for creating a new video
  */
 export interface CreateVideoInput {
+  id?: string; // Optional ID - if not provided, UUID will be generated
   title: string;
   tags: string[];
   videoUrl: string;
@@ -25,6 +26,10 @@ export interface UpdateVideoInput {
   duration?: number;
   format?: string;
   description?: string;
+  // HLS-related fields
+  hasHLS?: boolean;
+  hlsGeneratedAt?: Date;
+  originalCleanupAt?: Date;
 }
 
 /**
@@ -55,6 +60,26 @@ export interface VideoRepository extends BaseRepository<Video, CreateVideoInput,
    * Search videos by query (title or tags)
    */
   search(query: string): Promise<Video[]>;
+
+  /**
+   * Update HLS status for a video
+   */
+  updateHLSStatus(id: string, hasHLS: boolean, generatedAt?: Date): Promise<Video | null>;
+
+  /**
+   * Find videos without HLS conversion (for migration)
+   */
+  findVideosWithoutHLS(): Promise<Video[]>;
+
+  /**
+   * Find videos with HLS conversion
+   */
+  findVideosWithHLS(): Promise<Video[]>;
+
+  /**
+   * Schedule original file cleanup
+   */
+  scheduleOriginalCleanup(id: string, cleanupAt: Date): Promise<Video | null>;
 }
 
 /**

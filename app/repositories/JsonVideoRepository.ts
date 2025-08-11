@@ -16,7 +16,9 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
   protected transformFromJson(data: any): Video {
     return {
       ...data,
-      addedAt: new Date(data.addedAt)
+      addedAt: new Date(data.addedAt),
+      hlsGeneratedAt: data.hlsGeneratedAt ? new Date(data.hlsGeneratedAt) : undefined,
+      originalCleanupAt: data.originalCleanupAt ? new Date(data.originalCleanupAt) : undefined,
     };
   }
 
@@ -26,7 +28,9 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
   protected transformToJson(entity: Video): any {
     return {
       ...entity,
-      addedAt: entity.addedAt.toISOString()
+      addedAt: entity.addedAt.toISOString(),
+      hlsGeneratedAt: entity.hlsGeneratedAt?.toISOString(),
+      originalCleanupAt: entity.originalCleanupAt?.toISOString(),
     };
   }
 
@@ -35,7 +39,7 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
    */
   protected createEntity(input: CreateVideoInput): Video {
     return {
-      id: uuidv4(),
+      id: input.id || uuidv4(), // Use provided ID or generate new one
       title: input.title,
       tags: input.tags,
       videoUrl: input.videoUrl,
@@ -108,6 +112,51 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
       
       return matchesTitle || matchesTags;
     });
+  }
+
+  /**
+   * Update HLS status for a video
+   */
+  async updateHLSStatus(id: string, hasHLS: boolean, generatedAt?: Date): Promise<Video | null> {
+    const video = await this.findById(id);
+    if (!video) return null;
+
+    const updatedVideo: Video = {
+      ...video,
+      hasHLS,
+      hlsGeneratedAt: generatedAt || new Date(),
+    };
+
+    return await this.update(id, updatedVideo);
+  }
+
+  /**
+   * Find videos without HLS conversion (for migration)
+   */
+  async findVideosWithoutHLS(): Promise<Video[]> {
+    return this.findWhere(video => !video.hasHLS);
+  }
+
+  /**
+   * Find videos with HLS conversion
+   */
+  async findVideosWithHLS(): Promise<Video[]> {
+    return this.findWhere(video => !!video.hasHLS);
+  }
+
+  /**
+   * Schedule original file cleanup
+   */
+  async scheduleOriginalCleanup(id: string, cleanupAt: Date): Promise<Video | null> {
+    const video = await this.findById(id);
+    if (!video) return null;
+
+    const updatedVideo: Video = {
+      ...video,
+      originalCleanupAt: cleanupAt,
+    };
+
+    return await this.update(id, updatedVideo);
   }
 }
 
