@@ -2,7 +2,13 @@ import jwt from 'jsonwebtoken';
 import { config } from '~/configs';
 
 // JWT configuration
-const JWT_SECRET = process.env.HLS_JWT_SECRET || 'local-streamer-hls-jwt-secret-2024';
+const JWT_SECRET = (() => {
+  const secret = process.env.HLS_JWT_SECRET;
+  if (!secret) {
+    throw new Error('HLS_JWT_SECRET environment variable is required for HLS streaming');
+  }
+  return secret;
+})();
 const JWT_ISSUER = 'local-streamer';
 const JWT_AUDIENCE = 'hls-streaming';
 const JWT_EXPIRY = '15m'; // 15 minutes expiry for HLS tokens

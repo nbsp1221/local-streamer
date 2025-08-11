@@ -152,6 +152,17 @@ export class HLSConverter {
    * Validate segment name to prevent path traversal attacks
    */
   isValidSegmentName(segmentName: string): boolean {
+    // Check for path traversal patterns
+    if (segmentName.includes('..') || segmentName.includes('/') || segmentName.includes('\\')) {
+      return false;
+    }
+    
+    // Check for null bytes (security vulnerability)
+    if (segmentName.includes('\0')) {
+      return false;
+    }
+    
+    // Only allow specific segment name pattern
     return /^segment_\d{3}\.ts$/.test(segmentName);
   }
 

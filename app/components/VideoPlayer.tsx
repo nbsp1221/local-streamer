@@ -7,6 +7,9 @@ import type { Video } from '~/types/video';
 import '@vidstack/react/player/styles/default/theme.css';
 import '@vidstack/react/player/styles/default/layouts/video.css';
 
+// Constants
+const TOKEN_REFRESH_INTERVAL = 12 * 60 * 1000; // 12 minutes in milliseconds
+
 interface VideoPlayerProps {
   video: Video;
 }
@@ -54,7 +57,7 @@ export function VideoPlayer({ video }: VideoPlayerProps) {
             }
             tokenRefreshTimer.current = setTimeout(() => {
               fetchHLSToken();
-            }, 12 * 60 * 1000);
+            }, TOKEN_REFRESH_INTERVAL);
           } else {
             console.warn(`Failed to get HLS token: ${data.error}`);
           }
