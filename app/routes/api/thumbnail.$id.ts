@@ -63,5 +63,3 @@ export async function loader({ request, params }: { request: Request; params: { 
   }
 }
 
-// Note: In the future, XOR encryption can be added here
-// The decryption logic would be applied to the stream before sending

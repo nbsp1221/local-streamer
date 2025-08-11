@@ -11,7 +11,7 @@ const mockEnv = {
   KEY_DERIVATION_ROUNDS: '1000',
 };
 
-describe('Hybrid Upload System (XOR + HLS)', () => {
+describe('HLS Upload System', () => {
   let testDir: string;
   let originalEnv: { [key: string]: string | undefined };
 
@@ -48,55 +48,44 @@ describe('Hybrid Upload System (XOR + HLS)', () => {
     }
   });
 
-  it('should support both HLS and XOR upload when HLS is enabled', () => {
+  it('should support HLS upload when enabled', () => {
     expect(process.env.HLS_ENABLED).toBe('true');
     
-    // This test verifies environment configuration
+    // This test verifies environment configuration for HLS
     expect(process.env.HLS_MASTER_ENCRYPTION_SEED).toBeDefined();
     expect(process.env.KEY_SALT_PREFIX).toBeDefined();
     expect(process.env.KEY_DERIVATION_ROUNDS).toBeDefined();
   });
 
-  it('should handle HLS disabled scenario', async () => {
-    // Set HLS disabled
-    process.env.HLS_ENABLED = 'false';
-    
-    // Import the generateHLSVersion function (this would normally be tested via add-to-library)
-    // For now, just verify the environment check logic
+  it('should handle HLS configuration properly', async () => {
+    // Verify HLS is enabled by default in test
     const isHLSEnabled = process.env.HLS_ENABLED === 'true';
-    expect(isHLSEnabled).toBe(false);
+    expect(isHLSEnabled).toBe(true);
     
-    // When HLS is disabled, only XOR should be generated
-    // The generateHLSVersion function should return { success: false, error: 'HLS disabled' }
+    // HLS should be the primary streaming method
+    // The generateHLSVersion function should work when properly configured
   });
 
-  it('should verify hybrid response format', () => {
+  it('should verify HLS response format', () => {
     // Test that the add-to-library API returns the expected response format
     const mockSuccessResponse = {
       success: true,
       videoId: 'test-video-id',
-      message: 'Video added to library successfully (XOR + HLS)',
-      formats: {
-        xor: true,
-        hls: true
-      }
+      message: 'Video added to library successfully with HLS',
+      hlsEnabled: true
     };
 
-    const mockPartialResponse = {
+    const mockFailureResponse = {
       success: true,
       videoId: 'test-video-id', 
-      message: 'Video added to library with XOR only (HLS generation failed)',
-      formats: {
-        xor: true,
-        hls: false
-      }
+      message: 'Video added to library but HLS generation failed',
+      hlsEnabled: false
     };
 
     // Verify response structure
-    expect(mockSuccessResponse.formats).toHaveProperty('xor');
-    expect(mockSuccessResponse.formats).toHaveProperty('hls');
-    expect(mockPartialResponse.formats.xor).toBe(true);
-    expect(mockPartialResponse.formats.hls).toBe(false);
+    expect(mockSuccessResponse).toHaveProperty('hlsEnabled');
+    expect(mockSuccessResponse.hlsEnabled).toBe(true);
+    expect(mockFailureResponse.hlsEnabled).toBe(false);
   });
 
   it('should verify video source priority logic', () => {
@@ -104,7 +93,7 @@ describe('Hybrid Upload System (XOR + HLS)', () => {
     const videoWithHLS = {
       id: 'test-video-1',
       title: 'Test Video',
-      videoUrl: '/data/videos/test-video-1/video.encrypted.mp4',
+      videoUrl: '/data/videos/test-video-1/video.mp4',
       hasHLS: true,
       thumbnailUrl: '/api/thumbnail/test-video-1',
       tags: ['test'],
@@ -132,14 +121,9 @@ describe('Hybrid Upload System (XOR + HLS)', () => {
           sources.push({
             src: `/api/hls/${video.id}/playlist.m3u8`,
             type: 'hls',
-            label: 'HLS (Encrypted)'
+            label: 'HLS Stream'
           });
         }
-        sources.push({
-          src: `/api/stream/${video.id}`,
-          type: 'xor',
-          label: 'XOR Stream'
-        });
       } else {
         sources.push({
           src: video.videoUrl,
@@ -168,36 +152,26 @@ describe('Hybrid Upload System (XOR + HLS)', () => {
     expect(directSources[0].type).toBe('direct');
   });
 
-  it('should verify fallback mechanism configuration', () => {
-    // Test the fallback retry logic
+  it('should verify single-source configuration', () => {
+    // Test that HLS is the only source for local videos
     const sources = [
-      { src: '/api/hls/video/playlist.m3u8', type: 'hls' as const, label: 'HLS' },
-      { src: '/api/stream/video', type: 'xor' as const, label: 'XOR' }
+      { src: '/api/hls/video/playlist.m3u8', type: 'hls' as const, label: 'HLS' }
     ];
 
     let currentSrc = sources[0].src;
-    let retryCount = 0;
 
-    // Simulate error and fallback
+    // Simulate error handling with single source
     const handleError = () => {
-      const currentIndex = sources.findIndex(s => s.src === currentSrc);
-      const nextIndex = currentIndex + 1;
-      
-      if (nextIndex < sources.length && retryCount < 3) {
-        retryCount += 1;
-        currentSrc = sources[nextIndex].src;
-        return true; // Successfully fell back
-      }
-      return false; // No more fallbacks
+      // No fallback available for local videos with HLS-only system
+      return false; // No fallbacks available
     };
 
-    // First error should fallback to XOR
-    expect(handleError()).toBe(true);
-    expect(currentSrc).toBe('/api/stream/video');
-    expect(retryCount).toBe(1);
-
-    // Second error should fail (no more sources)
+    // Error should result in failure (no fallbacks)
     expect(handleError()).toBe(false);
-    expect(retryCount).toBe(1); // Retry count shouldn't increase if no fallback available
+    expect(currentSrc).toBe('/api/hls/video/playlist.m3u8');
+    
+    // Verify sources array has only one item
+    expect(sources).toHaveLength(1);
+    expect(sources[0].type).toBe('hls');
   });
 });

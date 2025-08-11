@@ -14,29 +14,6 @@ export const security = {
     parallelism: 1,      // 1 thread
   },
   
-  encryption: {
-    // XOR encryption key (required environment variable)
-    xorKey: (() => {
-      const key = process.env.XOR_ENCRYPTION_KEY;
-      if (!key) {
-        throw new Error('XOR_ENCRYPTION_KEY environment variable is required for security');
-      }
-      return key;
-    })(),
-    
-    // Chunk size for streaming (64KB)
-    chunkSize: 64 * 1024,
-    
-    // Encryption algorithm identifier (for future algorithm additions)
-    algorithm: 'xor-256',
-    
-    // Encrypted file extension
-    encryptedExtension: '.encrypted',
-    
-    // Key validation hash length
-    keyHashLength: 8,
-  },
-  
   hls: {
     // Enable/disable HLS functionality
     enabled: process.env.HLS_ENABLED === 'true',
