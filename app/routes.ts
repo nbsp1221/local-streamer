@@ -17,4 +17,9 @@ export default [
   route("api/auth/login", "routes/api/auth/login.ts"),
   route("api/auth/logout", "routes/api/auth/logout.ts"),
   route("api/auth/me", "routes/api/auth/me.ts"),
+  // HLS streaming routes
+  route("api/hls-token/:videoId", "routes/api/hls-token.$videoId.ts"),
+  route("api/hls/:videoId/playlist.m3u8", "routes/api/hls.$videoId.playlist.ts"),
+  route("api/hls/:videoId/segment/:segment", "routes/api/hls.$videoId.segment.$segment.ts"),
+  route("api/hls-key/:videoId", "routes/api/hls-key.$videoId.ts"),
 ] satisfies RouteConfig;

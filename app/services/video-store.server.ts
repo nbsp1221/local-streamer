@@ -34,6 +34,7 @@ export async function addVideo(video: Video): Promise<void> {
   
   // Convert Video to CreateVideoInput
   const createInput: CreateVideoInput = {
+    id: video.id, // Pass the correct ID
     title: video.title,
     tags: video.tags,
     videoUrl: video.videoUrl,
