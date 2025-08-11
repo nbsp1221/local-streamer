@@ -5,11 +5,8 @@ import { requireAuth } from "~/utils/auth.server";
 import type { Video } from "~/types/video";
 import path from "path";
 import { config } from "~/configs";
-import { security } from "~/configs/security";
 import { HLSConverter } from "~/services/hls-converter.server";
-import { getFileEncryption } from "~/services/file-encryption.server";
 import { promises as fs } from 'fs';
-import os from 'os';
 
 interface AddToLibraryRequest {
   filename: string;
@@ -42,12 +39,11 @@ export async function action({ request }: Route.ActionArgs) {
     
     // Extract moved file information
     const ext = path.extname(filename);
-    const newFilepath = `/data/videos/${videoId}/video${ext}`; // Keep original format for database
+    const newFilepath = `/data/videos/${videoId}/video${ext}`;
     
-    // Get video info from encrypted file
-    const encryptedFilename = `video${security.encryption.encryptedExtension}${ext}`;
-    const encryptedVideoPath = path.join(config.paths.videos, videoId, encryptedFilename);
-    const videoInfo = await getVideoInfo(encryptedVideoPath);
+    // Get video info from the moved file
+    const videoPath = path.join(config.paths.videos, videoId, `video${ext}`);
+    const videoInfo = await getVideoInfo(videoPath);
 
     // Handle thumbnail (try to move temp thumbnail first, generate if not available)
     const thumbnailPath = path.join(config.paths.videos, videoId, 'thumbnail.jpg');
@@ -56,14 +52,8 @@ export async function action({ request }: Route.ActionArgs) {
     const tempThumbnailMoved = await moveTempThumbnailToLibrary(filename, videoId);
     
     if (!tempThumbnailMoved) {
-      // No temporary thumbnail available
-      // Note: Encrypted files can't be processed by FFmpeg directly
-      // TODO: Implement thumbnail generation with temporary decryption if needed
-      console.log(`⚠️ Skipping thumbnail generation for encrypted video: ${title} (${videoId})`);
-      console.log(`   Consider generating thumbnails before encryption or implementing decryption support`);
-      
-      // For now, skip thumbnail generation for encrypted files
-      // Future: implement temporary decryption for FFmpeg processing
+      console.log(`ℹ️ No temporary thumbnail available for: ${title} (${videoId})`);
+      console.log(`   Thumbnail will be generated during HLS conversion if needed`);
     }
 
     // Create Video object
@@ -79,24 +69,19 @@ export async function action({ request }: Route.ActionArgs) {
       format: videoInfo.format as any // Type assertion (can be improved later)
     };
 
-    // Save to database (XOR version)
+    // Save to database
     await addVideo(video);
 
-    console.log(`📹 Video added to library (XOR): ${title} (${videoId})`);
+    console.log(`📹 Video added to library: ${title} (${videoId})`);
 
-    // Generate HLS version if enabled
-    let hlsStatus = 'disabled';
-    if (process.env.HLS_ENABLED === 'true') {
-      console.log(`🎬 Starting HLS generation for ${title} (${videoId})`);
-      hlsStatus = 'generating';
-    }
-    
-    const hlsResult = await generateHLSVersion(videoId, encryptedVideoPath);
+    // Generate HLS version
+    let hlsStatus = 'generating';
+    const hlsResult = await generateHLSVersion(videoId, videoPath);
     hlsStatus = hlsResult.success ? 'completed' : 'failed';
 
     const responseMessage = hlsResult.success 
-      ? 'Video added to library successfully (XOR + HLS)'
-      : 'Video added to library with XOR only (HLS generation failed)';
+      ? 'Video added to library successfully with HLS'
+      : 'Video added to library but HLS generation failed';
 
     console.log(`✅ Upload completed for ${title} (${videoId}): HLS=${hlsStatus}`);
 
@@ -104,10 +89,7 @@ export async function action({ request }: Route.ActionArgs) {
       success: true,
       videoId,
       message: responseMessage,
-      formats: {
-        xor: true,
-        hls: hlsResult.success
-      }
+      hlsEnabled: hlsResult.success
     });
 
   } catch (error) {
@@ -122,32 +104,15 @@ export async function action({ request }: Route.ActionArgs) {
 
 /**
  * Generate HLS version for newly uploaded video
- * This runs after XOR encryption to create encrypted HLS streams
+ * Direct conversion from original file to HLS
  */
-async function generateHLSVersion(videoId: string, encryptedVideoPath: string): Promise<{success: boolean, error?: string}> {
-  // Check if HLS is enabled
-  if (process.env.HLS_ENABLED !== 'true') {
-    console.log(`⚠️ HLS generation skipped for ${videoId}: HLS_ENABLED=false`);
-    return { success: false, error: 'HLS disabled' };
-  }
-
+async function generateHLSVersion(videoId: string, videoPath: string): Promise<{success: boolean, error?: string}> {
   console.log(`🎬 Starting HLS generation for video: ${videoId}`);
   
-  let tempDecryptedPath: string | null = null;
-  
   try {
-    // Create temporary file for decrypted video
-    tempDecryptedPath = path.join(os.tmpdir(), `local-streamer-${videoId}-${Date.now()}.mp4`);
-    
-    // Temporarily decrypt the XOR encrypted file
-    const fileEncryption = getFileEncryption();
-    await fileEncryption.decryptFile(encryptedVideoPath, tempDecryptedPath);
-    
-    console.log(`🔓 Temporarily decrypted ${videoId} for HLS conversion`);
-    
-    // Generate HLS version
+    // Generate HLS version directly from original file
     const hlsConverter = new HLSConverter();
-    await hlsConverter.convertVideo(videoId, tempDecryptedPath);
+    await hlsConverter.convertVideo(videoId, videoPath);
     
     console.log(`✅ HLS generated successfully for ${videoId}`);
     
@@ -173,16 +138,5 @@ async function generateHLSVersion(videoId: string, encryptedVideoPath: string): 
     }
     
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-    
-  } finally {
-    // Clean up temporary decrypted file
-    if (tempDecryptedPath) {
-      try {
-        await fs.unlink(tempDecryptedPath);
-        console.log(`🧹 Cleaned up temporary file: ${tempDecryptedPath}`);
-      } catch (cleanupError) {
-        console.warn(`⚠️ Failed to clean up temporary file ${tempDecryptedPath}:`, cleanupError);
-      }
-    }
   }
 }

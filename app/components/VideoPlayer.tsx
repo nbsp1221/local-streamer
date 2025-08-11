@@ -16,7 +16,7 @@ interface VideoPlayerProps {
 
 interface VideoSource {
   src: string;
-  type: 'hls' | 'xor' | 'direct';
+  type: 'hls' | 'direct';
   label: string;
 }
 
@@ -76,30 +76,22 @@ export function VideoPlayer({ video }: VideoPlayerProps) {
     };
   }, [video]);
 
-  // Generate video sources in priority order
+  // Generate video sources - HLS only for local videos
   useEffect(() => {
     const generateSources = (): VideoSource[] => {
       const videoSources: VideoSource[] = [];
 
-      // For local videos (encrypted), check both HLS and XOR options
+      // For local videos, use HLS streaming only
       if (video.videoUrl.startsWith('/data/videos/')) {
-        // 1. Try HLS first if video supports it and we have a token
         if (video.hasHLS && hlsToken) {
           videoSources.push({
             src: `/api/hls/${video.id}/playlist.m3u8?token=${hlsToken}`,
             type: 'hls',
-            label: 'HLS (Encrypted)'
+            label: 'HLS Stream'
           });
         }
-
-        // 2. Fallback to XOR streaming
-        videoSources.push({
-          src: `/api/stream/${video.id}`,
-          type: 'xor',
-          label: 'XOR Stream'
-        });
       } else {
-        // Direct video URL (unencrypted)
+        // Direct video URL (external)
         videoSources.push({
           src: video.videoUrl,
           type: 'direct',
@@ -120,25 +112,13 @@ export function VideoPlayer({ video }: VideoPlayerProps) {
     }
   }, [video, hlsToken]);
 
-  // Handle playback errors and fallback to next source
+  // Handle playback errors
   const handleError = (errorEvent: any) => {
     console.error(`❌ Video playback error:`, errorEvent);
     
-    const currentIndex = sources.findIndex(source => source.src === currentSrc);
-    const nextIndex = currentIndex + 1;
-    
-    if (nextIndex < sources.length && retryCountRef.current < 3) {
-      retryCountRef.current += 1;
-      const nextSource = sources[nextIndex];
-      
-      console.log(`🔄 Switching to fallback source: ${nextSource.type} (attempt ${retryCountRef.current})`);
-      setCurrentSrc(nextSource.src);
-      setError(null);
-    } else {
-      const errorMessage = `Failed to load video after trying ${Math.min(retryCountRef.current + 1, sources.length)} sources`;
-      console.error(`💔 ${errorMessage}`);
-      setError(errorMessage);
-    }
+    const errorMessage = `Failed to load video`;
+    console.error(`💔 ${errorMessage}`);
+    setError(errorMessage);
   };
 
   // Reset retry count when video loads successfully

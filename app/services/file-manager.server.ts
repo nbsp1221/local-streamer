@@ -6,9 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import ffmpegStatic from 'ffmpeg-static';
 import type { PendingVideo } from '~/types/video';
 import { generateSmartThumbnail } from './thumbnail-generator.server';
-import { getFileEncryption } from './file-encryption.server';
 import { config } from '~/configs';
-import { security } from '~/configs/security';
 
 const INCOMING_DIR = config.paths.incoming;
 const THUMBNAILS_DIR = config.paths.thumbnails;
@@ -90,7 +88,7 @@ export async function scanIncomingFiles(): Promise<PendingVideo[]> {
 }
 
 /**
- * Move file from incoming to videos directory with encryption and rename with UUID
+ * Move file from incoming to videos directory and rename with UUID
  */
 export async function moveToLibrary(filename: string): Promise<string> {
   // Validate filename to prevent path traversal attacks
@@ -122,30 +120,26 @@ export async function moveToLibrary(filename: string): Promise<string> {
   // Generate new UUID
   const videoId = uuidv4();
   const ext = path.extname(filename);
-  const encryptedFilename = `video${security.encryption.encryptedExtension}${ext}`;
+  const targetFilename = `video${ext}`;
   
   // Create target directory
   const targetDir = path.join(VIDEOS_DIR, videoId);
   await fs.mkdir(targetDir, { recursive: true });
   
-  // Target file path (encrypted)
-  const targetPath = path.join(targetDir, encryptedFilename);
+  // Target file path
+  const targetPath = path.join(targetDir, targetFilename);
   
   try {
-    // Encrypt file during move
-    const fileEncryption = getFileEncryption();
-    await fileEncryption.encryptFile(sourcePath, targetPath);
+    // Move file to target directory
+    await fs.rename(sourcePath, targetPath);
     
-    // Remove original file after successful encryption
-    await fs.unlink(sourcePath);
-    
-    console.log(`📦 File encrypted and moved successfully: ${filename} → ${targetPath}`);
+    console.log(`📦 File moved successfully: ${filename} → ${targetPath}`);
     
     return videoId;
   } catch (error) {
-    console.error('❌ File encryption and move failed:', error);
+    console.error('❌ File move failed:', error);
     
-    // Clean up created directory and any partial files on failure
+    // Clean up created directory on failure
     try {
       // Remove target file if it exists
       if (existsSync(targetPath)) {
@@ -162,7 +156,7 @@ export async function moveToLibrary(filename: string): Promise<string> {
       console.error('Directory cleanup failed:', cleanupError);
     }
     
-    throw new Error(`Failed to encrypt and move file from ${filename}: ${error}`);
+    throw new Error(`Failed to move file from ${filename}: ${error}`);
   }
 }
 
@@ -237,39 +231,19 @@ export async function extractVideoDuration(filePath: string): Promise<number> {
 
 /**
  * Extract video file information
- * Handles both encrypted and unencrypted video files
  */
 export async function getVideoInfo(filePath: string) {
   const stat = statSync(filePath);
-  const filename = path.basename(filePath);
+  const ext = path.extname(filePath).toLowerCase();
+  const duration = await extractVideoDuration(filePath);
   
-  // Check if this is an encrypted file
-  const isEncrypted = filename.includes(security.encryption.encryptedExtension);
-  
-  let ext: string;
-  let duration: number = 0;
-  
-  if (isEncrypted) {
-    // For encrypted files: extract original extension and skip duration extraction
-    // Pattern: video.encrypted.mp4 -> .mp4
-    const parts = filename.split('.');
-    ext = '.' + parts[parts.length - 1]; // Get the final extension
-    
-    console.log(`📁 Processing encrypted video file: ${filename}, skipping duration extraction`);
-    // Duration extraction skipped for encrypted files to avoid FFmpeg errors
-    // TODO: Implement duration extraction with temporary decryption if needed
-  } else {
-    // For unencrypted files: use existing logic
-    ext = path.extname(filePath).toLowerCase();
-    duration = await extractVideoDuration(filePath);
-  }
+  console.log(`📁 Processing video file: ${path.basename(filePath)}`);
   
   return {
     size: stat.size,
     format: ext.slice(1), // Remove dot from extension
     mimeType: getMimeType(ext),
-    duration,
-    encrypted: isEncrypted
+    duration
   };
 }
 
