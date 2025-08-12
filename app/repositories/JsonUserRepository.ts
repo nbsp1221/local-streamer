@@ -41,7 +41,7 @@ export class JsonUserRepository extends BaseJsonRepository<User, CreateUserData,
     return {
       id: uuidv4(),
       email: input.email.toLowerCase(),
-      passwordHash: input.password, // Will be hashed in create method
+      passwordHash: input.password, // Will be replaced with hash in create method
       role: input.role || 'user',
       createdAt: now,
       updatedAt: now
@@ -81,15 +81,19 @@ export class JsonUserRepository extends BaseJsonRepository<User, CreateUserData,
       throw new Error('User with this email already exists');
     }
 
-    // Hash password
-    const hashedPassword = await this.hashPassword(input.password);
+    // Create entity with plain password first
+    const newEntity = this.createEntity(input);
     
-    const userWithHashedPassword = {
-      ...input,
-      password: hashedPassword
-    };
-
-    return super.create(userWithHashedPassword);
+    // Hash password and replace plain password
+    const hashedPassword = await this.hashPassword(input.password);
+    newEntity.passwordHash = hashedPassword;
+    
+    // Save to file
+    const entities = await this.readAllFromFile();
+    entities.unshift(newEntity);
+    await this.writeAllToFile(entities);
+    
+    return newEntity;
   }
 
   /**
@@ -98,9 +102,10 @@ export class JsonUserRepository extends BaseJsonRepository<User, CreateUserData,
   async update(id: string, updates: UpdateUserInput): Promise<User | null> {
     const updateData = { ...updates };
     
-    // Hash password if updating
+    // Hash password if updating (passwordHash field actually contains plain text password)
     if (updateData.passwordHash && typeof updateData.passwordHash === 'string') {
-      updateData.passwordHash = await this.hashPassword(updateData.passwordHash);
+      const hashedPassword = await this.hashPassword(updateData.passwordHash);
+      updateData.passwordHash = hashedPassword;
     }
 
     // Update email to lowercase

@@ -189,11 +189,11 @@ describe('JsonWriteQueue', () => {
   });
 
   describe('utility methods', () => {
-    it('should track mutex count', () => {
+    it('should track mutex count', async () => {
       expect(writeQueue.getMutexCount()).toBe(0);
       
       // Writing to a file should create a mutex
-      writeQueue.writeJson(testFilePath, { test: true });
+      await writeQueue.writeJson(testFilePath, { test: true });
       expect(writeQueue.getMutexCount()).toBe(1);
     });
 
