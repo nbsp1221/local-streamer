@@ -39,10 +39,9 @@ export async function action({ request }: Route.ActionArgs) {
     
     // Extract moved file information
     const ext = path.extname(filename);
-    const newFilepath = `/data/videos/${videoId}/video${ext}`;
-    
-    // Get video info from the moved file
     const videoPath = path.join(config.paths.videos, videoId, `video${ext}`);
+    
+    // Get video info from the moved file (before HLS conversion)
     const videoInfo = await getVideoInfo(videoPath);
 
     // Handle thumbnail (try to move temp thumbnail first, generate if not available)
@@ -56,13 +55,13 @@ export async function action({ request }: Route.ActionArgs) {
       console.log(`   Thumbnail will be generated during HLS conversion if needed`);
     }
 
-    // Create Video object
+    // Create Video object - videoUrl points to HLS stream (original will be deleted)
     const video: Video = {
       id: videoId,
       title: title.trim(),
       tags: tags.filter(tag => tag.trim().length > 0).map(tag => tag.trim()),
       thumbnailUrl: `/api/thumbnail/${videoId}`, // Use API endpoint for thumbnail
-      videoUrl: newFilepath,
+      videoUrl: `/data/videos/${videoId}/playlist.m3u8`, // Point to HLS playlist
       duration: videoInfo.duration,
       addedAt: new Date(),
       description: description?.trim() || undefined,

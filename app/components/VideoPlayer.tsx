@@ -39,10 +39,11 @@ export function VideoPlayer({ video }: VideoPlayerProps) {
   const retryCountRef = useRef(0);
   const tokenRefreshTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // Fetch HLS token for encrypted videos
+  // Fetch HLS token for local videos (all local videos are HLS-only now)
   useEffect(() => {
     const fetchHLSToken = async () => {
-      if (video.hasHLS && video.videoUrl.startsWith('/data/videos/')) {
+      // All local videos use HLS streaming
+      if (video.videoUrl.startsWith('/data/videos/')) {
         try {
           const response = await fetch(`/api/hls-token/${video.id}`);
           const data: HLSTokenResponse = await response.json();
@@ -76,14 +77,14 @@ export function VideoPlayer({ video }: VideoPlayerProps) {
     };
   }, [video]);
 
-  // Generate video sources - HLS only for local videos
+  // Generate video sources - All local videos are HLS-only now
   useEffect(() => {
     const generateSources = (): VideoSource[] => {
       const videoSources: VideoSource[] = [];
 
-      // For local videos, use HLS streaming only
+      // For local videos, use HLS streaming (all local videos are HLS-only)
       if (video.videoUrl.startsWith('/data/videos/')) {
-        if (video.hasHLS && hlsToken) {
+        if (hlsToken) {
           videoSources.push({
             src: `/api/hls/${video.id}/playlist.m3u8?token=${hlsToken}`,
             type: 'hls',
