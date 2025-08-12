@@ -447,6 +447,119 @@ describe('addVideoUseCase', () => {
 
 ---
 
+## ⚡ **Performance Considerations**
+
+### **Current System Architecture (HLS-Based)**
+
+Local Streamer has fully migrated to HLS (HTTP Live Streaming) with AES-128 encryption to meet security requirements. All performance optimizations must work within this HLS framework.
+
+### **Static File Serving Performance**
+
+**Benchmark Data (2025):**
+```
+nginx:           15,592 req/sec (2-3x faster than Node.js)
+express.static:   6,459 req/sec (current Node.js approach)
+node-static:      7,565 req/sec
+```
+
+**nginx Advantages for HLS Streaming:**
+- **sendfile syscall**: OS kernel-level file transfer (fastest possible)
+- **Native range request handling**: No Chrome request flooding issues
+- **C implementation**: Minimal memory footprint vs JavaScript
+- **HLS segment caching**: Efficient .ts file serving
+
+### **Recommended Performance Optimizations**
+
+#### **1. nginx + HLS Hybrid Architecture**
+```
+Browser → nginx (HLS segments) + React Router (authentication/tokens)
+```
+
+**Benefits:**
+- 2-3x performance improvement for video streaming
+- Maintains authentication/security through React Router
+- nginx handles .ts segments and .m3u8 playlists efficiently
+
+#### **2. FFmpeg Concurrency Control**
+
+**Critical Issue**: Multiple simultaneous FFmpeg processes can crash personal computers.
+
+**Solution - Simple Queue System:**
+```typescript
+export class SimpleJobQueue {
+  private running = 0;
+  private readonly maxConcurrent = 1; // Personal PC limit
+  
+  async add<T>(job: () => Promise<T>): Promise<T> {
+    while (this.running >= this.maxConcurrent) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    this.running++;
+    try {
+      return await job();
+    } finally {
+      this.running--;
+    }
+  }
+}
+```
+
+#### **3. Route Handler Optimization**
+
+**Current Issue**: Some route handlers exceed 80+ lines with mixed responsibilities.
+
+**Target Pattern:**
+```typescript
+// Thin controller (< 20 lines)
+export async function action({ request }: Route.ActionArgs) {
+  await requireAuth(request);
+  
+  try {
+    const body = await request.json();
+    const result = await addVideoUseCase(body, createDependencies());
+    
+    return result.success 
+      ? Response.json({ success: true, data: result.data })
+      : Response.json({ success: false, error: result.error });
+      
+  } catch (error) {
+    return handleUnexpectedError(error);
+  }
+}
+```
+
+### **Performance Monitoring**
+
+**Key Metrics to Track:**
+- HLS segment delivery time
+- Token refresh overhead
+- FFmpeg processing queue length
+- Memory usage during video operations
+
+**Testing Commands:**
+```bash
+# Test HLS streaming performance
+time curl -H "Range: bytes=0-1048575" http://localhost/videos/{id}/segment-001.ts
+
+# Monitor FFmpeg processes
+ps aux | grep ffmpeg | wc -l
+```
+
+### **Hardware Considerations**
+
+**Current System Requirements:**
+- **Minimum**: 4GB RAM, dual-core CPU for personal use
+- **Recommended**: 8GB+ RAM for multiple concurrent streams
+- **Storage**: NVMe SSD recommended for HLS segment access
+
+**Bottleneck Analysis:**
+- **Not CPU**: Modern processors handle HLS easily
+- **Not Storage**: Local NVMe is fast enough
+- **Primary**: Network layer optimization (nginx vs Node.js)
+
+---
+
 ## 📚 **References & Further Reading**
 
 ### **Architectural Patterns**

@@ -30,16 +30,16 @@ Local Streamer is a personal media server application built with React Router v7
 - **Language**: TypeScript with strict mode
 - **Build Tool**: Vite
 - **Package Manager**: Bun
-- **Runtime**: Node.js (deployable with Docker)
+- **Runtime**: Bun (pure Bun runtime, deployable with Docker)
 
 ## Architecture
 
 ### File Structure
 - `app/` - React Router application code
   - `root.tsx` - Root layout with global styles and error boundary
-  - `routes.ts` - Route configuration (currently just index route)
-  - `routes/` - Route components
-  - `welcome/` - Welcome page components and assets
+  - `routes.ts` - Route configuration (comprehensive routing with API, auth, HLS endpoints)
+  - `routes/` - Route components and API handlers
+  - `welcome/` - Welcome page components (unused, home.tsx serves as index)
 - `build/` - Production build output (client and server)
 - `public/` - Static assets
 
@@ -50,10 +50,12 @@ Local Streamer is a personal media server application built with React Router v7
 
 ### Product Requirements
 The PRD.md outlines a comprehensive video streaming platform with:
-- File management system with preparation folder and library folder
-- UUID-based file identification and HLS streaming with AES-128 encryption
+- File management system with incoming/ folder and data/videos/ library
+- UUID-based file identification with HLS streaming and AES-128 encryption
+- JWT token-based authentication for secure video access
 - YouTube-inspired UI/UX for library browsing and video playback
-- Docker deployment with backend service for file management
+- @vidstack/react player with HLS support
+- Docker deployment with Bun runtime for optimal performance
 
 ## Development Notes
 
@@ -62,6 +64,10 @@ The PRD.md outlines a comprehensive video streaming platform with:
 - TailwindCSS is integrated via Vite plugin
 - The app includes proper error boundaries and meta/link functions
 - Font loading uses Google Fonts (Inter)
+- **HLS Implementation**: All local videos use HLS streaming with AES-128 encryption
+- **Authentication**: JWT-based session management with Argon2 password hashing
+- **File Processing**: FFmpeg for video conversion and thumbnail generation
+- **Data Storage**: JSON-based repositories with async write queue for concurrency safety
 
 ### Language Policy
 - **Web UI and source code**: English only (user-facing text, component names, variable names, comments)
@@ -115,4 +121,10 @@ For complete gitmoji reference: https://gitmoji.dev/
 
 ## Deployment
 
-The project is designed for Docker deployment as specified in the README. The build process creates both client-side assets and server-side code for production deployment.
+The project is designed for Docker deployment with Bun runtime. The build process creates both client-side assets and server-side code for production deployment. Key deployment features:
+
+- **Container**: Docker with Bun runtime for optimal performance
+- **Security**: Non-root user with minimal capabilities 
+- **Health monitoring**: Auto-restart on failure
+- **Persistent storage**: data/ and incoming/ volumes preserved
+- **Port**: Default 3000 (configurable via PORT environment variable)
