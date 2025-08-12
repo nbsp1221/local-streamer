@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Claude Interaction Guidelines
+
+**Language Policy:** All decision-making, reasoning, and internal communication must be conducted in English. This includes:
+- All thinking and reasoning processes
+- Internal analysis and planning
+- Technical discussions and problem-solving
+- Code comments and documentation
+
+**Output Policy:** Only the final response to the user should be provided in Korean (한국어). This ensures consistent technical communication while maintaining user-friendly Korean output.
+
 ## Project Overview
 
 Local Streamer is a personal media server application built with React Router v7. It allows users to stream their local video files through a web interface without complex setup. The project consists of a web frontend (React Router SSR app) and a backend PC agent that manages video files and streaming.
