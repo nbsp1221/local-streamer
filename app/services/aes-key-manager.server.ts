@@ -33,10 +33,10 @@ export class AESKeyManager {
    * Store video key to filesystem
    */
   async storeVideoKey(videoId: string, key: Buffer): Promise<void> {
-    const hlsDir = join(config.paths.videos, videoId, 'hls');
-    await fs.mkdir(hlsDir, { recursive: true });
+    const videoDir = join(config.paths.videos, videoId);
+    await fs.mkdir(videoDir, { recursive: true });
     
-    const keyPath = join(hlsDir, 'key.bin');
+    const keyPath = join(videoDir, 'key.bin');
     await fs.writeFile(keyPath, key);
   }
 
@@ -44,7 +44,7 @@ export class AESKeyManager {
    * Retrieve stored video key
    */
   async getVideoKey(videoId: string): Promise<Buffer> {
-    const keyPath = join(config.paths.videos, videoId, 'hls', 'key.bin');
+    const keyPath = join(config.paths.videos, videoId, 'key.bin');
     return await fs.readFile(keyPath);
   }
 
@@ -53,7 +53,7 @@ export class AESKeyManager {
    */
   async hasVideoKey(videoId: string): Promise<boolean> {
     try {
-      const keyPath = join(config.paths.videos, videoId, 'hls', 'key.bin');
+      const keyPath = join(config.paths.videos, videoId, 'key.bin');
       await fs.access(keyPath);
       return true;
     } catch {
@@ -65,11 +65,11 @@ export class AESKeyManager {
    * Create FFmpeg keyinfo file for HLS encryption
    */
   async createKeyInfoFile(videoId: string): Promise<string> {
-    const hlsDir = join(config.paths.videos, videoId, 'hls');
-    const keyInfoPath = join(hlsDir, 'keyinfo.txt');
+    const videoDir = join(config.paths.videos, videoId);
+    const keyInfoPath = join(videoDir, 'keyinfo.txt');
     
     const keyUrl = `/api/hls-key/${videoId}`;
-    const keyPath = join(hlsDir, 'key.bin');
+    const keyPath = join(videoDir, 'key.bin');
     
     const keyInfo = `${keyUrl}\n${keyPath}\n`;
     await fs.writeFile(keyInfoPath, keyInfo);
@@ -93,7 +93,7 @@ export class AESKeyManager {
    */
   async cleanupTempFiles(videoId: string): Promise<void> {
     try {
-      const keyInfoPath = join(config.paths.videos, videoId, 'hls', 'keyinfo.txt');
+      const keyInfoPath = join(config.paths.videos, videoId, 'keyinfo.txt');
       await fs.unlink(keyInfoPath);
     } catch {
       // Ignore cleanup errors

@@ -41,15 +41,15 @@ export async function loader({ request, params }: { request: Request; params: { 
       );
       
       // Update segment URLs to include correct path and token
-      // Change from "segment_000.ts" to "segment/segment_000.ts?token=..."
+      // Change from "segment-0000.ts" to "segment/segment-0000.ts?token=..."
       playlist = playlist.replace(
-        /^(segment_\d+\.ts)$/gm,
+        /^(segment-\d+\.ts)$/gm,
         `segment/$1?token=${token}`
       );
     } else {
       // Even without token, fix the path
       playlist = playlist.replace(
-        /^(segment_\d+\.ts)$/gm,
+        /^(segment-\d+\.ts)$/gm,
         `segment/$1`
       );
     }

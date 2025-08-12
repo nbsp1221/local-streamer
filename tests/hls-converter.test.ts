@@ -41,17 +41,17 @@ describe('HLSConverter', () => {
     hlsConverter = new (class extends HLSConverter {
       constructor() {
         super();
-        // Mock the keyManager to use test directory
+        // Mock the keyManager to use test directory (new structure - no hls/ subfolder)
         (this as any).keyManager = new (class extends AESKeyManager {
           async generateAndStoreVideoKey(videoId: string) {
             const key = this.generateVideoKey(videoId);
-            const hlsDir = path.join(testDir, videoId, 'hls');
-            await fs.mkdir(hlsDir, { recursive: true });
+            const videoDir = path.join(testDir, videoId);
+            await fs.mkdir(videoDir, { recursive: true });
             
-            const keyPath = path.join(hlsDir, 'key.bin');
+            const keyPath = path.join(videoDir, 'key.bin');
             await fs.writeFile(keyPath, key);
             
-            const keyInfoPath = path.join(hlsDir, 'keyinfo.txt');
+            const keyInfoPath = path.join(videoDir, 'keyinfo.txt');
             const keyInfo = `/api/hls-key/${videoId}\n${keyPath}\n`;
             await fs.writeFile(keyInfoPath, keyInfo);
             
@@ -60,7 +60,7 @@ describe('HLSConverter', () => {
 
           async cleanupTempFiles(videoId: string) {
             try {
-              const keyInfoPath = path.join(testDir, videoId, 'hls', 'keyinfo.txt');
+              const keyInfoPath = path.join(testDir, videoId, 'keyinfo.txt');
               await fs.unlink(keyInfoPath);
             } catch {
               // Ignore cleanup errors
@@ -69,7 +69,7 @@ describe('HLSConverter', () => {
 
           async hasVideoKey(videoId: string) {
             try {
-              const keyPath = path.join(testDir, videoId, 'hls', 'key.bin');
+              const keyPath = path.join(testDir, videoId, 'key.bin');
               await fs.access(keyPath);
               return true;
             } catch {
@@ -80,24 +80,24 @@ describe('HLSConverter', () => {
       }
 
       getSegmentPath(videoId: string, segmentName: string): string {
-        return path.join(testDir, videoId, 'hls', segmentName);
+        return path.join(testDir, videoId, segmentName);
       }
 
       getConversionInfo(videoId: string) {
-        const hlsDir = path.join(testDir, videoId, 'hls');
-        const playlistPath = path.join(hlsDir, 'playlist.m3u8');
-        return { hlsDir, playlistPath };
+        const videoDir = path.join(testDir, videoId);
+        const playlistPath = path.join(videoDir, 'playlist.m3u8');
+        return { videoDir, playlistPath };
       }
 
       async getPlaylist(videoId: string): Promise<string> {
-        const playlistPath = path.join(testDir, videoId, 'hls', 'playlist.m3u8');
+        const playlistPath = path.join(testDir, videoId, 'playlist.m3u8');
         return await fs.readFile(playlistPath, 'utf-8');
       }
 
       async getSegmentList(videoId: string): Promise<string[]> {
         try {
-          const hlsDir = path.join(testDir, videoId, 'hls');
-          const files = await fs.readdir(hlsDir);
+          const videoDir = path.join(testDir, videoId);
+          const files = await fs.readdir(videoDir);
           return files.filter(file => file.endsWith('.ts')).sort();
         } catch {
           return [];
@@ -106,8 +106,8 @@ describe('HLSConverter', () => {
 
       async cleanup(videoId: string): Promise<void> {
         try {
-          const hlsDir = path.join(testDir, videoId, 'hls');
-          await fs.rm(hlsDir, { recursive: true, force: true });
+          const videoDir = path.join(testDir, videoId);
+          await fs.rm(videoDir, { recursive: true, force: true });
         } catch {
           // Ignore cleanup errors
         }
@@ -149,10 +149,10 @@ describe('HLSConverter', () => {
       // This test verifies the logic, but since we're testing with a mock
       // implementation, the actual keyManager.hasVideoKey might return false
       // In a real implementation, this would return true
-      const hlsDir = path.join(testDir, testVideoId, 'hls');
-      await fs.mkdir(hlsDir, { recursive: true });
-      await fs.writeFile(path.join(hlsDir, 'playlist.m3u8'), 'mock playlist');
-      await fs.writeFile(path.join(hlsDir, 'key.bin'), Buffer.alloc(16, 'a'));
+      const videoDir = path.join(testDir, testVideoId);
+      await fs.mkdir(videoDir, { recursive: true });
+      await fs.writeFile(path.join(videoDir, 'playlist.m3u8'), 'mock playlist');
+      await fs.writeFile(path.join(videoDir, 'key.bin'), Buffer.alloc(16, 'a'));
 
       const isAvailable = await hlsConverter.isHLSAvailable(testVideoId);
       // Note: This may return false in test environment due to mocking
@@ -163,9 +163,9 @@ describe('HLSConverter', () => {
   describe('isValidSegmentName', () => {
     it('should validate correct segment names', () => {
       const validNames = [
-        'segment_000.ts',
-        'segment_001.ts',
-        'segment_123.ts',
+        'segment-0000.ts',
+        'segment-0001.ts',
+        'segment-1234.ts',
       ];
 
       validNames.forEach(name => {
@@ -175,12 +175,13 @@ describe('HLSConverter', () => {
 
     it('should reject invalid segment names', () => {
       const invalidNames = [
-        'segment_0.ts',
-        'segment_1234.ts',
-        'segment_000.mp4',
-        '../segment_000.ts',
-        'segment_000',
+        'segment-0.ts',
+        'segment-12345.ts',
+        'segment-0000.mp4',
+        '../segment-0000.ts',
+        'segment-0000',
         'malicious/path.ts',
+        'segment_000.ts', // Old format
         '',
       ];
 
@@ -197,34 +198,34 @@ describe('HLSConverter', () => {
     });
 
     it('should return sorted segment list', async () => {
-      const hlsDir = path.join(testDir, testVideoId, 'hls');
-      await fs.mkdir(hlsDir, { recursive: true });
+      const videoDir = path.join(testDir, testVideoId);
+      await fs.mkdir(videoDir, { recursive: true });
       
-      // Create segment files in random order
-      const segmentNames = ['segment_002.ts', 'segment_000.ts', 'segment_001.ts'];
+      // Create segment files in random order (new naming format)
+      const segmentNames = ['segment-0002.ts', 'segment-0000.ts', 'segment-0001.ts'];
       for (const name of segmentNames) {
-        await fs.writeFile(path.join(hlsDir, name), 'mock segment');
+        await fs.writeFile(path.join(videoDir, name), 'mock segment');
       }
 
       // Also create non-segment files that should be ignored
-      await fs.writeFile(path.join(hlsDir, 'playlist.m3u8'), 'mock playlist');
-      await fs.writeFile(path.join(hlsDir, 'key.bin'), 'mock key');
+      await fs.writeFile(path.join(videoDir, 'playlist.m3u8'), 'mock playlist');
+      await fs.writeFile(path.join(videoDir, 'key.bin'), 'mock key');
 
       const segments = await hlsConverter.getSegmentList(testVideoId);
-      expect(segments).toEqual(['segment_000.ts', 'segment_001.ts', 'segment_002.ts']);
+      expect(segments).toEqual(['segment-0000.ts', 'segment-0001.ts', 'segment-0002.ts']);
     });
   });
 
   describe('cleanup', () => {
-    it('should remove HLS directory and all contents', async () => {
-      const hlsDir = path.join(testDir, testVideoId, 'hls');
-      await fs.mkdir(hlsDir, { recursive: true });
-      await fs.writeFile(path.join(hlsDir, 'playlist.m3u8'), 'mock playlist');
-      await fs.writeFile(path.join(hlsDir, 'segment_000.ts'), 'mock segment');
+    it('should remove video directory and all contents', async () => {
+      const videoDir = path.join(testDir, testVideoId);
+      await fs.mkdir(videoDir, { recursive: true });
+      await fs.writeFile(path.join(videoDir, 'playlist.m3u8'), 'mock playlist');
+      await fs.writeFile(path.join(videoDir, 'segment-0000.ts'), 'mock segment');
 
       await hlsConverter.cleanup(testVideoId);
 
-      const dirExists = await fs.access(hlsDir).then(() => true).catch(() => false);
+      const dirExists = await fs.access(videoDir).then(() => true).catch(() => false);
       expect(dirExists).toBe(false);
     });
 

@@ -14,23 +14,27 @@ export class HLSConverter {
 
   /**
    * Convert MP4 to HLS with AES-128 encryption
+   * New structure: stores HLS files directly in video UUID folder
    */
   async convertVideo(videoId: string, inputPath: string): Promise<void> {
     console.log(`🎬 Starting HLS conversion for video: ${videoId}`);
     
-    const hlsDir = join(config.paths.videos, videoId, 'hls');
-    await fs.mkdir(hlsDir, { recursive: true });
+    const videoDir = join(config.paths.videos, videoId);
+    await fs.mkdir(videoDir, { recursive: true });
     
     try {
       // 1. Generate AES-128 key and keyinfo file
       const { keyInfoFile } = await this.keyManager.generateAndStoreVideoKey(videoId);
       
       // 2. Execute FFmpeg HLS conversion
-      const playlistPath = join(hlsDir, 'playlist.m3u8');
+      const playlistPath = join(videoDir, 'playlist.m3u8');
       await this.executeFFmpegConversion(inputPath, keyInfoFile, playlistPath, videoId);
       
       // 3. Cleanup temporary files
       await this.keyManager.cleanupTempFiles(videoId);
+      
+      // 4. Remove original file to save storage
+      await this.removeOriginalFile(inputPath);
       
       console.log(`✅ HLS conversion completed for video: ${videoId}`);
     } catch (error) {
@@ -48,7 +52,7 @@ export class HLSConverter {
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const segmentDuration = process.env.HLS_SEGMENT_DURATION || '10';
-      const segmentPath = join(config.paths.videos, videoId, 'hls', 'segment_%03d.ts');
+      const segmentPath = join(config.paths.videos, videoId, 'segment-%04d.ts');
       
       const ffmpegArgs = [
         '-i', inputPath,
@@ -112,7 +116,7 @@ export class HLSConverter {
    */
   async isHLSAvailable(videoId: string): Promise<boolean> {
     try {
-      const playlistPath = join(config.paths.videos, videoId, 'hls', 'playlist.m3u8');
+      const playlistPath = join(config.paths.videos, videoId, 'playlist.m3u8');
       await fs.access(playlistPath);
       return await this.keyManager.hasVideoKey(videoId);
     } catch {
@@ -124,7 +128,7 @@ export class HLSConverter {
    * Get HLS playlist content
    */
   async getPlaylist(videoId: string): Promise<string> {
-    const playlistPath = join(config.paths.videos, videoId, 'hls', 'playlist.m3u8');
+    const playlistPath = join(config.paths.videos, videoId, 'playlist.m3u8');
     return await fs.readFile(playlistPath, 'utf-8');
   }
 
@@ -133,8 +137,8 @@ export class HLSConverter {
    */
   async getSegmentList(videoId: string): Promise<string[]> {
     try {
-      const hlsDir = join(config.paths.videos, videoId, 'hls');
-      const files = await fs.readdir(hlsDir);
+      const videoDir = join(config.paths.videos, videoId);
+      const files = await fs.readdir(videoDir);
       return files.filter(file => file.endsWith('.ts')).sort();
     } catch {
       return [];
@@ -145,7 +149,7 @@ export class HLSConverter {
    * Get segment file path
    */
   getSegmentPath(videoId: string, segmentName: string): string {
-    return join(config.paths.videos, videoId, 'hls', segmentName);
+    return join(config.paths.videos, videoId, segmentName);
   }
 
   /**
@@ -162,8 +166,8 @@ export class HLSConverter {
       return false;
     }
     
-    // Only allow specific segment name pattern
-    return /^segment_\d{3}\.ts$/.test(segmentName);
+    // Updated pattern for new segment naming: segment-0000.ts
+    return /^segment-\d{4}\.ts$/.test(segmentName);
   }
 
   /**
@@ -171,8 +175,8 @@ export class HLSConverter {
    */
   async cleanup(videoId: string): Promise<void> {
     try {
-      const hlsDir = join(config.paths.videos, videoId, 'hls');
-      await fs.rm(hlsDir, { recursive: true, force: true });
+      const videoDir = join(config.paths.videos, videoId);
+      await fs.rm(videoDir, { recursive: true, force: true });
       console.log(`🧹 Cleaned up HLS files for video: ${videoId}`);
     } catch (error) {
       console.error(`⚠️  Failed to cleanup HLS files for ${videoId}:`, error);
@@ -182,10 +186,23 @@ export class HLSConverter {
   /**
    * Get HLS conversion progress info (for future use)
    */
-  getConversionInfo(videoId: string): { hlsDir: string; playlistPath: string } {
-    const hlsDir = join(config.paths.videos, videoId, 'hls');
-    const playlistPath = join(hlsDir, 'playlist.m3u8');
+  getConversionInfo(videoId: string): { videoDir: string; playlistPath: string } {
+    const videoDir = join(config.paths.videos, videoId);
+    const playlistPath = join(videoDir, 'playlist.m3u8');
     
-    return { hlsDir, playlistPath };
+    return { videoDir, playlistPath };
+  }
+
+  /**
+   * Remove original file after successful HLS conversion
+   */
+  private async removeOriginalFile(originalPath: string): Promise<void> {
+    try {
+      await fs.unlink(originalPath);
+      console.log(`🗑️  Removed original file: ${originalPath}`);
+    } catch (error) {
+      console.warn(`⚠️  Failed to remove original file ${originalPath}:`, error);
+      // Don't throw error - HLS conversion succeeded, original cleanup is non-critical
+    }
   }
 }
