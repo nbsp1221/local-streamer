@@ -23,11 +23,3 @@ export interface AddVideoDependencies {
     error: (message: string, error?: any) => void;
   };
 }
-
-export interface VideoInfo {
-  duration: number;
-  format: {
-    format_name?: string;
-    bit_rate?: string;
-  };
-}
