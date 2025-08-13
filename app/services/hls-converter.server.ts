@@ -11,7 +11,8 @@ import {
   getQualityParam,
   getQualityValue,
   getPresetValue,
-  getAdditionalFlags
+  getAdditionalFlags,
+  validateEncodingOptionsStrict
 } from '~/utils/encoding';
 
 export class HLSConverter {
@@ -62,71 +63,173 @@ export class HLSConverter {
     encodingOptions: EncodingOptions
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      const segmentDuration = process.env.HLS_SEGMENT_DURATION || '10';
-      const segmentPath = join(config.paths.videos, videoId, 'segment-%04d.ts');
+      try {
+        // Validate encoding options first
+        validateEncodingOptionsStrict(encodingOptions);
 
-      // Build FFmpeg arguments with optimal settings
-      const codec = getCodecName(encodingOptions.encoder);
-      const preset = getPresetValue(encodingOptions.encoder);
-      const qualityParam = getQualityParam(encodingOptions.encoder);
-      const qualityValue = getQualityValue(encodingOptions.encoder);
-      const additionalFlags = getAdditionalFlags(encodingOptions.encoder);
+        // Validate and sanitize segment duration
+        const rawSegmentDuration = process.env.HLS_SEGMENT_DURATION || '10';
+        const segmentDuration = this.validateSegmentDuration(rawSegmentDuration);
 
-      const ffmpegArgs = [
-        '-i', inputPath,
-        '-hls_time', segmentDuration,
-        '-hls_key_info_file', keyInfoFile,
-        '-hls_playlist_type', 'vod',
-        '-hls_flags', 'delete_segments+independent_segments',
-        '-hls_segment_filename', segmentPath,
-        '-c:v', codec,
-        '-preset', preset,
-        `-${qualityParam}`, qualityValue.toString(),
-        ...additionalFlags,
-        '-c:a', 'aac',
-        '-b:a', '128k',
-        '-ac', '2',
-        '-ar', '44100',
-        '-movflags', '+faststart',
-        playlistPath
-      ];
+        const segmentPath = join(config.paths.videos, videoId, 'segment-%04d.ts');
 
-      console.log(`⚙️  Encoding Settings: ${codec} ${qualityParam}=${qualityValue} preset=${preset}`);
-      console.log(`🔧 FFmpeg command: ${ffmpegStatic} ${ffmpegArgs.join(' ')}`);
+        // Get validated encoding parameters
+        const codec = this.validateCodec(getCodecName(encodingOptions.encoder));
+        const preset = this.validatePreset(getPresetValue(encodingOptions.encoder), encodingOptions.encoder);
+        const qualityParam = this.validateQualityParam(getQualityParam(encodingOptions.encoder));
+        const qualityValue = this.validateQualityValue(getQualityValue(encodingOptions.encoder));
+        const additionalFlags = this.validateAdditionalFlags(getAdditionalFlags(encodingOptions.encoder));
 
-      const ffmpeg = spawn(ffmpegStatic!, ffmpegArgs);
+        const ffmpegArgs = [
+          '-i', inputPath,
+          '-hls_time', segmentDuration,
+          '-hls_key_info_file', keyInfoFile,
+          '-hls_playlist_type', 'vod',
+          '-hls_flags', 'delete_segments+independent_segments',
+          '-hls_segment_filename', segmentPath,
+          '-c:v', codec,
+          '-preset', preset,
+          `-${qualityParam}`, qualityValue.toString(),
+          ...additionalFlags,
+          '-c:a', 'aac',
+          '-b:a', '128k',
+          '-ac', '2',
+          '-ar', '44100',
+          '-movflags', '+faststart',
+          playlistPath
+        ];
 
-      let stderrOutput = '';
+        console.log(`⚙️  Encoding Settings: ${codec} ${qualityParam}=${qualityValue} preset=${preset}`);
+        console.log(`🔧 FFmpeg command: ${ffmpegStatic} ${ffmpegArgs.join(' ')}`);
 
-      ffmpeg.stdout?.on('data', (data) => {
-        console.log(`FFmpeg stdout: ${data}`);
-      });
+        const ffmpeg = spawn(ffmpegStatic!, ffmpegArgs);
 
-      ffmpeg.stderr?.on('data', (data) => {
-        stderrOutput += data.toString();
-        // Only log important progress information
-        const output = data.toString();
-        if (output.includes('frame=') || output.includes('time=')) {
-          console.log(`FFmpeg progress: ${output.trim()}`);
-        }
-      });
+        let stderrOutput = '';
 
-      ffmpeg.on('close', (code) => {
-        if (code === 0) {
-          console.log(`✅ FFmpeg conversion completed for ${videoId}`);
-          resolve();
-        } else {
-          console.error(`❌ FFmpeg exited with code ${code} for ${videoId}`);
-          console.error(`FFmpeg stderr: ${stderrOutput}`);
-          reject(new Error(`FFmpeg conversion failed with code ${code}`));
-        }
-      });
+        ffmpeg.stdout?.on('data', (data) => {
+          console.log(`FFmpeg stdout: ${data}`);
+        });
 
-      ffmpeg.on('error', (error) => {
-        console.error(`❌ FFmpeg process error for ${videoId}:`, error);
-        reject(error);
-      });
+        ffmpeg.stderr?.on('data', (data) => {
+          stderrOutput += data.toString();
+          // Only log important progress information
+          const output = data.toString();
+          if (output.includes('frame=') || output.includes('time=')) {
+            console.log(`FFmpeg progress: ${output.trim()}`);
+          }
+        });
+
+        ffmpeg.on('close', (code) => {
+          if (code === 0) {
+            console.log(`✅ FFmpeg conversion completed for ${videoId}`);
+            resolve();
+          }
+          else {
+            console.error(`❌ FFmpeg exited with code ${code} for ${videoId}`);
+            console.error(`FFmpeg stderr: ${stderrOutput}`);
+            reject(new Error(`FFmpeg conversion failed with code ${code}`));
+          }
+        });
+
+        ffmpeg.on('error', (error) => {
+          console.error(`❌ FFmpeg process error for ${videoId}:`, error);
+          reject(error);
+        });
+      }
+      catch (error) {
+        console.error(`❌ FFmpeg validation error for ${videoId}:`, error);
+        reject(error instanceof Error ? error : new Error('FFmpeg validation failed'));
+      }
     });
+  }
+
+  /**
+   * Validate segment duration parameter
+   */
+  private validateSegmentDuration(duration: string): string {
+    const parsed = parseInt(duration, 10);
+    if (isNaN(parsed) || parsed < 1 || parsed > 60) {
+      throw new Error(`Invalid segment duration: ${duration}. Must be between 1 and 60 seconds.`);
+    }
+    return parsed.toString();
+  }
+
+  /**
+   * Validate codec parameter
+   */
+  private validateCodec(codec: string): string {
+    const allowedCodecs = ['libx265', 'hevc_nvenc'];
+    if (!allowedCodecs.includes(codec)) {
+      throw new Error(`Invalid codec: ${codec}. Allowed codecs: ${allowedCodecs.join(', ')}`);
+    }
+    return codec;
+  }
+
+  /**
+   * Validate preset parameter
+   */
+  private validatePreset(preset: string, encoder: EncodingOptions['encoder']): string {
+    const allowedPresets = encoder === 'gpu-h265' 
+      ? ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7']
+      : ['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow'];
+    
+    if (!allowedPresets.includes(preset)) {
+      throw new Error(`Invalid preset: ${preset} for encoder: ${encoder}. Allowed presets: ${allowedPresets.join(', ')}`);
+    }
+    return preset;
+  }
+
+  /**
+   * Validate quality parameter name
+   */
+  private validateQualityParam(qualityParam: string): string {
+    const allowedParams = ['crf', 'cq'];
+    if (!allowedParams.includes(qualityParam)) {
+      throw new Error(`Invalid quality parameter: ${qualityParam}. Allowed parameters: ${allowedParams.join(', ')}`);
+    }
+    return qualityParam;
+  }
+
+  /**
+   * Validate quality value
+   */
+  private validateQualityValue(qualityValue: number): number {
+    if (!Number.isInteger(qualityValue) || qualityValue < 0 || qualityValue > 51) {
+      throw new Error(`Invalid quality value: ${qualityValue}. Must be an integer between 0 and 51.`);
+    }
+    return qualityValue;
+  }
+
+  /**
+   * Validate additional flags for FFmpeg
+   */
+  private validateAdditionalFlags(flags: string[]): string[] {
+    const allowedFlags = [
+      '-tune', 'fastdecode', 'hq',
+      '-rc', 'vbr'
+    ];
+
+    for (const flag of flags) {
+      if (!allowedFlags.includes(flag)) {
+        throw new Error(`Invalid additional flag: ${flag}. Allowed flags: ${allowedFlags.join(', ')}`);
+      }
+    }
+
+    // Validate flag pairs (tune and rc flags should come in pairs)
+    for (let i = 0; i < flags.length; i += 2) {
+      const flagName = flags[i];
+      const flagValue = flags[i + 1];
+      
+      if (flagName === '-tune' && !['fastdecode', 'hq'].includes(flagValue)) {
+        throw new Error(`Invalid tune value: ${flagValue}. Allowed values: fastdecode, hq`);
+      }
+      
+      if (flagName === '-rc' && flagValue !== 'vbr') {
+        throw new Error(`Invalid rc value: ${flagValue}. Allowed values: vbr`);
+      }
+    }
+
+    return flags;
   }
 
   /**

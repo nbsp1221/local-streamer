@@ -28,10 +28,31 @@ export const OPTIMAL_ENCODING_SETTINGS = {
 } as const;
 
 /**
- * Get optimal settings for an encoder
+ * Supported encoder types
+ */
+export const SUPPORTED_ENCODERS = ['cpu-h265', 'gpu-h265'] as const;
+
+/**
+ * Validate encoder type at runtime
+ */
+export function isValidEncoder(encoder: string): encoder is EncodingOptions['encoder'] {
+  return SUPPORTED_ENCODERS.includes(encoder as EncodingOptions['encoder']);
+}
+
+/**
+ * Get optimal settings for an encoder with runtime validation
  */
 export function getOptimalSettings(encoder: EncodingOptions['encoder']) {
-  return OPTIMAL_ENCODING_SETTINGS[encoder];
+  if (!isValidEncoder(encoder)) {
+    throw new Error(`Invalid encoder type: ${encoder}. Supported encoders: ${SUPPORTED_ENCODERS.join(', ')}`);
+  }
+  
+  const settings = OPTIMAL_ENCODING_SETTINGS[encoder];
+  if (!settings) {
+    throw new Error(`No optimal settings found for encoder: ${encoder}`);
+  }
+  
+  return settings;
 }
 
 /**
@@ -130,15 +151,43 @@ export function getEncodingDescription(options: EncodingOptions): {
 }
 
 /**
- * Validate encoding options (simplified - just check encoder type)
+ * Validate encoding options with detailed error reporting
  */
 export function validateEncodingOptions(options: EncodingOptions): boolean {
-  return options.encoder === 'cpu-h265' || options.encoder === 'gpu-h265';
+  if (!options || typeof options !== 'object') {
+    return false;
+  }
+  
+  if (!options.encoder || typeof options.encoder !== 'string') {
+    return false;
+  }
+  
+  return isValidEncoder(options.encoder);
 }
 
 /**
- * Get default options for a specific encoder (same as encoder type now)
+ * Validate encoding options and throw descriptive errors
+ */
+export function validateEncodingOptionsStrict(options: EncodingOptions): void {
+  if (!options || typeof options !== 'object') {
+    throw new Error('Encoding options must be a valid object');
+  }
+  
+  if (!options.encoder || typeof options.encoder !== 'string') {
+    throw new Error('Encoder type is required and must be a string');
+  }
+  
+  if (!isValidEncoder(options.encoder)) {
+    throw new Error(`Invalid encoder type: ${options.encoder}. Supported encoders: ${SUPPORTED_ENCODERS.join(', ')}`);
+  }
+}
+
+/**
+ * Get default options for a specific encoder with validation
  */
 export function getDefaultOptionsForEncoder(encoder: EncodingOptions['encoder']): EncodingOptions {
+  if (!isValidEncoder(encoder)) {
+    throw new Error(`Invalid encoder type: ${encoder}. Supported encoders: ${SUPPORTED_ENCODERS.join(', ')}`);
+  }
   return { encoder };
 }
