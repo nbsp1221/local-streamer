@@ -8,9 +8,12 @@ import { Label } from "~/components/ui/label";
 import { Badge } from "~/components/ui/badge";
 import { Alert, AlertDescription } from "~/components/ui/alert";
 import { Separator } from "~/components/ui/separator";
+import { EncodingOptionsComponent } from "~/components/EncodingOptions";
 import type { PendingVideo } from "~/types/video";
+import type { EncodingOptions } from "~/modules/video/add-video/add-video.types";
 import type { Route } from "./+types/add-videos";
 import { requireAuth } from "~/utils/auth.server";
+import { DEFAULT_ENCODING_OPTIONS } from "~/utils/encoding";
 
 interface ScanResponse {
   success: boolean;
@@ -51,6 +54,7 @@ export default function AddVideos() {
     title: string;
     tags: string;
     description: string;
+    encodingOptions: EncodingOptions;
   }>>({});
 
   // Scan incoming folder
@@ -75,7 +79,8 @@ export default function AddVideos() {
             newMetadata[file.filename] = {
               title: defaultTitle,
               tags: "",
-              description: ""
+              description: "",
+              encodingOptions: DEFAULT_ENCODING_OPTIONS
             };
           }
         });
@@ -107,6 +112,17 @@ export default function AddVideos() {
     }));
   };
 
+  // Update encoding options
+  const updateEncodingOptions = (filename: string, encodingOptions: EncodingOptions) => {
+    setFileMetadata(prev => ({
+      ...prev,
+      [filename]: {
+        ...prev[filename],
+        encodingOptions
+      }
+    }));
+  };
+
   // Add to library
   const addToLibrary = async (filename: string) => {
     const metadata = fileMetadata[filename];
@@ -129,7 +145,8 @@ export default function AddVideos() {
           filename,
           title: metadata.title.trim(),
           tags: metadata.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
-          description: metadata.description.trim() || undefined
+          description: metadata.description.trim() || undefined,
+          encodingOptions: metadata.encodingOptions
         })
       });
 
@@ -242,7 +259,12 @@ export default function AddVideos() {
               </div>
 
               {pendingFiles.map((file) => {
-                const metadata = fileMetadata[file.filename] || { title: "", tags: "", description: "" };
+                const metadata = fileMetadata[file.filename] || { 
+                  title: "", 
+                  tags: "", 
+                  description: "",
+                  encodingOptions: DEFAULT_ENCODING_OPTIONS
+                };
                 const isProcessing = processingFiles.has(file.filename);
 
                 return (
@@ -316,6 +338,13 @@ export default function AddVideos() {
                         />
                       </div>
                     </div>
+
+                    {/* Encoding Options */}
+                    <EncodingOptionsComponent
+                      value={metadata.encodingOptions}
+                      onChange={(encodingOptions) => updateEncodingOptions(file.filename, encodingOptions)}
+                      fileSize={file.size}
+                    />
 
                     {/* Add Button */}
                     <div className="flex justify-end pt-2">

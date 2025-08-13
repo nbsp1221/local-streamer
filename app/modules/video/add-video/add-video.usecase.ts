@@ -2,7 +2,12 @@ import path from 'path';
 import { UseCase } from '~/lib/usecase.base';
 import { Result } from '~/lib/result';
 import { ValidationError, InternalError } from '~/lib/errors';
-import { type AddVideoRequest, type AddVideoResponse, type AddVideoDependencies } from './add-video.types';
+import {
+  type AddVideoRequest,
+  type AddVideoResponse,
+  type AddVideoDependencies,
+  type EncodingOptions
+} from './add-video.types';
 import { type Video, type VideoFormat } from '~/types/video';
 import { config } from '~/configs';
 
@@ -47,7 +52,7 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
       await this.saveVideo(video);
 
       // 8. Generate HLS version
-      const hlsResult = await this.generateHLS(videoId, videoPath);
+      const hlsResult = await this.generateHLS(videoId, videoPath, request.encodingOptions);
 
       // 9. Return success response
       return Result.ok({
@@ -129,11 +134,11 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
     this.deps.logger?.info(`Video added to library: ${video.title} (${video.id})`);
   }
 
-  private async generateHLS(videoId: string, videoPath: string): Promise<Result<void>> {
+  private async generateHLS(videoId: string, videoPath: string, encodingOptions?: EncodingOptions): Promise<Result<void>> {
     this.deps.logger?.info(`Starting HLS generation for video: ${videoId}`);
 
     try {
-      await this.deps.hlsConverter.convertVideo(videoId, videoPath);
+      await this.deps.hlsConverter.convertVideo(videoId, videoPath, encodingOptions);
       this.deps.logger?.info(`HLS generated successfully for ${videoId}`);
 
       // Update database with HLS status

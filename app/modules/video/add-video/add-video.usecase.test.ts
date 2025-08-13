@@ -86,7 +86,7 @@ describe('AddVideoUseCase', () => {
       expect(mockFileManager.moveToLibrary).toHaveBeenCalledWith('test-video.mp4');
       expect(mockFileManager.getVideoInfo).toHaveBeenCalled();
       expect(mockVideoRepository.create).toHaveBeenCalled();
-      expect(mockHlsConverter.convertVideo).toHaveBeenCalledWith(mockVideoId, expect.any(String));
+      expect(mockHlsConverter.convertVideo).toHaveBeenCalledWith(mockVideoId, expect.any(String), undefined);
       expect(mockVideoRepository.updateHLSStatus).toHaveBeenCalledWith(mockVideoId, true, expect.any(Date));
     });
   });
