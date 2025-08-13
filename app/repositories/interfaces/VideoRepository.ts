@@ -1,4 +1,4 @@
-import type { Video, PendingVideo } from "~/types/video";
+import type { Video, PendingVideo, VideoFormat } from "~/types/video";
 import type { BaseRepository } from "./BaseRepository";
 
 /**
@@ -11,7 +11,7 @@ export interface CreateVideoInput {
   videoUrl: string;
   thumbnailUrl?: string;
   duration?: number;
-  format: string;
+  format: VideoFormat;
   description?: string;
 }
 
@@ -24,7 +24,7 @@ export interface UpdateVideoInput {
   videoUrl?: string;
   thumbnailUrl?: string;
   duration?: number;
-  format?: string;
+  format?: VideoFormat;
   description?: string;
   // HLS-related fields
   hasHLS?: boolean;
@@ -49,7 +49,7 @@ export interface VideoRepository extends BaseRepository<Video, CreateVideoInput,
   /**
    * Find videos by format
    */
-  findByFormat(format: string): Promise<Video[]>;
+  findByFormat(format: VideoFormat): Promise<Video[]>;
 
   /**
    * Get all unique tags across all videos

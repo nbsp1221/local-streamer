@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Video, PendingVideo } from "~/types/video";
+import type { Video, PendingVideo, VideoFormat } from "~/types/video";
 import type { VideoRepository, PendingVideoRepository, CreateVideoInput, UpdateVideoInput } from "~/repositories/interfaces/VideoRepository";
 import { BaseJsonRepository } from "~/repositories/base/BaseJsonRepository";
 import { config } from "~/configs";
@@ -75,7 +75,7 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
   /**
    * Find videos by format
    */
-  async findByFormat(format: string): Promise<Video[]> {
+  async findByFormat(format: VideoFormat): Promise<Video[]> {
     return this.findWhere(video => 
       video.format.toLowerCase() === format.toLowerCase()
     );

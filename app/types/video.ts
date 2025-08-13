@@ -1,4 +1,4 @@
-export type VideoFormat = 'mp4' | 'webm' | 'mkv' | 'avi';
+export type VideoFormat = 'mp4' | 'avi' | 'mkv' | 'mov' | 'webm' | 'm4v' | 'flv' | 'wmv';
 
 export interface Video {
   id: string;
@@ -9,7 +9,7 @@ export interface Video {
   duration: number; // seconds
   addedAt: Date;
   description?: string;
-  format: string;
+  format: VideoFormat;
   // HLS-related fields
   hasHLS?: boolean;
   hlsGeneratedAt?: Date;
@@ -21,7 +21,7 @@ export interface PendingVideo {
   filename: string;
   size: number; // bytes
   type: string; // mime type
-  format: string;
+  format: VideoFormat;
   path?: string;
   thumbnailUrl?: string; // Optional thumbnail preview URL
 }
