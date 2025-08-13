@@ -1,11 +1,17 @@
 import { type VideoRepository } from '~/repositories/interfaces/VideoRepository';
 import { type HLSConverter } from '~/services/hls-converter.server';
 
+export interface EncodingOptions {
+  /** Encoder type selection - settings are automatically optimized */
+  encoder: 'cpu-h265' | 'gpu-h265';
+}
+
 export interface AddVideoRequest {
   filename: string;
   title: string;
   tags: string[];
   description?: string;
+  encodingOptions?: EncodingOptions;
 }
 
 export interface AddVideoResponse {
