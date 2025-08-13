@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { JsonVideoRepository, JsonPendingVideoRepository } from '../app/repositories/JsonVideoRepository';
-import { JsonWriteQueue } from '../app/repositories/utils/JsonWriteQueue';
-import type { Video, PendingVideo } from '../app/types/video';
-import type { CreateVideoInput, UpdateVideoInput } from '../app/repositories/interfaces/VideoRepository';
+import { JsonVideoRepository, JsonPendingVideoRepository } from './JsonVideoRepository';
+import { JsonWriteQueue } from './utils/JsonWriteQueue';
+import type { Video, PendingVideo } from '~/types/video';
+import type { CreateVideoInput, UpdateVideoInput } from './interfaces/VideoRepository';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -207,7 +207,7 @@ describe('JsonVideoRepository', () => {
     });
 
     it('should find videos by format (case insensitive)', async () => {
-      const aviVideos = await repository.findByFormat('AVI');
+      const aviVideos = await repository.findByFormat('avi');
       
       expect(aviVideos).toHaveLength(1);
       expect(aviVideos[0].format).toBe('avi');

@@ -3,7 +3,7 @@ import { UseCase } from '~/lib/usecase.base';
 import { Result } from '~/lib/result';
 import { ValidationError, InternalError } from '~/lib/errors';
 import { type AddVideoRequest, type AddVideoResponse, type AddVideoDependencies } from './add-video.types';
-import { type Video } from '~/types/video';
+import { type Video, type VideoFormat } from '~/types/video';
 import { config } from '~/configs';
 
 export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> {
@@ -99,7 +99,7 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
     tags: string[];
     description?: string;
     duration: number;
-    format: any;
+    format: VideoFormat;
   }): Video {
     return {
       id: props.id,
