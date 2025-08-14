@@ -263,7 +263,7 @@ export class HLSConverter {
    */
   private validateAdditionalFlags(flags: string[]): string[] {
     const allowedFlags = [
-      '-tune', 'fastdecode', 'hq',
+      '-tune', 'fastdecode', 'hq', 'uhq',
       '-rc', 'vbr'
     ];
 
@@ -278,8 +278,8 @@ export class HLSConverter {
       const flagName = flags[i];
       const flagValue = flags[i + 1];
       
-      if (flagName === '-tune' && !['fastdecode', 'hq'].includes(flagValue)) {
-        throw new Error(`Invalid tune value: ${flagValue}. Allowed values: fastdecode, hq`);
+      if (flagName === '-tune' && !['fastdecode', 'hq', 'uhq'].includes(flagValue)) {
+        throw new Error(`Invalid tune value: ${flagValue}. Allowed values: fastdecode, hq, uhq`);
       }
       
       if (flagName === '-rc' && flagValue !== 'vbr') {
@@ -358,7 +358,7 @@ export class HLSConverter {
         '-y', '-i', inputPath,
         '-c:v', 'hevc_nvenc',
         '-preset', preset,
-        '-tune', 'hq',
+        '-tune', 'uhq',
         '-b:v', `${targetVideoBitrate}k`,
         '-maxrate', `${targetVideoBitrate}k`,
         '-bufsize', `${targetVideoBitrate * 2}k`,
@@ -425,7 +425,7 @@ export class HLSConverter {
         // Video encoding with Pass 1 analysis data
         '-c:v', 'hevc_nvenc',
         '-preset', preset,
-        '-tune', 'hq',
+        '-tune', 'uhq',
         '-b:v', `${targetVideoBitrate}k`,
         '-maxrate', `${targetVideoBitrate}k`, 
         '-bufsize', `${targetVideoBitrate * 2}k`,
