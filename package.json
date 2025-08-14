@@ -5,6 +5,7 @@
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev",
+    "download:ffmpeg": "bash scripts/download-ffmpeg.sh",
     "init-data": "node scripts/init-data.js",
     "start": "bun ./build/server/index.js",
     "test": "vitest",
@@ -30,7 +31,6 @@
     "async-mutex": "^0.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "ffmpeg-static": "^5.2.0",
     "hono": "^4.9.0",
     "isbot": "^5.1.27",
     "jsonwebtoken": "^9.0.2",
