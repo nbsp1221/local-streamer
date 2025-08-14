@@ -61,7 +61,7 @@ export function getFFprobePath(): string {
 }
 
 /**
- * Check if FFmpeg binaries are available
+ * Check if FFmpeg binaries are available and executable
  */
 export function checkFFmpegAvailability(): {
   ffmpeg: boolean;
@@ -74,8 +74,8 @@ export function checkFFmpegAvailability(): {
   const ffmpegPath = getFFmpegPath();
   const ffprobePath = getFFprobePath();
 
-  const ffmpegExists = ffmpegPath === 'ffmpeg' || existsSync(ffmpegPath);
-  const ffprobeExists = ffprobePath === 'ffprobe' || existsSync(ffprobePath);
+  const ffmpegExists = testBinaryExecution(ffmpegPath);
+  const ffprobeExists = testBinaryExecution(ffprobePath);
 
   return {
     ffmpeg: ffmpegExists,
@@ -85,6 +85,32 @@ export function checkFFmpegAvailability(): {
       ffprobe: ffprobePath,
     },
   };
+}
+
+/**
+ * Test if binary exists and is executable by running version check
+ */
+function testBinaryExecution(binaryPath: string): boolean {
+  try {
+    // For system binaries (just 'ffmpeg' or 'ffprobe'), we assume they exist if no error
+    if (binaryPath === 'ffmpeg' || binaryPath === 'ffprobe') {
+      return true; // System binary fallback - will be caught at runtime if not available
+    }
+    
+    // For local binaries, check file existence first
+    if (!existsSync(binaryPath)) {
+      return false;
+    }
+    
+    // Quick execution test - just check if binary can be executed
+    // Note: Using sync version for simplicity in config check
+    const { execSync } = require('child_process');
+    execSync(`"${binaryPath}" -version`, { stdio: 'ignore', timeout: 2000 });
+    return true;
+  } catch (error) {
+    // Binary doesn't exist, isn't executable, or failed version check
+    return false;
+  }
 }
 
 /**
