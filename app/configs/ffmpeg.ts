@@ -60,70 +60,16 @@ export function getFFprobePath(): string {
   return 'ffprobe';
 }
 
-/**
- * Check if FFmpeg binaries are available and executable
- */
-export function checkFFmpegAvailability(): {
-  ffmpeg: boolean;
-  ffprobe: boolean;
-  paths: {
-    ffmpeg: string;
-    ffprobe: string;
-  };
-} {
-  const ffmpegPath = getFFmpegPath();
-  const ffprobePath = getFFprobePath();
-
-  const ffmpegExists = testBinaryExecution(ffmpegPath);
-  const ffprobeExists = testBinaryExecution(ffprobePath);
-
-  return {
-    ffmpeg: ffmpegExists,
-    ffprobe: ffprobeExists,
-    paths: {
-      ffmpeg: ffmpegPath,
-      ffprobe: ffprobePath,
-    },
-  };
-}
-
-/**
- * Test if binary exists and is executable by running version check
- */
-function testBinaryExecution(binaryPath: string): boolean {
-  try {
-    // For system binaries (just 'ffmpeg' or 'ffprobe'), we assume they exist if no error
-    if (binaryPath === 'ffmpeg' || binaryPath === 'ffprobe') {
-      return true; // System binary fallback - will be caught at runtime if not available
-    }
-    
-    // For local binaries, check file existence first
-    if (!existsSync(binaryPath)) {
-      return false;
-    }
-    
-    // Quick execution test - just check if binary can be executed
-    // Note: Using sync version for simplicity in config check
-    const { execSync } = require('child_process');
-    execSync(`"${binaryPath}" -version`, { stdio: 'ignore', timeout: 2000 });
-    return true;
-  } catch (error) {
-    // Binary doesn't exist, isn't executable, or failed version check
-    return false;
-  }
-}
 
 /**
  * Log FFmpeg configuration on startup
  */
 export function logFFmpegConfig(): void {
-  const availability = checkFFmpegAvailability();
-
   console.log('🎬 FFmpeg Configuration:');
-  console.log(`  FFmpeg: ${availability.ffmpeg ? '✅' : '❌'} ${availability.paths.ffmpeg}`);
-  console.log(`  FFprobe: ${availability.ffprobe ? '✅' : '❌'} ${availability.paths.ffprobe}`);
+  console.log(`  FFmpeg: ${existsSync(ffmpegPath) ? '✅' : '❌'} ${ffmpegPath}`);
+  console.log(`  FFprobe: ${existsSync(ffprobePath) ? '✅' : '❌'} ${ffprobePath}`);
 
-  if (!availability.ffmpeg || !availability.ffprobe) {
+  if (!existsSync(ffmpegPath) || !existsSync(ffprobePath)) {
     console.warn('⚠️  FFmpeg binaries not found. Run "bun run download:ffmpeg" to download them.');
   }
 }

@@ -34,14 +34,6 @@ export async function generateThumbnail(options: ThumbnailOptions): Promise<Thum
   console.log(`   Timestamp: ${timestamp}s`);
   
   return new Promise((resolve) => {
-    const availability = ffmpeg.checkFFmpegAvailability();
-    if (!availability.ffmpeg) {
-      resolve({
-        success: false,
-        error: 'FFmpeg binary not found'
-      });
-      return;
-    }
 
     // FFmpeg arguments for thumbnail generation
     const ffmpegArgs = [
@@ -97,14 +89,6 @@ export async function generateSmartThumbnail(
   outputPath: string
 ): Promise<ThumbnailResult> {
   console.log('🔍 Attempting smart thumbnail generation with scene detection...');
-  
-  const availability = ffmpeg.checkFFmpegAvailability();
-  if (!availability.ffmpeg) {
-    return {
-      success: false,
-      error: 'FFmpeg binary not found'
-    };
-  }
 
   // First try: Scene detection to avoid black frames
   const sceneDetectionArgs = [

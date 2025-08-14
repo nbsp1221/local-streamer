@@ -227,12 +227,6 @@ function parseDurationFromJson(stdout: string): number | undefined {
  * Extract video duration using ffprobe
  */
 export async function extractVideoDuration(filePath: string): Promise<number> {
-  const availability = ffmpeg.checkFFmpegAvailability();
-  if (!availability.ffprobe) {
-    console.warn('ffprobe binary not found, returning duration 0');
-    return 0;
-  }
-
   if (!existsSync(filePath)) {
     console.warn(`Video file not found: ${filePath}, returning duration 0`);
     return 0;
@@ -248,6 +242,7 @@ export async function extractVideoDuration(filePath: string): Promise<number> {
       filePath
     ];
 
+    console.log(`🔍 Extracting duration using: ${ffmpeg.ffprobePath}`);
     const ffprobeProcess = spawn(ffmpeg.ffprobePath, ffprobeArgs);
   
     let stdout = '';
