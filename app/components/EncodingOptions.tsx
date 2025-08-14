@@ -145,7 +145,7 @@ export function EncodingOptionsComponent({
 
                   {/* GPU Option */}
                   <div className="relative">
-                    <RadioGroupItem value="gpu-h265" id={`gpu-h265-${uniqueId}`} className="peer sr-only" disabled={true} /> {/* TODO: Fix FFmpeg issue */}
+                    <RadioGroupItem value="gpu-h265" id={`gpu-h265-${uniqueId}`} className="peer sr-only" />
                     <Label 
                       htmlFor={`gpu-h265-${uniqueId}`} 
                       className="flex items-center justify-between rounded-lg border-2 border-muted bg-background p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer transition-colors"

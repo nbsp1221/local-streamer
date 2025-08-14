@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
-import ffmpegStatic from 'ffmpeg-static';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { ffmpeg } from '~/configs';
 
 export interface ThumbnailOptions {
   inputPath: string;
@@ -34,7 +34,8 @@ export async function generateThumbnail(options: ThumbnailOptions): Promise<Thum
   console.log(`   Timestamp: ${timestamp}s`);
   
   return new Promise((resolve) => {
-    if (!ffmpegStatic) {
+    const availability = ffmpeg.checkFFmpegAvailability();
+    if (!availability.ffmpeg) {
       resolve({
         success: false,
         error: 'FFmpeg binary not found'
@@ -52,16 +53,16 @@ export async function generateThumbnail(options: ThumbnailOptions): Promise<Thum
       '-y',                            // Overwrite output file
       outputPath
     ];
-    
-    const ffmpeg = spawn(ffmpegStatic, ffmpegArgs);
-    
+  
+    const ffmpegProcess = spawn(ffmpeg.ffmpegPath, ffmpegArgs);
+  
     let stderr = '';
-    
-    ffmpeg.stderr?.on('data', (data: any) => {
+  
+    ffmpegProcess.stderr?.on('data', (data: any) => {
       stderr += data.toString();
     });
-    
-    ffmpeg.on('close', (code: any) => {
+
+    ffmpegProcess.on('close', (code: any) => {
       if (code === 0 && existsSync(outputPath)) {
         console.log(`✅ Thumbnail generated successfully: ${outputPath}`);
         resolve({
@@ -76,8 +77,8 @@ export async function generateThumbnail(options: ThumbnailOptions): Promise<Thum
         });
       }
     });
-    
-    ffmpeg.on('error', (err: any) => {
+
+    ffmpegProcess.on('error', (err: any) => {
       console.error(`❌ FFmpeg process error: ${err.message}`);
       resolve({
         success: false,
@@ -97,7 +98,8 @@ export async function generateSmartThumbnail(
 ): Promise<ThumbnailResult> {
   console.log('🔍 Attempting smart thumbnail generation with scene detection...');
   
-  if (!ffmpegStatic) {
+  const availability = ffmpeg.checkFFmpegAvailability();
+  if (!availability.ffmpeg) {
     return {
       success: false,
       error: 'FFmpeg binary not found'
@@ -116,15 +118,15 @@ export async function generateSmartThumbnail(
   ];
   
   return new Promise((resolve) => {
-    const ffmpeg = spawn(ffmpegStatic!, sceneDetectionArgs);
+    const ffmpegProcess = spawn(ffmpeg.ffmpegPath, sceneDetectionArgs);
     
     let stderr = '';
     
-    ffmpeg.stderr?.on('data', (data: any) => {
+    ffmpegProcess.stderr?.on('data', (data: any) => {
       stderr += data.toString();
     });
     
-    ffmpeg.on('close', async (code: any) => {
+    ffmpegProcess.on('close', async (code: any) => {
       if (code === 0 && existsSync(outputPath)) {
         console.log('✅ Smart thumbnail generated with scene detection');
         resolve({ success: true });
@@ -140,7 +142,7 @@ export async function generateSmartThumbnail(
       }
     });
     
-    ffmpeg.on('error', async (err: any) => {
+    ffmpegProcess.on('error', async (err: any) => {
       console.log('⚠️ Scene detection error, falling back to fixed timestamp');
       const result = await generateThumbnail({
         inputPath,

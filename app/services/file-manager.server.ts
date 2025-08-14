@@ -3,10 +3,9 @@ import { existsSync, statSync } from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import { v4 as uuidv4 } from 'uuid';
-import ffmpegStatic from 'ffmpeg-static';
 import type { PendingVideo, VideoFormat } from '~/types/video';
 import { generateSmartThumbnail } from './thumbnail-generator.server';
-import { config } from '~/configs';
+import { config, ffmpeg } from '~/configs';
 
 const INCOMING_DIR = config.paths.incoming;
 const THUMBNAILS_DIR = config.paths.thumbnails;
@@ -154,9 +153,38 @@ export async function moveToLibrary(filename: string): Promise<string> {
     console.log(`📦 File moved successfully: ${filename} → ${targetPath}`);
     
     return videoId;
-  } catch (error) {
+  }
+  catch (error: any) {
+    // If rename fails due to cross-device link (common in Docker), fallback to copy+delete
+    if (error.code === 'EXDEV') {
+      console.log('📂 Cross-device move detected, using copy+delete fallback...');
+      try {
+        await fs.copyFile(sourcePath, targetPath);
+        await fs.unlink(sourcePath);
+
+        console.log(`📦 File moved successfully (copy+delete): ${filename} → ${targetPath}`);
+
+        return videoId;
+      }
+      catch (fallbackError) {
+        console.error('❌ Fallback copy+delete failed:', fallbackError);
+
+        // Clean up copied file if it exists
+        try {
+          if (existsSync(targetPath)) {
+            await fs.unlink(targetPath);
+          }
+        }
+        catch (cleanupError) {
+          // Ignore cleanup errors
+        }
+
+        throw new Error(`Failed to move file from ${filename}: ${fallbackError}`);
+      }
+    }
+
     console.error('❌ File move failed:', error);
-    
+
     // Clean up created directory on failure
     try {
       // Remove target file if it exists
@@ -179,27 +207,29 @@ export async function moveToLibrary(filename: string): Promise<string> {
 }
 
 /**
- * Extract duration from FFmpeg stderr output
+ * Parse duration from ffprobe JSON output
  */
-function parseDurationFromStderr(stderr: string): number | undefined {
-  const durationMatch = stderr.match(/Duration: (\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
-  if (durationMatch) {
-    const hours = parseInt(durationMatch[1]);
-    const minutes = parseInt(durationMatch[2]);
-    const seconds = parseInt(durationMatch[3]);
-    const centiseconds = parseInt(durationMatch[4]);
-    
-    return hours * 3600 + minutes * 60 + seconds + centiseconds / 100;
+function parseDurationFromJson(stdout: string): number | undefined {
+  try {
+    const output = JSON.parse(stdout);
+    const duration = output.format?.duration || output.streams?.[0]?.duration;
+    if (duration && !isNaN(parseFloat(duration))) {
+      return parseFloat(duration);
+    }
+  }
+  catch (error) {
+    console.warn('Failed to parse ffprobe JSON output:', error);
   }
   return undefined;
 }
 
 /**
- * Extract video duration using ffmpeg
+ * Extract video duration using ffprobe
  */
 export async function extractVideoDuration(filePath: string): Promise<number> {
-  if (!ffmpegStatic) {
-    console.warn('FFmpeg binary not found, returning duration 0');
+  const availability = ffmpeg.checkFFmpegAvailability();
+  if (!availability.ffprobe) {
+    console.warn('ffprobe binary not found, returning duration 0');
     return 0;
   }
 
@@ -209,39 +239,54 @@ export async function extractVideoDuration(filePath: string): Promise<number> {
   }
 
   return new Promise((resolve) => {
-    // Use ffmpeg to extract duration from stderr
-    const ffmpegArgs = [
-      '-i', filePath,
-      '-f', 'null',
-      '-'
+    // Use ffprobe to extract duration in JSON format (much more efficient)
+    const ffprobeArgs = [
+      '-v', 'quiet',
+      '-print_format', 'json',
+      '-show_format',
+      '-show_streams',
+      filePath
     ];
 
-    const ffmpeg = spawn(ffmpegStatic!, ffmpegArgs);
-    
+    const ffprobeProcess = spawn(ffmpeg.ffprobePath, ffprobeArgs);
+  
+    let stdout = '';
     let stderr = '';
 
-    ffmpeg.stderr?.on('data', (data: Buffer) => {
+    ffprobeProcess.stdout?.on('data', (data: Buffer) => {
+      stdout += data.toString();
+    });
+
+    ffprobeProcess.stderr?.on('data', (data: Buffer) => {
       stderr += data.toString();
     });
 
-    ffmpeg.on('close', (code: number | null) => {
-      const duration = parseDurationFromStderr(stderr);
-      
-      if (duration !== undefined) {
-        const roundedDuration = Math.round(duration);
-        console.log(`✅ Video duration extracted: ${roundedDuration}s for ${path.basename(filePath)}`);
-        resolve(roundedDuration);
+    ffprobeProcess.on('close', (code: number | null) => {
+      if (code === 0) {
+        const duration = parseDurationFromJson(stdout);
+        
+        if (duration !== undefined) {
+          const roundedDuration = Math.round(duration);
+          console.log(`✅ Video duration extracted: ${roundedDuration}s for ${path.basename(filePath)}`);
+          resolve(roundedDuration);
+        } else {
+          console.warn(`⚠️ Could not extract duration from ffprobe output for ${path.basename(filePath)}`);
+          if (stderr) {
+            console.warn('ffprobe stderr:', stderr.substring(0, 500));
+          }
+          resolve(0);
+        }
       } else {
-        console.warn(`⚠️ Could not extract duration from ffmpeg output for ${path.basename(filePath)}`);
+        console.warn(`⚠️ ffprobe exited with code ${code} for ${path.basename(filePath)}`);
         if (stderr) {
-          console.warn('FFmpeg stderr snippet:', stderr.substring(0, 500));
+          console.warn('ffprobe stderr:', stderr.substring(0, 500));
         }
         resolve(0);
       }
     });
 
-    ffmpeg.on('error', (err: Error) => {
-      console.warn(`⚠️ FFmpeg process error: ${err.message}, returning duration 0`);
+    ffprobeProcess.on('error', (err: Error) => {
+      console.warn(`⚠️ ffprobe process error: ${err.message}, returning duration 0`);
       resolve(0);
     });
   });

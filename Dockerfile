@@ -1,14 +1,22 @@
 # Stage 1: Base image with Bun
-FROM oven/bun:1.2.17-alpine AS base
+FROM oven/bun:1.2.17 AS base
 WORKDIR /app
 
-# Install dependencies needed for native modules (ffmpeg-static, argon2)
-RUN apk add --no-cache \
+# Install dependencies needed for native modules and FFmpeg download
+RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     make \
     g++ \
-    linux-headers \
-    dumb-init
+    linux-libc-dev \
+    dumb-init \
+    curl \
+    bash \
+    ca-certificates \
+    xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set NVIDIA driver capabilities environment variable for NVENC access
+ENV NVIDIA_DRIVER_CAPABILITIES=all
 
 # Stage 2: Development dependencies
 FROM base AS development-dependencies
@@ -26,34 +34,35 @@ FROM base AS build
 COPY package.json bun.lock ./
 COPY --from=development-dependencies /app/node_modules ./node_modules
 COPY . .
+# Download FFmpeg binaries during build
+RUN bash scripts/download-ffmpeg.sh
 RUN bun run build
 
 # Stage 5: Production image  
-FROM oven/bun:1.2.17-alpine AS production
+FROM oven/bun:1.2.17 AS production
 
-# Install ffmpeg for video processing
-RUN apk add --no-cache ffmpeg
-
-# Create non-root user for security
-RUN addgroup -g 1001 -S bunuser && \
-    adduser -S bunuser -u 1001
+# Note: Using existing 'bun' user (UID/GID 1000) from base image
+# This matches common host user configuration and avoids permission issues
 
 # Set working directory
 WORKDIR /app
 
 # Copy package files and production dependencies
-COPY --chown=bunuser:bunuser package.json bun.lock ./
-COPY --from=production-dependencies --chown=bunuser:bunuser /app/node_modules ./node_modules
+COPY --chown=bun:bun package.json bun.lock ./
+COPY --from=production-dependencies --chown=bun:bun /app/node_modules ./node_modules
 
 # Copy built application
-COPY --from=build --chown=bunuser:bunuser /app/build ./build
+COPY --from=build --chown=bun:bun /app/build ./build
+
+# Copy FFmpeg binaries
+COPY --from=build --chown=bun:bun /app/binaries ./binaries
 
 # Create necessary directories with proper ownership
 RUN mkdir -p data incoming incoming/thumbnails && \
-    chown -R bunuser:bunuser data incoming
+    chown -R bun:bun data incoming
 
 # Switch to non-root user
-USER bunuser
+USER bun
 
 # Expose port
 EXPOSE 3000

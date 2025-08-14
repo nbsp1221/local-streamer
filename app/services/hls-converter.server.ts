@@ -1,8 +1,7 @@
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import ffmpegStatic from 'ffmpeg-static';
-import { config } from '~/configs';
+import { config, ffmpeg } from '~/configs';
 import { AESKeyManager } from './aes-key-manager.server';
 import type { EncodingOptions } from '~/modules/video/add-video/add-video.types';
 import { 
@@ -100,17 +99,17 @@ export class HLSConverter {
         ];
 
         console.log(`⚙️  Encoding Settings: ${codec} ${qualityParam}=${qualityValue} preset=${preset}`);
-        console.log(`🔧 FFmpeg command: ${ffmpegStatic} ${ffmpegArgs.join(' ')}`);
+        console.log(`🔧 FFmpeg command: ${ffmpeg.ffmpegPath} ${ffmpegArgs.join(' ')}`);
 
-        const ffmpeg = spawn(ffmpegStatic!, ffmpegArgs);
+        const ffmpegProcess = spawn(ffmpeg.ffmpegPath, ffmpegArgs);
 
         let stderrOutput = '';
 
-        ffmpeg.stdout?.on('data', (data) => {
+        ffmpegProcess.stdout?.on('data', (data) => {
           console.log(`FFmpeg stdout: ${data}`);
         });
 
-        ffmpeg.stderr?.on('data', (data) => {
+        ffmpegProcess.stderr?.on('data', (data) => {
           stderrOutput += data.toString();
           // Only log important progress information
           const output = data.toString();
@@ -119,7 +118,7 @@ export class HLSConverter {
           }
         });
 
-        ffmpeg.on('close', (code) => {
+        ffmpegProcess.on('close', (code) => {
           if (code === 0) {
             console.log(`✅ FFmpeg conversion completed for ${videoId}`);
             resolve();
@@ -131,7 +130,7 @@ export class HLSConverter {
           }
         });
 
-        ffmpeg.on('error', (error) => {
+        ffmpegProcess.on('error', (error) => {
           console.error(`❌ FFmpeg process error for ${videoId}:`, error);
           reject(error);
         });

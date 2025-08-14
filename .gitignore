@@ -10,3 +10,6 @@
 /incoming/*
 !/incoming/.gitkeep
 .env
+
+# FFmpeg binaries
+/binaries/
