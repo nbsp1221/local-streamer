@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { generateHLSToken } from '~/services/hls-jwt.server';
+import { generateVideoToken } from '~/services/hls-jwt.server';
 
 /**
  * Generate JWT token for video streaming access
@@ -20,7 +20,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     const userAgent = request.headers.get('user-agent') || 'unknown';
 
     // Generate video streaming token (using 'system' as user ID for now)
-    const token = generateHLSToken(videoId, 'system', ip, userAgent);
+    const token = generateVideoToken(videoId, 'system', ip, userAgent);
     
     console.log(`🎫 Video token generated for ${videoId} (user: system)`);
 

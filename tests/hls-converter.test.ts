@@ -139,9 +139,9 @@ describe('HLSConverter', () => {
   // as they require complex mocking. Integration tests should be used
   // to verify the actual FFmpeg conversion process.
 
-  describe('isHLSAvailable', () => {
+  describe('isVideoAvailable', () => {
     it('should return false for non-existent video', async () => {
-      const isAvailable = await hlsConverter.isHLSAvailable('non-existent-video');
+      const isAvailable = await hlsConverter.isVideoAvailable('non-existent-video');
       expect(isAvailable).toBe(false);
     });
 
@@ -154,7 +154,7 @@ describe('HLSConverter', () => {
       await fs.writeFile(path.join(videoDir, 'playlist.m3u8'), 'mock playlist');
       await fs.writeFile(path.join(videoDir, 'key.bin'), Buffer.alloc(16, 'a'));
 
-      const isAvailable = await hlsConverter.isHLSAvailable(testVideoId);
+      const isAvailable = await hlsConverter.isVideoAvailable(testVideoId);
       // Note: This may return false in test environment due to mocking
       expect(typeof isAvailable).toBe('boolean');
     });

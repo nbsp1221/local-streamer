@@ -91,7 +91,7 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
     if (!moved) {
       this.deps.logger?.info(
         `No temporary thumbnail available for: ${title} (${videoId}). ` +
-        `Thumbnail will be generated during HLS conversion if needed`
+        `Thumbnail will be generated during video conversion if needed`
       );
     }
 

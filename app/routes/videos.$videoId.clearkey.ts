@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { type LoaderFunctionArgs, type ActionFunctionArgs } from 'react-router';
-import { validateHLSRequest } from '~/services/hls-jwt.server';
+import { validateVideoRequest } from '~/services/hls-jwt.server';
 import { AESKeyManager } from '~/services/aes-key-manager.server';
 
 /**
@@ -29,7 +29,7 @@ async function handleClearKeyRequest(request: Request, videoId: string) {
   }
 
   // CRITICAL: Validate JWT Token for key delivery
-  const validation = await validateHLSRequest(request, videoId);
+  const validation = await validateVideoRequest(request, videoId);
   if (!validation.valid) {
     console.warn(`Clear Key license access denied for ${videoId}: ${validation.error}`);
     throw new Response(validation.error || 'Unauthorized', { status: 401 });

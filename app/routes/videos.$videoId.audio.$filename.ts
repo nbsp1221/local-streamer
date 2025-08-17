@@ -1,7 +1,7 @@
 import { stat } from 'fs/promises';
 import { join } from 'path';
 import { type LoaderFunctionArgs } from 'react-router';
-import { validateHLSRequest } from '~/services/hls-jwt.server';
+import { validateVideoRequest } from '~/services/hls-jwt.server';
 import { config } from '~/configs';
 import {
   getDashContentType,
@@ -22,7 +22,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   // Validate JWT token
-  const validation = await validateHLSRequest(request, videoId);
+  const validation = await validateVideoRequest(request, videoId);
   if (!validation.valid) {
     console.warn(`Audio segment access denied for ${videoId}/audio/${filename}: ${validation.error}`);
     throw new Response(validation.error || 'Unauthorized', { status: 401 });

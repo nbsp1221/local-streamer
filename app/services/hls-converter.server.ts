@@ -36,7 +36,7 @@ export class HLSConverter {
    * New structure: stores HLS files directly in video UUID folder
    */
   async convertVideo(videoId: string, inputPath: string, encodingOptions?: EncodingOptions): Promise<void> {
-    console.log(`🎬 Starting HLS conversion for video: ${videoId}`);
+    console.log(`🎬 Starting video conversion for video: ${videoId}`);
     
     const videoDir = join(config.paths.videos, videoId);
     await fs.mkdir(videoDir, { recursive: true });
@@ -61,9 +61,9 @@ export class HLSConverter {
       // 4. Remove original file to save storage
       await this.removeOriginalFile(inputPath);
       
-      console.log(`✅ HLS conversion completed for video: ${videoId}`);
+      console.log(`✅ Video conversion completed for video: ${videoId}`);
     } catch (error) {
-      console.error(`❌ HLS conversion failed for video: ${videoId}`, error);
+      console.error(`❌ Video conversion failed for video: ${videoId}`, error);
       await this.cleanup(videoId);
       throw error;
     }
@@ -741,9 +741,8 @@ export class HLSConverter {
 
   /**
    * Check if video conversion is available for video
-   * TODO: Change function name for DASH
    */
-  async isHLSAvailable(videoId: string): Promise<boolean> {
+  async isVideoAvailable(videoId: string): Promise<boolean> {
     try {
       // Check for DASH manifest
       const manifestPath = join(config.paths.videos, videoId, 'manifest.mpd');

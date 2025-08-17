@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { validateHLSRequest } from '~/services/hls-jwt.server';
+import { validateVideoRequest } from '~/services/hls-jwt.server';
 import { HLSConverter } from '~/services/hls-converter.server';
 
 /**
@@ -14,7 +14,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   // Validate JWT token
-  const validation = await validateHLSRequest(request, videoId);
+  const validation = await validateVideoRequest(request, videoId);
   if (!validation.valid) {
     console.warn(`DASH manifest access denied for ${videoId}: ${validation.error}`);
     throw new Response(validation.error || 'Unauthorized', { status: 401 });
@@ -24,7 +24,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     const hlsConverter = new HLSConverter();
 
     // Check if video exists
-    const isAvailable = await hlsConverter.isHLSAvailable(videoId); // TODO: Change method name for DASH
+    const isAvailable = await hlsConverter.isVideoAvailable(videoId);
     if (!isAvailable) {
       throw new Response('Video not available', { status: 404 });
     }

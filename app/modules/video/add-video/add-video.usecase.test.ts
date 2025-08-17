@@ -49,7 +49,7 @@ describe('AddVideoUseCase', () => {
   });
 
   describe('Successful video addition', () => {
-    it('should add video successfully with HLS conversion', async () => {
+    it('should add video successfully with video conversion', async () => {
       // Arrange
       const request: AddVideoRequest = {
         filename: 'test-video.mp4',
@@ -152,8 +152,8 @@ describe('AddVideoUseCase', () => {
     });
   });
 
-  describe('HLS conversion failure scenarios', () => {
-    it('should add video even when HLS conversion fails', async () => {
+  describe('Video conversion failure scenarios', () => {
+    it('should add video even when video conversion fails', async () => {
       // Arrange
       const request: AddVideoRequest = {
         filename: 'test-video.mp4',
@@ -173,7 +173,7 @@ describe('AddVideoUseCase', () => {
       mockVideoRepository.create.mockResolvedValue(undefined);
       mockVideoRepository.updateHLSStatus.mockResolvedValue({});
       
-      // HLS conversion fails
+      // Video conversion fails
       mockHlsConverter.convertVideo.mockRejectedValue(new Error('FFmpeg failed'));
 
       // Act
