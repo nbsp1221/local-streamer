@@ -17,7 +17,6 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
     return {
       ...data,
       addedAt: new Date(data.addedAt),
-      hlsGeneratedAt: data.hlsGeneratedAt ? new Date(data.hlsGeneratedAt) : undefined,
       originalCleanupAt: data.originalCleanupAt ? new Date(data.originalCleanupAt) : undefined,
     };
   }
@@ -29,7 +28,6 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
     return {
       ...entity,
       addedAt: entity.addedAt.toISOString(),
-      hlsGeneratedAt: entity.hlsGeneratedAt?.toISOString(),
       originalCleanupAt: entity.originalCleanupAt?.toISOString(),
     };
   }
@@ -114,35 +112,7 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
     });
   }
 
-  /**
-   * Update HLS status for a video
-   */
-  async updateHLSStatus(id: string, hasHLS: boolean, generatedAt?: Date): Promise<Video | null> {
-    const video = await this.findById(id);
-    if (!video) return null;
 
-    const updatedVideo: Video = {
-      ...video,
-      hasHLS,
-      hlsGeneratedAt: generatedAt || new Date(),
-    };
-
-    return await this.update(id, updatedVideo);
-  }
-
-  /**
-   * Find videos without HLS conversion (for migration)
-   */
-  async findVideosWithoutHLS(): Promise<Video[]> {
-    return this.findWhere(video => !video.hasHLS);
-  }
-
-  /**
-   * Find videos with HLS conversion
-   */
-  async findVideosWithHLS(): Promise<Video[]> {
-    return this.findWhere(video => !!video.hasHLS);
-  }
 
   /**
    * Schedule original file cleanup

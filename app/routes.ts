@@ -6,7 +6,6 @@ export default [
   route("player/:id", "routes/player.$id.tsx"),
   route("setup", "routes/setup.tsx"),
   route("login", "routes/login.tsx"),
-  route("api/stream/:id", "routes/api/stream.$id.ts"),
   route("api/thumbnail/:id", "routes/api/thumbnail.$id.ts"),
   route("api/thumbnail-preview/:filename", "routes/api/thumbnail-preview.$filename.ts"),
   route("api/scan-incoming", "routes/api/scan-incoming.ts"),
@@ -17,9 +16,10 @@ export default [
   route("api/auth/login", "routes/api/auth/login.ts"),
   route("api/auth/logout", "routes/api/auth/logout.ts"),
   route("api/auth/me", "routes/api/auth/me.ts"),
-  // HLS streaming routes
-  route("api/hls-token/:videoId", "routes/api/hls-token.$videoId.ts"),
-  route("api/hls/:videoId/playlist.m3u8", "routes/api/hls.$videoId.playlist.ts"),
-  route("api/hls/:videoId/segment/:segment", "routes/api/hls.$videoId.segment.$segment.ts"),
-  route("api/hls-key/:videoId", "routes/api/hls-key.$videoId.ts"),
+  // RESTful video resource routes
+  route("videos/:videoId/token", "routes/videos.$videoId.token.ts"),
+  route("videos/:videoId/clearkey", "routes/videos.$videoId.clearkey.ts"),
+  route("videos/:videoId/video/:filename", "routes/videos.$videoId.video.$filename.ts"),
+  route("videos/:videoId/audio/:filename", "routes/videos.$videoId.audio.$filename.ts"),
+  route("videos/:videoId/manifest.mpd", "routes/videos.$videoId.manifest.ts"),
 ] satisfies RouteConfig;

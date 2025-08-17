@@ -58,8 +58,8 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
       return Result.ok({
         videoId,
         message: hlsResult.success 
-          ? 'Video added to library successfully with HLS'
-          : 'Video added to library but HLS generation failed',
+          ? 'Video added to library successfully with video conversion'
+          : 'Video added to library but video conversion failed',
         hlsEnabled: hlsResult.success,
       });
     }
@@ -135,31 +135,19 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
   }
 
   private async generateHLS(videoId: string, videoPath: string, encodingOptions?: EncodingOptions): Promise<Result<void>> {
-    this.deps.logger?.info(`Starting HLS generation for video: ${videoId}`);
+    this.deps.logger?.info(`Starting video conversion for video: ${videoId}`);
 
     try {
       await this.deps.hlsConverter.convertVideo(videoId, videoPath, encodingOptions);
-      this.deps.logger?.info(`HLS generated successfully for ${videoId}`);
-
-      // Update database with HLS status
-      await this.deps.videoRepository.updateHLSStatus(videoId, true, new Date());
-      this.deps.logger?.info(`Database updated with HLS status for ${videoId}`);
+      this.deps.logger?.info(`Video conversion completed successfully for ${videoId}`);
 
       return Result.ok(undefined);
     }
     catch (error) {
-      this.deps.logger?.error(`HLS generation failed for ${videoId}:`, error);
-
-      // Update database to mark HLS as failed/unavailable
-      try {
-        await this.deps.videoRepository.updateHLSStatus(videoId, false);
-      }
-      catch (dbError) {
-        this.deps.logger?.error(`Failed to update database HLS status for ${videoId}:`, dbError);
-      }
+      this.deps.logger?.error(`Video conversion failed for ${videoId}:`, error);
 
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return Result.fail(new InternalError(`HLS generation failed: ${errorMessage}`));
+      return Result.fail(new InternalError(`Video conversion failed: ${errorMessage}`));
     }
   }
 }

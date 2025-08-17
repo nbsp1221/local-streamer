@@ -10,9 +10,6 @@ export interface Video {
   addedAt: Date;
   description?: string;
   format: VideoFormat;
-  // HLS-related fields
-  hasHLS?: boolean;
-  hlsGeneratedAt?: Date;
   originalCleanupAt?: Date;
 }
 

@@ -14,17 +14,14 @@ export const security = {
     parallelism: 1,      // 1 thread
   },
   
-  hls: {
-    // Enable/disable HLS functionality
-    enabled: process.env.HLS_ENABLED === 'true',
-    
-    // Master encryption seed for key derivation (required if HLS is enabled)
+  video: {
+    // Master encryption seed for key derivation (required for video encryption)
     masterSeed: (() => {
       const seed = process.env.HLS_MASTER_ENCRYPTION_SEED;
-      if (process.env.HLS_ENABLED === 'true' && !seed) {
-        throw new Error('HLS_MASTER_ENCRYPTION_SEED environment variable is required when HLS is enabled');
+      if (!seed) {
+        throw new Error('HLS_MASTER_ENCRYPTION_SEED environment variable is required for video encryption');
       }
-      return seed || '';
+      return seed;
     })(),
     
     // Key derivation settings
@@ -34,14 +31,14 @@ export const security = {
       saltPrefix: process.env.KEY_SALT_PREFIX || 'local-streamer-hls-v1',
     },
     
-    // Authentication settings for key server
+    // Authentication settings for video streaming
     auth: {
       secret: (() => {
         const secret = process.env.HLS_JWT_SECRET;
-        if (process.env.HLS_ENABLED === 'true' && !secret) {
-          throw new Error('HLS_JWT_SECRET environment variable is required when HLS is enabled');
+        if (!secret) {
+          throw new Error('HLS_JWT_SECRET environment variable is required for video streaming authentication');
         }
-        return secret || '';
+        return secret;
       })(),
       allowedOrigins: [
         'http://localhost:5173',

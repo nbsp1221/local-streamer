@@ -98,7 +98,7 @@ describe('HLSConverter', () => {
         try {
           const videoDir = path.join(testDir, videoId);
           const files = await fs.readdir(videoDir);
-          return files.filter(file => file.endsWith('.ts')).sort();
+          return files.filter(file => file.endsWith('.m4s')).sort();
         } catch {
           return [];
         }
@@ -163,9 +163,14 @@ describe('HLSConverter', () => {
   describe('isValidSegmentName', () => {
     it('should validate correct segment names', () => {
       const validNames = [
-        'segment-0000.ts',
-        'segment-0001.ts',
-        'segment-1234.ts',
+        'video/segment-0000.m4s',
+        'video/segment-0001.m4s',
+        'video/segment-1234.m4s',
+        'audio/segment-0000.m4s',
+        'audio/segment-0001.m4s',
+        'audio/segment-1234.m4s',
+        'video/init.mp4',
+        'audio/init.mp4',
       ];
 
       validNames.forEach(name => {
@@ -175,13 +180,14 @@ describe('HLSConverter', () => {
 
     it('should reject invalid segment names', () => {
       const invalidNames = [
-        'segment-0.ts',
-        'segment-12345.ts',
+        'segment-0.m4s',
+        'segment-12345.m4s',
         'segment-0000.mp4',
-        '../segment-0000.ts',
+        'segment-0000.ts', // Old TS format
+        '../segment-0000.m4s',
         'segment-0000',
-        'malicious/path.ts',
-        'segment_000.ts', // Old format
+        'malicious/path.m4s',
+        'segment_000.m4s', // Old format
         '',
       ];
 
@@ -202,7 +208,7 @@ describe('HLSConverter', () => {
       await fs.mkdir(videoDir, { recursive: true });
       
       // Create segment files in random order (new naming format)
-      const segmentNames = ['segment-0002.ts', 'segment-0000.ts', 'segment-0001.ts'];
+      const segmentNames = ['segment-0002.m4s', 'segment-0000.m4s', 'segment-0001.m4s'];
       for (const name of segmentNames) {
         await fs.writeFile(path.join(videoDir, name), 'mock segment');
       }
@@ -212,7 +218,7 @@ describe('HLSConverter', () => {
       await fs.writeFile(path.join(videoDir, 'key.bin'), 'mock key');
 
       const segments = await hlsConverter.getSegmentList(testVideoId);
-      expect(segments).toEqual(['segment-0000.ts', 'segment-0001.ts', 'segment-0002.ts']);
+      expect(segments).toEqual(['segment-0000.m4s', 'segment-0001.m4s', 'segment-0002.m4s']);
     });
   });
 
@@ -221,7 +227,7 @@ describe('HLSConverter', () => {
       const videoDir = path.join(testDir, testVideoId);
       await fs.mkdir(videoDir, { recursive: true });
       await fs.writeFile(path.join(videoDir, 'playlist.m3u8'), 'mock playlist');
-      await fs.writeFile(path.join(videoDir, 'segment-0000.ts'), 'mock segment');
+      await fs.writeFile(path.join(videoDir, 'segment-0000.m4s'), 'mock segment');
 
       await hlsConverter.cleanup(testVideoId);
 
