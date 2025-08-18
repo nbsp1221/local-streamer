@@ -5,7 +5,7 @@ import { config } from '~/configs';
 const JWT_SECRET = (() => {
   const secret = process.env.HLS_JWT_SECRET;
   if (!secret) {
-    throw new Error('HLS_JWT_SECRET environment variable is required for HLS streaming');
+    throw new Error('HLS_JWT_SECRET environment variable is required for video streaming');
   }
   return secret;
 })();
@@ -31,9 +31,9 @@ export interface HLSTokenValidation {
 }
 
 /**
- * Generate HLS access token for a specific video
+ * Generate video access token for a specific video
  */
-export function generateHLSToken(
+export function generateVideoToken(
   videoId: string,
   userId: string,
   ip?: string,
@@ -141,9 +141,9 @@ export function extractHLSToken(request: Request): string | null {
 }
 
 /**
- * Validate HLS request with token
+ * Validate video request with token
  */
-export async function validateHLSRequest(
+export async function validateVideoRequest(
   request: Request,
   expectedVideoId?: string
 ): Promise<HLSTokenValidation> {

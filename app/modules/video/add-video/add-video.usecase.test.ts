@@ -49,7 +49,7 @@ describe('AddVideoUseCase', () => {
   });
 
   describe('Successful video addition', () => {
-    it('should add video successfully with HLS conversion', async () => {
+    it('should add video successfully with video conversion', async () => {
       // Arrange
       const request: AddVideoRequest = {
         filename: 'test-video.mp4',
@@ -78,7 +78,7 @@ describe('AddVideoUseCase', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.videoId).toBe(mockVideoId);
-        expect(result.data.message).toContain('successfully with HLS');
+        expect(result.data.message).toContain('successfully with video conversion');
         expect(result.data.hlsEnabled).toBe(true);
       }
 
@@ -87,7 +87,7 @@ describe('AddVideoUseCase', () => {
       expect(mockFileManager.getVideoInfo).toHaveBeenCalled();
       expect(mockVideoRepository.create).toHaveBeenCalled();
       expect(mockHlsConverter.convertVideo).toHaveBeenCalledWith(mockVideoId, expect.any(String), undefined);
-      expect(mockVideoRepository.updateHLSStatus).toHaveBeenCalledWith(mockVideoId, true, expect.any(Date));
+      // Video conversion success is tracked through the convertVideo call
     });
   });
 
@@ -152,8 +152,8 @@ describe('AddVideoUseCase', () => {
     });
   });
 
-  describe('HLS conversion failure scenarios', () => {
-    it('should add video even when HLS conversion fails', async () => {
+  describe('Video conversion failure scenarios', () => {
+    it('should add video even when video conversion fails', async () => {
       // Arrange
       const request: AddVideoRequest = {
         filename: 'test-video.mp4',
@@ -173,7 +173,7 @@ describe('AddVideoUseCase', () => {
       mockVideoRepository.create.mockResolvedValue(undefined);
       mockVideoRepository.updateHLSStatus.mockResolvedValue({});
       
-      // HLS conversion fails
+      // Video conversion fails
       mockHlsConverter.convertVideo.mockRejectedValue(new Error('FFmpeg failed'));
 
       // Act
@@ -183,12 +183,12 @@ describe('AddVideoUseCase', () => {
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.videoId).toBe(mockVideoId);
-        expect(result.data.message).toContain('HLS generation failed');
+        expect(result.data.message).toContain('video conversion failed');
         expect(result.data.hlsEnabled).toBe(false);
       }
 
       expect(mockVideoRepository.create).toHaveBeenCalled();
-      expect(mockVideoRepository.updateHLSStatus).toHaveBeenCalledWith(mockVideoId, false);
+      // Video conversion failure is handled internally by convertVideo
     });
   });
 

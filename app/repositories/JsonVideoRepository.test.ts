@@ -272,191 +272,44 @@ describe('JsonVideoRepository', () => {
     });
   });
 
-  describe('HLS-specific methods', () => {
-    let testVideos: Video[];
-
-    beforeEach(async () => {
-      // Create test videos with different HLS statuses
-      const video1 = await repository.create(createSampleVideo({ title: 'Video with HLS' }));
-      const video2 = await repository.create(createSampleVideo({ title: 'Video without HLS' }));
-      const video3 = await repository.create(createSampleVideo({ title: 'Video HLS undefined' }));
+  describe('scheduleOriginalCleanup', () => {
+    it('should schedule cleanup for existing video', async () => {
+      const video = await repository.create(createSampleVideo());
+      const cleanupAt = new Date('2025-02-01T00:00:00Z');
       
-      // Update first video to have HLS
-      await repository.updateHLSStatus(video1.id, true, new Date('2025-01-01T10:00:00Z'));
-      // Update second video to explicitly have hasHLS: false  
-      await repository.updateHLSStatus(video2.id, false);
-      // Third video remains unchanged (hasHLS undefined)
+      const updatedVideo = await repository.scheduleOriginalCleanup(video.id, cleanupAt);
       
-      // Reload videos to get updated state
-      testVideos = [
-        await repository.findById(video1.id)!,
-        await repository.findById(video2.id)!,
-        await repository.findById(video3.id)!,
-      ].filter(v => v !== null) as Video[];
+      expect(updatedVideo).toBeDefined();
+      expect(updatedVideo!.originalCleanupAt).toEqual(cleanupAt);
     });
 
-    describe('updateHLSStatus', () => {
-      it('should update HLS status to true', async () => {
-        const video = testVideos[1]; // Video without HLS
-        const generatedAt = new Date();
-        
-        const updatedVideo = await repository.updateHLSStatus(video.id, true, generatedAt);
-        
-        expect(updatedVideo).toBeDefined();
-        expect(updatedVideo!.hasHLS).toBe(true);
-        expect(updatedVideo!.hlsGeneratedAt).toEqual(generatedAt);
-      });
-
-      it('should update HLS status to false', async () => {
-        const video = testVideos[0]; // Video with HLS
-        
-        const updatedVideo = await repository.updateHLSStatus(video.id, false);
-        
-        expect(updatedVideo).toBeDefined();
-        expect(updatedVideo!.hasHLS).toBe(false);
-        expect(updatedVideo!.hlsGeneratedAt).toBeInstanceOf(Date);
-      });
-
-      it('should use current date when generatedAt not provided', async () => {
-        const video = testVideos[1];
-        const beforeUpdate = new Date();
-        
-        const updatedVideo = await repository.updateHLSStatus(video.id, true);
-        
-        expect(updatedVideo!.hlsGeneratedAt).toBeInstanceOf(Date);
-        expect(updatedVideo!.hlsGeneratedAt!.getTime()).toBeGreaterThanOrEqual(beforeUpdate.getTime());
-      });
-
-      it('should return null for non-existent video', async () => {
-        const result = await repository.updateHLSStatus('non-existent-id', true);
-        
-        expect(result).toBeNull();
-      });
+    it('should return null for non-existent video', async () => {
+      const cleanupAt = new Date();
+      
+      const result = await repository.scheduleOriginalCleanup('non-existent-id', cleanupAt);
+      
+      expect(result).toBeNull();
     });
 
-    describe('findVideosWithoutHLS', () => {
-      it('should find videos without HLS', async () => {
-        const videosWithoutHLS = await repository.findVideosWithoutHLS();
-        
-        expect(videosWithoutHLS).toHaveLength(2);
-        expect(videosWithoutHLS.every(video => !video.hasHLS)).toBe(true);
-        
-        const titles = videosWithoutHLS.map(v => v.title).sort();
-        expect(titles).toEqual(['Video HLS undefined', 'Video without HLS']);
-      });
-
-      it('should return empty array when all videos have HLS', async () => {
-        // Update all videos to have HLS
-        for (const video of testVideos) {
-          await repository.updateHLSStatus(video.id, true);
-        }
-        
-        const videosWithoutHLS = await repository.findVideosWithoutHLS();
-        
-        expect(videosWithoutHLS).toHaveLength(0);
-      });
-    });
-
-    describe('findVideosWithHLS', () => {
-      it('should find videos with HLS', async () => {
-        const videosWithHLS = await repository.findVideosWithHLS();
-        
-        expect(videosWithHLS).toHaveLength(1);
-        expect(videosWithHLS[0].hasHLS).toBe(true);
-        expect(videosWithHLS[0].title).toBe('Video with HLS');
-      });
-
-      it('should return empty array when no videos have HLS', async () => {
-        // Update all videos to not have HLS
-        for (const video of testVideos) {
-          await repository.updateHLSStatus(video.id, false);
-        }
-        
-        const videosWithHLS = await repository.findVideosWithHLS();
-        
-        expect(videosWithHLS).toHaveLength(0);
-      });
-    });
-
-    describe('scheduleOriginalCleanup', () => {
-      it('should schedule cleanup for existing video', async () => {
-        const video = testVideos[0];
-        const cleanupAt = new Date('2025-02-01T00:00:00Z');
-        
-        const updatedVideo = await repository.scheduleOriginalCleanup(video.id, cleanupAt);
-        
-        expect(updatedVideo).toBeDefined();
-        expect(updatedVideo!.originalCleanupAt).toEqual(cleanupAt);
-      });
-
-      it('should return null for non-existent video', async () => {
-        const cleanupAt = new Date();
-        
-        const result = await repository.scheduleOriginalCleanup('non-existent-id', cleanupAt);
-        
-        expect(result).toBeNull();
-      });
-    });
-
-    describe('Date field transformations for HLS fields', () => {
-      it('should handle hlsGeneratedAt Date transformation', async () => {
-        const generatedAt = new Date('2025-01-01T12:00:00Z');
-        const video = await repository.create(createSampleVideo());
-        
-        // Update video with HLS status
-        const updatedVideo = await repository.updateHLSStatus(video.id, true, generatedAt);
-        
-        // Read raw file content
-        const fileContent = await fs.readFile(testFilePath, 'utf-8');
-        const rawData = JSON.parse(fileContent);
-        const savedVideo = rawData.find((v: any) => v.id === video.id);
-        
-        // Should store date as ISO string
-        expect(typeof savedVideo.hlsGeneratedAt).toBe('string');
-        expect(savedVideo.hlsGeneratedAt).toBe(generatedAt.toISOString());
-        
-        // But when loaded, should be Date object
-        expect(updatedVideo!.hlsGeneratedAt).toBeInstanceOf(Date);
-        expect(updatedVideo!.hlsGeneratedAt).toEqual(generatedAt);
-      });
-
-      it('should handle originalCleanupAt Date transformation', async () => {
-        const cleanupAt = new Date('2025-02-15T08:30:00Z');
-        const video = await repository.create(createSampleVideo());
-        
-        // Update video with cleanup schedule
-        const updatedVideo = await repository.scheduleOriginalCleanup(video.id, cleanupAt);
-        
-        // Read raw file content
-        const fileContent = await fs.readFile(testFilePath, 'utf-8');
-        const rawData = JSON.parse(fileContent);
-        const savedVideo = rawData.find((v: any) => v.id === video.id);
-        
-        // Should store date as ISO string
-        expect(typeof savedVideo.originalCleanupAt).toBe('string');
-        expect(savedVideo.originalCleanupAt).toBe(cleanupAt.toISOString());
-        
-        // But when loaded, should be Date object
-        expect(updatedVideo!.originalCleanupAt).toBeInstanceOf(Date);
-        expect(updatedVideo!.originalCleanupAt).toEqual(cleanupAt);
-      });
-
-      it('should handle undefined HLS Date fields', async () => {
-        const video = await repository.create(createSampleVideo());
-        
-        expect(video.hasHLS).toBeUndefined();
-        expect(video.hlsGeneratedAt).toBeUndefined();
-        expect(video.originalCleanupAt).toBeUndefined();
-        
-        // Raw data should also be undefined
-        const fileContent = await fs.readFile(testFilePath, 'utf-8');
-        const rawData = JSON.parse(fileContent);
-        const savedVideo = rawData.find((v: any) => v.id === video.id);
-        
-        expect(savedVideo.hasHLS).toBeUndefined();
-        expect(savedVideo.hlsGeneratedAt).toBeUndefined();
-        expect(savedVideo.originalCleanupAt).toBeUndefined();
-      });
+    it('should handle originalCleanupAt Date transformation', async () => {
+      const cleanupAt = new Date('2025-02-15T08:30:00Z');
+      const video = await repository.create(createSampleVideo());
+      
+      // Update video with cleanup schedule
+      const updatedVideo = await repository.scheduleOriginalCleanup(video.id, cleanupAt);
+      
+      // Read raw file content
+      const fileContent = await fs.readFile(testFilePath, 'utf-8');
+      const rawData = JSON.parse(fileContent);
+      const savedVideo = rawData.find((v: any) => v.id === video.id);
+      
+      // Should store date as ISO string
+      expect(typeof savedVideo.originalCleanupAt).toBe('string');
+      expect(savedVideo.originalCleanupAt).toBe(cleanupAt.toISOString());
+      
+      // But when loaded, should be Date object
+      expect(updatedVideo!.originalCleanupAt).toBeInstanceOf(Date);
+      expect(updatedVideo!.originalCleanupAt).toEqual(cleanupAt);
     });
   });
 });

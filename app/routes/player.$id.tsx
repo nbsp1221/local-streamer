@@ -3,7 +3,7 @@ import { ArrowLeft, Share2, Download } from "lucide-react";
 import type { Route } from "./+types/player.$id";
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
-import { VideoPlayer } from "~/components/VideoPlayer";
+import { VidstackPlayer } from "~/components/VidstackPlayer";
 import { RelatedVideos } from "~/components/RelatedVideos";
 import { useVideoLibrary } from "~/hooks/useVideoLibrary";
 import { getVideos } from "~/services/video-store.server";
@@ -87,7 +87,7 @@ export default function Player() {
           <div className="lg:col-span-2 space-y-4 lg:space-y-6">
             {/* Video player */}
             <div className="aspect-video bg-black rounded-lg overflow-hidden">
-              <VideoPlayer video={currentVideo} />
+              <VidstackPlayer video={currentVideo} />
             </div>
 
             {/* Video info */}

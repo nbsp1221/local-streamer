@@ -26,9 +26,6 @@ export interface UpdateVideoInput {
   duration?: number;
   format?: VideoFormat;
   description?: string;
-  // HLS-related fields
-  hasHLS?: boolean;
-  hlsGeneratedAt?: Date;
   originalCleanupAt?: Date;
 }
 
@@ -61,20 +58,6 @@ export interface VideoRepository extends BaseRepository<Video, CreateVideoInput,
    */
   search(query: string): Promise<Video[]>;
 
-  /**
-   * Update HLS status for a video
-   */
-  updateHLSStatus(id: string, hasHLS: boolean, generatedAt?: Date): Promise<Video | null>;
-
-  /**
-   * Find videos without HLS conversion (for migration)
-   */
-  findVideosWithoutHLS(): Promise<Video[]>;
-
-  /**
-   * Find videos with HLS conversion
-   */
-  findVideosWithHLS(): Promise<Video[]>;
 
   /**
    * Schedule original file cleanup
