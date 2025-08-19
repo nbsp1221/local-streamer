@@ -1,19 +1,64 @@
+import type { SetupUserRequest } from '~/modules/auth/setup-user/setup-user.types';
 import type { SetupFormData, SetupResponse } from '~/types/auth';
+import { DomainError } from '~/lib/errors';
+import { SetupUserUseCase } from '~/modules/auth/setup-user/setup-user.usecase';
+import { getSessionRepository } from '~/repositories';
 import { COOKIE_NAME, createSession, getCookieOptions, serializeCookie } from '~/services/session-store.server';
 import { createUser, hasAdminUser } from '~/services/user-store.server';
 import { addLoginDelay, getClientIP, isValidEmail, isValidPassword, toPublicUser } from '~/utils/auth.server';
 import type { Route } from './+types/setup';
 
+// Create UseCase with dependencies
+function createSetupUserUseCase() {
+  return new SetupUserUseCase({
+    userRepository: {
+      hasAdminUser,
+      create: createUser,
+    } as any,
+    sessionRepository: getSessionRepository(),
+    sessionManager: {
+      createSession,
+      getCookieOptions,
+      serializeCookie,
+    },
+    securityService: {
+      isValidEmail,
+      isValidPassword,
+      addLoginDelay,
+      getClientIP,
+      toPublicUser,
+    },
+    logger: console,
+  });
+}
+
 export async function loader(): Promise<Response> {
-  // Check if admin already exists
-  const adminExists = await hasAdminUser();
+  try {
+    const setupUseCase = createSetupUserUseCase();
+    const result = await setupUseCase.checkSetupStatus();
 
-  const response: SetupResponse = {
-    success: true,
-    needsSetup: !adminExists,
-  };
-
-  return Response.json(response);
+    if (result.success) {
+      const response: SetupResponse = {
+        success: true,
+        needsSetup: result.data.needsSetup,
+      };
+      return Response.json(response);
+    }
+    else {
+      const statusCode = result.error instanceof DomainError ? result.error.statusCode : 500;
+      return Response.json(
+        { success: false, error: result.error.message },
+        { status: statusCode },
+      );
+    }
+  }
+  catch (error) {
+    console.error('Setup status check failed:', error);
+    return Response.json(
+      { success: false, error: 'Failed to check setup status' },
+      { status: 500 },
+    );
+  }
 }
 
 export async function action({ request }: Route.ActionArgs): Promise<Response> {
@@ -25,89 +70,70 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
   }
 
   try {
-    // Check if admin already exists
-    const adminExists = await hasAdminUser();
-    if (adminExists) {
-      return Response.json(
-        { success: false, error: 'Admin user already exists' },
-        { status: 400 },
-      );
-    }
-
     // Parse request data
-    const formData = await request.json();
+    const formData: SetupFormData = await request.json();
     const { email, password } = formData;
 
-    // Validate input values
-    if (!email || !password) {
-      return Response.json(
-        { success: false, error: 'Email and password are required' },
-        { status: 400 },
-      );
-    }
-
-    // Email validation check
-    if (!isValidEmail(email)) {
-      return Response.json(
-        { success: false, error: 'Invalid email address' },
-        { status: 400 },
-      );
-    }
-
-    // Password strength check
-    const passwordValidation = isValidPassword(password);
-    if (!passwordValidation.valid) {
-      return Response.json(
-        { success: false, error: passwordValidation.errors.join(', ') },
-        { status: 400 },
-      );
-    }
-
-    // Create admin account
-    const newUser = await createUser({
+    const setupRequest: SetupUserRequest = {
       email,
       password,
-      role: 'admin',
-    });
+    };
 
-    console.log(`✅ Admin user created: ${newUser.email} (${newUser.id})`);
-
-    // Extract User-Agent and IP address
+    // Extract User-Agent and IP address for session creation
     const userAgent = request.headers.get('User-Agent') || undefined;
     const ipAddress = getClientIP(request);
 
-    // Create new session (auto login)
-    const session = await createSession(newUser.id, userAgent, ipAddress);
+    // Create UseCase and execute
+    const setupUseCase = createSetupUserUseCase();
+    const result = await setupUseCase.execute(setupRequest);
 
-    // Set cookie
-    const cookieOptions = getCookieOptions();
-    const cookieString = serializeCookie(COOKIE_NAME, session.id, cookieOptions);
+    if (result.success) {
+      // Create session with request context
+      const sessionResult = await setupUseCase.createUserSession(
+        result.data.userId,
+        userAgent,
+        ipAddress,
+      );
 
-    // Return JSON response (with cookie)
-    return Response.json(
-      {
-        success: true,
-        user: toPublicUser(newUser),
-      },
-      {
-        headers: {
-          'Set-Cookie': cookieString,
+      if (!sessionResult.success) {
+        const statusCode = sessionResult.error instanceof DomainError ? sessionResult.error.statusCode : 500;
+        return Response.json(
+          { success: false, error: sessionResult.error.message },
+          { status: statusCode },
+        );
+      }
+
+      // Set cookie
+      const cookieOptions = getCookieOptions();
+      const cookieString = serializeCookie(COOKIE_NAME, sessionResult.data.sessionId, cookieOptions);
+
+      // Return success response with cookie
+      return Response.json(
+        {
+          success: true,
+          user: result.data.user,
         },
-      },
-    );
+        {
+          headers: {
+            'Set-Cookie': cookieString,
+          },
+        },
+      );
+    }
+    else {
+      // Handle UseCase errors
+      const statusCode = result.error instanceof DomainError ? result.error.statusCode : 500;
+      return Response.json(
+        { success: false, error: result.error.message },
+        { status: statusCode },
+      );
+    }
   }
   catch (error) {
     console.error('Setup error:', error);
 
-    // Add delay (security)
+    // Add security delay on any error
     await addLoginDelay();
-
-    if (error instanceof Error) {
-      return Response.json(
-        { success: false, error: error.message },
-        { status: 400 },
-      );
-    }
 
     return Response.json(
       { success: false, error: 'Failed to create admin user' },
