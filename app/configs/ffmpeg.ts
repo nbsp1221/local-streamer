@@ -3,7 +3,7 @@ import { join } from 'path';
 
 /**
  * Video processing binary paths configuration
- * 
+ *
  * This module provides centralized management of FFmpeg, FFprobe, and Shaka Packager binary paths.
  * It supports custom binary locations via environment variables and falls back
  * to project-local binaries downloaded via the download scripts.
@@ -60,7 +60,6 @@ export function getFFprobePath(): string {
   return 'ffprobe';
 }
 
-
 /**
  * Get the path to the Shaka Packager binary
  * Priority:
@@ -102,7 +101,7 @@ export function logVideoToolsConfig(): void {
   if (!existsSync(ffmpegPath) || !existsSync(ffprobePath)) {
     console.warn('⚠️  FFmpeg binaries not found. Run "bun run download:ffmpeg" to download them.');
   }
-  
+
   if (!existsSync(shakaPackagerPath)) {
     console.warn('⚠️  Shaka Packager binary not found. Run "bun run download:shaka" to download it.');
   }

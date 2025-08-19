@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { validateVideoRequest } from '~/services/hls-jwt.server';
 import { HLSConverter } from '~/services/hls-converter.server';
+import { validateVideoRequest } from '~/services/hls-jwt.server';
 
 /**
  * Handle DASH manifest (manifest.mpd)
@@ -37,7 +37,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     return new Response(manifest, {
       headers: {
         'Content-Type': 'application/dash+xml',
-      }
+      },
     });
   }
   catch (error) {

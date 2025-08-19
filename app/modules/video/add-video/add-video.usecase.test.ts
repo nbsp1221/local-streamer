@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { AddVideoDependencies, AddVideoRequest } from '~/modules/video/add-video/add-video.types';
+import { InternalError, ValidationError } from '~/lib/errors';
 import { AddVideoUseCase } from '~/modules/video/add-video/add-video.usecase';
-import type { AddVideoRequest, AddVideoDependencies } from '~/modules/video/add-video/add-video.types';
-import { ValidationError, InternalError } from '~/lib/errors';
 
 describe('AddVideoUseCase', () => {
   let useCase: AddVideoUseCase;
@@ -172,7 +172,7 @@ describe('AddVideoUseCase', () => {
       mockFileManager.moveTempThumbnailToLibrary.mockResolvedValue(false);
       mockVideoRepository.create.mockResolvedValue(undefined);
       mockVideoRepository.updateHLSStatus.mockResolvedValue({});
-      
+
       // Video conversion fails
       mockHlsConverter.convertVideo.mockRejectedValue(new Error('FFmpeg failed'));
 

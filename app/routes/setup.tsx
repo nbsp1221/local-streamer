@@ -1,26 +1,26 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { Alert, AlertDescription } from "~/components/ui/alert";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { Shield, Eye, EyeOff } from "lucide-react";
-import { useAuthStore } from "~/stores/auth-store";
+import { Eye, EyeOff, Shield } from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router';
+import { Alert, AlertDescription } from '~/components/ui/alert';
+import { Button } from '~/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
+import { Input } from '~/components/ui/input';
+import { Label } from '~/components/ui/label';
+import { useAuthStore } from '~/stores/auth-store';
 
 export function meta() {
   return [
-    { title: "Setup - Local Streamer" },
-    { name: "description", content: "Set up your Local Streamer admin account" },
+    { title: 'Setup - Local Streamer' },
+    { name: 'description', content: 'Set up your Local Streamer admin account' },
   ];
 }
 
 export default function Setup() {
   const navigate = useNavigate();
-  const setUser = useAuthStore((state) => state.setUser);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const setUser = useAuthStore(state => state.setUser);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -32,34 +32,34 @@ export default function Setup() {
 
     // Basic validation
     if (!email || !password || !confirmPassword) {
-      setError("All fields are required");
+      setError('All fields are required');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError('Passwords do not match');
       return;
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters long");
+      setError('Password must be at least 8 characters long');
       return;
     }
 
-    if (!email.includes("@")) {
-      setError("Please enter a valid email address");
+    if (!email.includes('@')) {
+      setError('Please enter a valid email address');
       return;
     }
 
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/setup", {
-        method: "POST",
+      const response = await fetch('/api/auth/setup', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
-        credentials: "include",
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
       });
 
@@ -68,14 +68,17 @@ export default function Setup() {
       if (data.success && data.user) {
         // Setup successful, set user info and redirect to home
         setUser(data.user);
-        navigate("/", { replace: true });
-      } else {
-        setError(data.error || "Setup failed");
+        navigate('/', { replace: true });
       }
-    } catch (error) {
-      console.error("Setup error:", error);
-      setError("Network error occurred");
-    } finally {
+      else {
+        setError(data.error || 'Setup failed');
+      }
+    }
+    catch (error) {
+      console.error('Setup error:', error);
+      setError('Network error occurred');
+    }
+    finally {
       setLoading(false);
     }
   };
@@ -110,7 +113,7 @@ export default function Setup() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={e => setEmail(e.target.value)}
                 placeholder="admin@example.com"
                 disabled={loading}
                 required
@@ -122,9 +125,9 @@ export default function Setup() {
               <div className="relative">
                 <Input
                   id="password"
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={e => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   disabled={loading}
                   required
@@ -151,9 +154,9 @@ export default function Setup() {
               <div className="relative">
                 <Input
                   id="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
+                  type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={e => setConfirmPassword(e.target.value)}
                   placeholder="Confirm your password"
                   disabled={loading}
                   required
@@ -176,7 +179,7 @@ export default function Setup() {
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating Account..." : "Create Admin Account"}
+              {loading ? 'Creating Account...' : 'Create Admin Account'}
             </Button>
           </form>
 

@@ -1,9 +1,9 @@
-import { v4 as uuidv4 } from 'uuid';
 import * as argon2 from 'argon2';
-import type { User, CreateUserData, PublicUser } from "~/types/auth";
-import type { UserRepository, UpdateUserInput } from "~/repositories/interfaces/UserRepository";
-import { BaseJsonRepository } from "~/repositories/base/BaseJsonRepository";
-import { config } from "~/configs";
+import { v4 as uuidv4 } from 'uuid';
+import type { UpdateUserInput, UserRepository } from '~/repositories/interfaces/UserRepository';
+import type { CreateUserData, PublicUser, User } from '~/types/auth';
+import { config } from '~/configs';
+import { BaseJsonRepository } from '~/repositories/base/BaseJsonRepository';
 
 /**
  * JSON-based implementation of UserRepository
@@ -18,7 +18,7 @@ export class JsonUserRepository extends BaseJsonRepository<User, CreateUserData,
     return {
       ...data,
       createdAt: new Date(data.createdAt),
-      updatedAt: new Date(data.updatedAt)
+      updatedAt: new Date(data.updatedAt),
     };
   }
 
@@ -29,7 +29,7 @@ export class JsonUserRepository extends BaseJsonRepository<User, CreateUserData,
     return {
       ...entity,
       createdAt: entity.createdAt.toISOString(),
-      updatedAt: entity.updatedAt.toISOString()
+      updatedAt: entity.updatedAt.toISOString(),
     };
   }
 
@@ -44,7 +44,7 @@ export class JsonUserRepository extends BaseJsonRepository<User, CreateUserData,
       passwordHash: input.password, // Will be replaced with hash in create method
       role: input.role || 'user',
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
   }
 
@@ -54,7 +54,8 @@ export class JsonUserRepository extends BaseJsonRepository<User, CreateUserData,
   async hashPassword(password: string): Promise<string> {
     try {
       return await argon2.hash(password, config.security.argon2);
-    } catch (error) {
+    }
+    catch (error) {
       throw new Error(`Failed to hash password: ${error}`);
     }
   }
@@ -65,7 +66,8 @@ export class JsonUserRepository extends BaseJsonRepository<User, CreateUserData,
   async verifyPassword(hash: string, password: string): Promise<boolean> {
     try {
       return await argon2.verify(hash, password);
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to verify password:', error);
       return false;
     }
@@ -83,16 +85,16 @@ export class JsonUserRepository extends BaseJsonRepository<User, CreateUserData,
 
     // Create entity with plain password first
     const newEntity = this.createEntity(input);
-    
+
     // Hash password and replace plain password
     const hashedPassword = await this.hashPassword(input.password);
     newEntity.passwordHash = hashedPassword;
-    
+
     // Save to file
     const entities = await this.readAllFromFile();
     entities.unshift(newEntity);
     await this.writeAllToFile(entities);
-    
+
     return newEntity;
   }
 
@@ -101,7 +103,7 @@ export class JsonUserRepository extends BaseJsonRepository<User, CreateUserData,
    */
   async update(id: string, updates: UpdateUserInput): Promise<User | null> {
     const updateData = { ...updates };
-    
+
     // Hash password if updating (passwordHash field actually contains plain text password)
     if (updateData.passwordHash && typeof updateData.passwordHash === 'string') {
       const hashedPassword = await this.hashPassword(updateData.passwordHash);
@@ -116,7 +118,7 @@ export class JsonUserRepository extends BaseJsonRepository<User, CreateUserData,
     // Set updated timestamp
     const updatedData = {
       ...updateData,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     return super.update(id, updatedData as UpdateUserInput);
@@ -126,9 +128,7 @@ export class JsonUserRepository extends BaseJsonRepository<User, CreateUserData,
    * Find user by email (case-insensitive)
    */
   async findByEmail(email: string): Promise<User | null> {
-    return this.findOneWhere(user => 
-      user.email.toLowerCase() === email.toLowerCase()
-    );
+    return this.findOneWhere(user => user.email.toLowerCase() === email.toLowerCase());
   }
 
   /**

@@ -1,19 +1,19 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router";
-import { ArrowLeft, RefreshCw, Upload, FileVideo, Check } from "lucide-react";
-import { NavBar } from "~/components/NavBar";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { Badge } from "~/components/ui/badge";
-import { Alert, AlertDescription } from "~/components/ui/alert";
-import { Separator } from "~/components/ui/separator";
-import { EncodingOptionsComponent } from "~/components/EncodingOptions";
-import type { PendingVideo } from "~/types/video";
-import type { EncodingOptions } from "~/modules/video/add-video/add-video.types";
-import type { Route } from "./+types/add-videos";
-import { requireAuth } from "~/utils/auth.server";
-import { DEFAULT_ENCODING_OPTIONS } from "~/utils/encoding";
+import { ArrowLeft, Check, FileVideo, RefreshCw, Upload } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router';
+import type { EncodingOptions } from '~/modules/video/add-video/add-video.types';
+import type { PendingVideo } from '~/types/video';
+import { EncodingOptionsComponent } from '~/components/EncodingOptions';
+import { NavBar } from '~/components/NavBar';
+import { Alert, AlertDescription } from '~/components/ui/alert';
+import { Badge } from '~/components/ui/badge';
+import { Button } from '~/components/ui/button';
+import { Input } from '~/components/ui/input';
+import { Label } from '~/components/ui/label';
+import { Separator } from '~/components/ui/separator';
+import { requireAuth } from '~/utils/auth.server';
+import { DEFAULT_ENCODING_OPTIONS } from '~/utils/encoding';
+import type { Route } from './+types/add-videos';
 
 interface ScanResponse {
   success: boolean;
@@ -37,8 +37,8 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export function meta() {
   return [
-    { title: "Add Videos - Local Streamer" },
-    { name: "description", content: "Add new videos to your library" },
+    { title: 'Add Videos - Local Streamer' },
+    { name: 'description', content: 'Add new videos to your library' },
   ];
 }
 
@@ -69,29 +69,32 @@ export default function AddVideos() {
 
       if (data.success) {
         setPendingFiles(data.files);
-        
+
         // Set default values for files without existing metadata
         const newMetadata = { ...fileMetadata };
-        data.files.forEach(file => {
+        data.files.forEach((file) => {
           if (!newMetadata[file.filename]) {
             // Remove extension from filename for default title
-            const defaultTitle = file.filename.replace(/\.[^/.]+$/, "");
+            const defaultTitle = file.filename.replace(/\.[^/.]+$/, '');
             newMetadata[file.filename] = {
               title: defaultTitle,
-              tags: "",
-              description: "",
-              encodingOptions: DEFAULT_ENCODING_OPTIONS
+              tags: '',
+              description: '',
+              encodingOptions: DEFAULT_ENCODING_OPTIONS,
             };
           }
         });
         setFileMetadata(newMetadata);
-      } else {
-        setError(data.error || "Failed to scan files.");
       }
-    } catch (err) {
-      setError("Network error occurred.");
+      else {
+        setError(data.error || 'Failed to scan files.');
+      }
+    }
+    catch (err) {
+      setError('Network error occurred.');
       console.error('Scan error:', err);
-    } finally {
+    }
+    finally {
       setLoading(false);
     }
   };
@@ -107,8 +110,8 @@ export default function AddVideos() {
       ...prev,
       [filename]: {
         ...prev[filename],
-        [field]: value
-      }
+        [field]: value,
+      },
     }));
   };
 
@@ -118,8 +121,8 @@ export default function AddVideos() {
       ...prev,
       [filename]: {
         ...prev[filename],
-        encodingOptions
-      }
+        encodingOptions,
+      },
     }));
   };
 
@@ -127,7 +130,7 @@ export default function AddVideos() {
   const addToLibrary = async (filename: string) => {
     const metadata = fileMetadata[filename];
     if (!metadata || !metadata.title.trim()) {
-      setError("Please enter a title.");
+      setError('Please enter a title.');
       return;
     }
 
@@ -146,30 +149,33 @@ export default function AddVideos() {
           title: metadata.title.trim(),
           tags: metadata.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
           description: metadata.description.trim() || undefined,
-          encodingOptions: metadata.encodingOptions
-        })
+          encodingOptions: metadata.encodingOptions,
+        }),
       });
 
       const data: AddResponse = await response.json();
 
       if (data.success) {
         setSuccessMessage(`"${metadata.title}" has been added to the library.`);
-        
+
         // Remove successful file from list
         setPendingFiles(prev => prev.filter(file => file.filename !== filename));
-        setFileMetadata(prev => {
+        setFileMetadata((prev) => {
           const newMetadata = { ...prev };
           delete newMetadata[filename];
           return newMetadata;
         });
-      } else {
-        setError(data.error || "Failed to add to library.");
       }
-    } catch (err) {
-      setError("Network error occurred.");
+      else {
+        setError(data.error || 'Failed to add to library.');
+      }
+    }
+    catch (err) {
+      setError('Network error occurred.');
       console.error('Add to library error:', err);
-    } finally {
-      setProcessingFiles(prev => {
+    }
+    finally {
+      setProcessingFiles((prev) => {
         const newSet = new Set(prev);
         newSet.delete(filename);
         return newSet;
@@ -211,7 +217,7 @@ export default function AddVideos() {
               Refresh
             </Button>
           </div>
-          
+
           <div className="space-y-2">
             <h1 className="text-3xl font-bold">Add Videos</h1>
             <p className="text-muted-foreground">
@@ -259,11 +265,11 @@ export default function AddVideos() {
               </div>
 
               {pendingFiles.map((file) => {
-                const metadata = fileMetadata[file.filename] || { 
-                  title: "", 
-                  tags: "", 
-                  description: "",
-                  encodingOptions: DEFAULT_ENCODING_OPTIONS
+                const metadata = fileMetadata[file.filename] || {
+                  title: '',
+                  tags: '',
+                  description: '',
+                  encodingOptions: DEFAULT_ENCODING_OPTIONS,
                 };
                 const isProcessing = processingFiles.has(file.filename);
 
@@ -274,8 +280,8 @@ export default function AddVideos() {
                       <div className="flex items-start gap-3">
                         {file.thumbnailUrl ? (
                           <div className="flex-shrink-0">
-                            <img 
-                              src={file.thumbnailUrl} 
+                            <img
+                              src={file.thumbnailUrl}
                               alt={`Preview of ${file.filename}`}
                               className="w-16 h-9 object-cover rounded border"
                               onError={(e) => {
@@ -310,7 +316,7 @@ export default function AddVideos() {
                         <Input
                           id={`title-${file.filename}`}
                           value={metadata.title}
-                          onChange={(e) => updateMetadata(file.filename, 'title', e.target.value)}
+                          onChange={e => updateMetadata(file.filename, 'title', e.target.value)}
                           placeholder="Enter video title"
                           disabled={isProcessing}
                         />
@@ -321,7 +327,7 @@ export default function AddVideos() {
                         <Input
                           id={`tags-${file.filename}`}
                           value={metadata.tags}
-                          onChange={(e) => updateMetadata(file.filename, 'tags', e.target.value)}
+                          onChange={e => updateMetadata(file.filename, 'tags', e.target.value)}
                           placeholder="tag1, tag2, tag3 (comma separated)"
                           disabled={isProcessing}
                         />
@@ -332,7 +338,7 @@ export default function AddVideos() {
                         <Input
                           id={`description-${file.filename}`}
                           value={metadata.description}
-                          onChange={(e) => updateMetadata(file.filename, 'description', e.target.value)}
+                          onChange={e => updateMetadata(file.filename, 'description', e.target.value)}
                           placeholder="Brief description of the video"
                           disabled={isProcessing}
                         />
@@ -342,7 +348,7 @@ export default function AddVideos() {
                     {/* Encoding Options */}
                     <EncodingOptionsComponent
                       value={metadata.encodingOptions}
-                      onChange={(encodingOptions) => updateEncodingOptions(file.filename, encodingOptions)}
+                      onChange={encodingOptions => updateEncodingOptions(file.filename, encodingOptions)}
                       fileSize={file.size}
                     />
 

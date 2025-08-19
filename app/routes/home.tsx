@@ -1,40 +1,40 @@
-import { useState } from "react";
-import { useLoaderData } from "react-router";
-import type { Route } from "./+types/home";
-import { NavBar } from "~/components/NavBar";
-import { VideoGrid } from "~/components/VideoGrid";
-import { VideoModal } from "~/components/VideoModal";
-import { TagFilter } from "~/components/TagFilter";
-import { useVideoLibrary } from "~/hooks/useVideoLibrary";
-import { getVideos, getPendingVideos } from "~/services/video-store.server";
-import { requireAuth } from "~/utils/auth.server";
-import type { Video, PendingVideo } from "~/types/video";
+import { useState } from 'react';
+import { useLoaderData } from 'react-router';
+import type { PendingVideo, Video } from '~/types/video';
+import { NavBar } from '~/components/NavBar';
+import { TagFilter } from '~/components/TagFilter';
+import { VideoGrid } from '~/components/VideoGrid';
+import { VideoModal } from '~/components/VideoModal';
+import { useVideoLibrary } from '~/hooks/useVideoLibrary';
+import { getPendingVideos, getVideos } from '~/services/video-store.server';
+import { requireAuth } from '~/utils/auth.server';
+import type { Route } from './+types/home';
 
 export async function loader({ request }: Route.LoaderArgs) {
   // Server-side authentication check
   await requireAuth(request);
-  
+
   const [videos, pendingVideos] = await Promise.all([
     getVideos(),
-    getPendingVideos()
+    getPendingVideos(),
   ]);
-  
+
   return {
     videos,
-    pendingVideos
+    pendingVideos,
   };
 }
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [
-    { title: "Local Streamer - My Library" },
-    { name: "description", content: "Personal video library" },
+    { title: 'Local Streamer - My Library' },
+    { name: 'description', content: 'Personal video library' },
   ];
 }
 
 export default function Home() {
   const { videos: initialVideos, pendingVideos: initialPendingVideos } = useLoaderData<typeof loader>();
-  
+
   const {
     videos,
     pendingVideos,
@@ -43,7 +43,7 @@ export default function Home() {
     toggleTagFilter,
     clearTagFilters,
     deleteVideo,
-    totalVideos
+    totalVideos,
   } = useVideoLibrary(initialVideos, initialPendingVideos);
 
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
@@ -81,7 +81,8 @@ export default function Home() {
 
       // Reload the page to refresh data
       window.location.reload();
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to update video:', error);
       throw error;
     }
@@ -114,7 +115,7 @@ export default function Home() {
 
         {/* Video grid */}
         <div className="mt-6">
-          <VideoGrid 
+          <VideoGrid
             videos={videos}
             onQuickView={handleQuickView}
             onTagClick={handleTagClick}

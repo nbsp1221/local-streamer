@@ -1,7 +1,10 @@
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Button } from "~/components/ui/button";
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import * as z from 'zod';
+import type { Video } from '~/types/video';
+import { Button } from '~/components/ui/button';
 import {
   Form,
   FormControl,
@@ -9,17 +12,14 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "~/components/ui/form";
-import { Input } from "~/components/ui/input";
-import { Textarea } from "~/components/ui/textarea";
-import type { Video } from "~/types/video";
-import { useState } from "react";
-import { Loader2 } from "lucide-react";
+} from '~/components/ui/form';
+import { Input } from '~/components/ui/input';
+import { Textarea } from '~/components/ui/textarea';
 
 const formSchema = z.object({
-  title: z.string().min(1, "Title is required").max(200, "Title must be within 200 characters"),
+  title: z.string().min(1, 'Title is required').max(200, 'Title must be within 200 characters'),
   tags: z.string(),
-  description: z.string().max(1000, "Description must be within 1000 characters").optional(),
+  description: z.string().max(1000, 'Description must be within 1000 characters').optional(),
 });
 
 type FormData = {
@@ -36,7 +36,7 @@ interface EditVideoFormProps {
 
 export function EditVideoForm({ video, onSave, onCancel }: EditVideoFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -52,10 +52,11 @@ export function EditVideoForm({ video, onSave, onCancel }: EditVideoFormProps) {
       const data: FormData = {
         title: values.title,
         tags: values.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
-        description: values.description
+        description: values.description,
       };
       await onSave(data);
-    } finally {
+    }
+    finally {
       setIsSubmitting(false);
     }
   };
@@ -76,7 +77,7 @@ export function EditVideoForm({ video, onSave, onCancel }: EditVideoFormProps) {
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="tags"
@@ -84,16 +85,16 @@ export function EditVideoForm({ video, onSave, onCancel }: EditVideoFormProps) {
             <FormItem>
               <FormLabel>Tags</FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="Enter tags separated by commas (e.g., action, comedy)" 
-                  {...field} 
+                <Input
+                  placeholder="Enter tags separated by commas (e.g., action, comedy)"
+                  {...field}
                 />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="description"
@@ -101,18 +102,18 @@ export function EditVideoForm({ video, onSave, onCancel }: EditVideoFormProps) {
             <FormItem>
               <FormLabel>Description (optional)</FormLabel>
               <FormControl>
-                <Textarea 
-                  placeholder="Enter video description" 
+                <Textarea
+                  placeholder="Enter video description"
                   className="resize-none"
                   rows={4}
-                  {...field} 
+                  {...field}
                 />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
-        
+
         <div className="flex justify-end gap-2 pt-4">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
             Cancel

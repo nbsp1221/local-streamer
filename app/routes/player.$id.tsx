@@ -1,18 +1,18 @@
-import { useParams, Link, useLoaderData } from "react-router";
-import { ArrowLeft, Share2, Download } from "lucide-react";
-import type { Route } from "./+types/player.$id";
-import { Button } from "~/components/ui/button";
-import { Badge } from "~/components/ui/badge";
-import { VidstackPlayer } from "~/components/VidstackPlayer";
-import { RelatedVideos } from "~/components/RelatedVideos";
-import { useVideoLibrary } from "~/hooks/useVideoLibrary";
-import { getVideos } from "~/services/video-store.server";
-import { requireAuth } from "~/utils/auth.server";
+import { ArrowLeft, Download, Share2 } from 'lucide-react';
+import { Link, useLoaderData, useParams } from 'react-router';
+import { RelatedVideos } from '~/components/RelatedVideos';
+import { Badge } from '~/components/ui/badge';
+import { Button } from '~/components/ui/button';
+import { VidstackPlayer } from '~/components/VidstackPlayer';
+import { useVideoLibrary } from '~/hooks/useVideoLibrary';
+import { getVideos } from '~/services/video-store.server';
+import { requireAuth } from '~/utils/auth.server';
+import type { Route } from './+types/player.$id';
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   // Server-side authentication check
   await requireAuth(request);
-  
+
   const videos = await getVideos();
   return { videos };
 }
@@ -20,7 +20,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 export function meta({ params }: Route.MetaArgs) {
   return [
     { title: `Video Player - Local Streamer` },
-    { name: "description", content: "Local video streaming" },
+    { name: 'description', content: 'Local video streaming' },
   ];
 }
 
@@ -28,16 +28,14 @@ export default function Player() {
   const { id } = useParams();
   const { videos: initialVideos } = useLoaderData<typeof loader>();
   const { videos, toggleTagFilter } = useVideoLibrary(initialVideos);
-  
+
   // Find current video
   const currentVideo = videos.find(video => video.id === id);
-  
+
   // Related videos (same tags, excluding current video)
   const relatedVideos = videos
-    .filter(video => 
-      video.id !== id && 
-      video.tags.some(tag => currentVideo?.tags.includes(tag))
-    )
+    .filter(video => video.id !== id &&
+      video.tags.some(tag => currentVideo?.tags.includes(tag)))
     .slice(0, 10);
 
   if (!currentVideo) {
@@ -98,7 +96,7 @@ export default function Player() {
 
               {/* Tags */}
               <div className="flex flex-wrap gap-1.5 lg:gap-2">
-                {currentVideo.tags.map((tag) => (
+                {currentVideo.tags.map(tag => (
                   <Badge
                     key={tag}
                     variant="secondary"

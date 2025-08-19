@@ -1,22 +1,22 @@
-import { useState, useId } from 'react';
-import { Settings, Info, Clock, HardDrive, Cpu, Zap } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '~/components/ui/collapsible';
-import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group';
-import { Label } from '~/components/ui/label';
+import { Clock, Cpu, HardDrive, Info, Settings, Zap } from 'lucide-react';
+import { useId, useState } from 'react';
+import type { EncodingOptions } from '~/modules/video/add-video/add-video.types';
+import { Alert, AlertDescription } from '~/components/ui/alert';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '~/components/ui/collapsible';
+import { Label } from '~/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '~/components/ui/radio-group';
 import { Separator } from '~/components/ui/separator';
-import { Alert, AlertDescription } from '~/components/ui/alert';
-import type { EncodingOptions } from '~/modules/video/add-video/add-video.types';
-import { 
+import {
   DEFAULT_ENCODING_OPTIONS,
-  getEncodingDescription,
   getCodecName,
+  getDefaultOptionsForEncoder,
+  getEncodingDescription,
+  getPresetValue,
   getQualityParam,
   getQualityValue,
-  getPresetValue,
-  getDefaultOptionsForEncoder,
 } from '~/utils/encoding';
 
 interface EncodingOptionsProps {
@@ -26,15 +26,15 @@ interface EncodingOptionsProps {
   className?: string;
 }
 
-export function EncodingOptionsComponent({ 
-  value, 
-  onChange, 
+export function EncodingOptionsComponent({
+  value,
+  onChange,
   fileSize,
-  className = ''
+  className = '',
 }: EncodingOptionsProps) {
   const [isOpen, setIsOpen] = useState(false);
   const uniqueId = useId();
-  
+
   const currentDescription = getEncodingDescription(value);
   const codecName = getCodecName(value.encoder);
   const qualityParam = getQualityParam(value.encoder);
@@ -81,7 +81,7 @@ export function EncodingOptionsComponent({
             </div>
           </CardHeader>
         </CollapsibleTrigger>
-        
+
         <CollapsibleContent>
           <CardContent className="pt-0">
             <div className="space-y-6">
@@ -113,16 +113,16 @@ export function EncodingOptionsComponent({
               {/* Encoder Selection with Radio Buttons */}
               <div className="space-y-4">
                 <Label className="text-base font-medium">Processing Method</Label>
-                <RadioGroup 
-                  value={value.encoder} 
+                <RadioGroup
+                  value={value.encoder}
                   onValueChange={handleEncoderChange}
                   className="grid grid-cols-1 md:grid-cols-2 gap-4"
                 >
                   {/* CPU Option */}
                   <div className="relative">
                     <RadioGroupItem value="cpu-h265" id={`cpu-h265-${uniqueId}`} className="peer sr-only" />
-                    <Label 
-                      htmlFor={`cpu-h265-${uniqueId}`} 
+                    <Label
+                      htmlFor={`cpu-h265-${uniqueId}`}
                       className="flex items-center justify-between rounded-lg border-2 border-muted bg-background p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer transition-colors"
                     >
                       <div className="flex items-center gap-3">
@@ -146,8 +146,8 @@ export function EncodingOptionsComponent({
                   {/* GPU Option */}
                   <div className="relative">
                     <RadioGroupItem value="gpu-h265" id={`gpu-h265-${uniqueId}`} className="peer sr-only" />
-                    <Label 
-                      htmlFor={`gpu-h265-${uniqueId}`} 
+                    <Label
+                      htmlFor={`gpu-h265-${uniqueId}`}
                       className="flex items-center justify-between rounded-lg border-2 border-muted bg-background p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer transition-colors"
                     >
                       <div className="flex items-center gap-3">
@@ -176,15 +176,29 @@ export function EncodingOptionsComponent({
               <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                 <h4 className="text-sm font-medium">Optimized Settings</h4>
                 <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                  <div>Codec: <code>{codecName}</code></div>
-                  <div>Quality: <code>{qualityParam.toUpperCase()} {qualityValue}</code></div>
-                  <div>Preset: <code>{presetValue}</code></div>
-                  <div>Mode: <code>{value.encoder.includes('gpu') ? 'Hardware (NVENC)' : 'Software (CPU)'}</code></div>
+                  <div>
+                    Codec:
+                    <code>{codecName}</code>
+                  </div>
+                  <div>
+                    Quality:
+                    <code>{qualityParam.toUpperCase()} {qualityValue}</code>
+                  </div>
+                  <div>
+                    Preset:
+                    <code>{presetValue}</code>
+                  </div>
+                  <div>
+                    Mode:
+                    <code>{value.encoder.includes('gpu') ? 'Hardware (NVENC)' : 'Software (CPU)'}</code>
+                  </div>
                 </div>
                 {value.encoder === 'gpu-h265' && (
                   <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/50 rounded text-xs">
                     <p className="text-blue-700 dark:text-blue-300">
-                      <strong>GPU Acceleration:</strong> Requires NVIDIA GPU with NVENC support. 
+                      <strong>GPU Acceleration:</strong>
+                      {' '}
+                      Requires NVIDIA GPU with NVENC support.
                       Near lossless quality with P6 preset and high-quality tuning.
                     </p>
                   </div>
@@ -192,7 +206,9 @@ export function EncodingOptionsComponent({
                 {value.encoder === 'cpu-h265' && (
                   <div className="mt-3 p-2 bg-green-50 dark:bg-green-950/50 rounded text-xs">
                     <p className="text-green-700 dark:text-green-300">
-                      <strong>CPU Encoding:</strong> Visually lossless quality with slow preset. 
+                      <strong>CPU Encoding:</strong>
+                      {' '}
+                      Visually lossless quality with slow preset.
                       Perfect for archival and premium streaming.
                     </p>
                   </div>

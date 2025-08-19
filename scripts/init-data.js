@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { writeFileSync, existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 const DATA_DIR = join(process.cwd(), 'data');
@@ -9,15 +9,15 @@ const PENDING_FILE = join(DATA_DIR, 'pending.json');
 // Sample data
 const sampleVideos = [
   {
-    "id": "sample-1",
-    "title": "Welcome to Local Streamer",
-    "tags": ["Sample", "Welcome"],
-    "thumbnailUrl": "https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=600&h=400&fit=crop",
-    "videoUrl": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-    "duration": 1800,
-    "addedAt": new Date().toISOString(),
-    "description": "Welcome to Local Streamer!"
-  }
+    id: 'sample-1',
+    title: 'Welcome to Local Streamer',
+    tags: ['Sample', 'Welcome'],
+    thumbnailUrl: 'https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=600&h=400&fit=crop',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    duration: 1800,
+    addedAt: new Date().toISOString(),
+    description: 'Welcome to Local Streamer!',
+  },
 ];
 
 const samplePending = [];
@@ -32,14 +32,16 @@ if (!existsSync(DATA_DIR)) {
 if (!existsSync(VIDEOS_FILE)) {
   writeFileSync(VIDEOS_FILE, JSON.stringify(sampleVideos, null, 2));
   console.log('✅ Created videos.json with sample data');
-} else {
+}
+else {
   console.log('ℹ️  videos.json already exists, skipping');
 }
 
 if (!existsSync(PENDING_FILE)) {
   writeFileSync(PENDING_FILE, JSON.stringify(samplePending, null, 2));
   console.log('✅ Created pending.json');
-} else {
+}
+else {
   console.log('ℹ️  pending.json already exists, skipping');
 }
 

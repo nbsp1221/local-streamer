@@ -1,10 +1,10 @@
-import type { Route } from "./+types/add-to-library";
-import { requireAuth } from "~/utils/auth.server";
-import { AddVideoUseCase } from "~/modules/video/add-video/add-video.usecase";
-import type { AddVideoRequest } from "~/modules/video/add-video/add-video.types";
-import { getVideoRepository } from "~/repositories";
-import { HLSConverter } from "~/services/hls-converter.server";
-import * as fileManager from "~/services/file-manager.server";
+import type { AddVideoRequest } from '~/modules/video/add-video/add-video.types';
+import { AddVideoUseCase } from '~/modules/video/add-video/add-video.usecase';
+import { getVideoRepository } from '~/repositories';
+import * as fileManager from '~/services/file-manager.server';
+import { HLSConverter } from '~/services/hls-converter.server';
+import { requireAuth } from '~/utils/auth.server';
+import type { Route } from './+types/add-to-library';
 
 export async function action({ request }: Route.ActionArgs) {
   // Authentication check
@@ -29,24 +29,25 @@ export async function action({ request }: Route.ActionArgs) {
     if (result.success) {
       return Response.json({
         success: true,
-        ...result.data
+        ...result.data,
       });
-    } else {
-      const statusCode = result.error instanceof Error && 'statusCode' in result.error 
-        ? (result.error as any).statusCode 
+    }
+    else {
+      const statusCode = result.error instanceof Error && 'statusCode' in result.error
+        ? (result.error as any).statusCode
         : 500;
       return Response.json({
         success: false,
-        error: result.error.message
+        error: result.error.message,
       }, { status: statusCode });
     }
-    
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Unexpected error in add-to-library route:', error);
-    
+
     return Response.json({
       success: false,
-      error: error instanceof Error ? error.message : 'Unexpected error occurred'
+      error: error instanceof Error ? error.message : 'Unexpected error occurred',
     }, { status: 500 });
   }
 }

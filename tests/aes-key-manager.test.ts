@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
-import path from 'path';
 import os from 'os';
+import path from 'path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AESKeyManager } from '../app/services/aes-key-manager.server';
 
 // Mock environment variables for testing
@@ -21,10 +21,10 @@ describe('AESKeyManager', () => {
   beforeEach(async () => {
     // Create temporary test directory
     testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'aes-key-test-'));
-    
+
     // Backup original environment variables
     originalEnv = {};
-    Object.keys(mockEnv).forEach(key => {
+    Object.keys(mockEnv).forEach((key) => {
       originalEnv[key] = process.env[key];
     });
 
@@ -38,7 +38,7 @@ describe('AESKeyManager', () => {
       async storeVideoKey(videoId: string, key: Buffer): Promise<void> {
         const hlsDir = path.join(testDir, videoId, 'hls');
         await fs.mkdir(hlsDir, { recursive: true });
-        
+
         const keyPath = path.join(hlsDir, 'key.bin');
         await fs.writeFile(keyPath, key);
       }
@@ -53,7 +53,8 @@ describe('AESKeyManager', () => {
           const keyPath = path.join(testDir, videoId, 'hls', 'key.bin');
           await fs.access(keyPath);
           return true;
-        } catch {
+        }
+        catch {
           return false;
         }
       }
@@ -61,13 +62,13 @@ describe('AESKeyManager', () => {
       async createKeyInfoFile(videoId: string): Promise<string> {
         const hlsDir = path.join(testDir, videoId, 'hls');
         const keyInfoPath = path.join(hlsDir, 'keyinfo.txt');
-        
+
         const keyUrl = `/api/hls-key/${videoId}`;
         const keyPath = path.join(hlsDir, 'key.bin');
-        
+
         const keyInfo = `${keyUrl}\n${keyPath}\n`;
         await fs.writeFile(keyInfoPath, keyInfo);
-        
+
         return keyInfoPath;
       }
 
@@ -75,7 +76,8 @@ describe('AESKeyManager', () => {
         try {
           const keyInfoPath = path.join(testDir, videoId, 'hls', 'keyinfo.txt');
           await fs.unlink(keyInfoPath);
-        } catch {
+        }
+        catch {
           // Ignore cleanup errors
         }
       }
@@ -87,7 +89,8 @@ describe('AESKeyManager', () => {
     Object.entries(originalEnv).forEach(([key, value]) => {
       if (value === undefined) {
         delete process.env[key];
-      } else {
+      }
+      else {
         process.env[key] = value;
       }
     });
@@ -95,7 +98,8 @@ describe('AESKeyManager', () => {
     // Clean up test files
     try {
       await fs.rm(testDir, { recursive: true, force: true });
-    } catch {
+    }
+    catch {
       // Ignore cleanup errors
     }
   });
@@ -104,7 +108,7 @@ describe('AESKeyManager', () => {
     it('should generate consistent 16-byte keys for same video ID', () => {
       const key1 = keyManager.generateVideoKey(testVideoId);
       const key2 = keyManager.generateVideoKey(testVideoId);
-      
+
       expect(key1).toEqual(key2);
       expect(key1).toHaveLength(16); // AES-128 = 16 bytes
       expect(Buffer.isBuffer(key1)).toBe(true);
@@ -113,7 +117,7 @@ describe('AESKeyManager', () => {
     it('should generate different keys for different video IDs', () => {
       const key1 = keyManager.generateVideoKey('video-1');
       const key2 = keyManager.generateVideoKey('video-2');
-      
+
       expect(key1).not.toEqual(key2);
       expect(key1).toHaveLength(16);
       expect(key2).toHaveLength(16);
@@ -122,7 +126,7 @@ describe('AESKeyManager', () => {
     it('should generate secure keys (non-zero)', () => {
       const key = keyManager.generateVideoKey(testVideoId);
       const keyArray = Array.from(key);
-      
+
       // Key should not be all zeros (extremely unlikely with proper PBKDF2)
       expect(keyArray.some(byte => byte !== 0)).toBe(true);
     });
@@ -131,21 +135,21 @@ describe('AESKeyManager', () => {
   describe('storeVideoKey and getVideoKey', () => {
     it('should store and retrieve video keys', async () => {
       const originalKey = keyManager.generateVideoKey(testVideoId);
-      
+
       await keyManager.storeVideoKey(testVideoId, originalKey);
       const retrievedKey = await keyManager.getVideoKey(testVideoId);
-      
+
       expect(retrievedKey).toEqual(originalKey);
     });
 
     it('should create directory structure when storing key', async () => {
       const key = keyManager.generateVideoKey(testVideoId);
-      
+
       await keyManager.storeVideoKey(testVideoId, key);
-      
+
       const hlsDir = path.join(testDir, testVideoId, 'hls');
       const keyPath = path.join(hlsDir, 'key.bin');
-      
+
       expect(await fs.access(hlsDir).then(() => true).catch(() => false)).toBe(true);
       expect(await fs.access(keyPath).then(() => true).catch(() => false)).toBe(true);
     });
@@ -164,7 +168,7 @@ describe('AESKeyManager', () => {
     it('should return true for existing key', async () => {
       const key = keyManager.generateVideoKey(testVideoId);
       await keyManager.storeVideoKey(testVideoId, key);
-      
+
       const hasKey = await keyManager.hasVideoKey(testVideoId);
       expect(hasKey).toBe(true);
     });
@@ -174,10 +178,10 @@ describe('AESKeyManager', () => {
     it('should create keyinfo file with correct format', async () => {
       const key = keyManager.generateVideoKey(testVideoId);
       await keyManager.storeVideoKey(testVideoId, key);
-      
+
       const keyInfoPath = await keyManager.createKeyInfoFile(testVideoId);
       const keyInfoContent = await fs.readFile(keyInfoPath, 'utf-8');
-      
+
       expect(keyInfoContent).toContain(`/api/hls-key/${testVideoId}`);
       expect(keyInfoContent).toContain('key.bin');
     });
@@ -186,15 +190,15 @@ describe('AESKeyManager', () => {
   describe('generateAndStoreVideoKey', () => {
     it('should generate, store key and create keyinfo file', async () => {
       const result = await keyManager.generateAndStoreVideoKey(testVideoId);
-      
+
       expect(Buffer.isBuffer(result.key)).toBe(true);
       expect(result.key).toHaveLength(16);
       expect(typeof result.keyInfoFile).toBe('string');
-      
+
       // Verify key was stored
       const retrievedKey = await keyManager.getVideoKey(testVideoId);
       expect(retrievedKey).toEqual(result.key);
-      
+
       // Verify keyinfo file exists
       expect(await fs.access(result.keyInfoFile).then(() => true).catch(() => false)).toBe(true);
     });
@@ -203,11 +207,11 @@ describe('AESKeyManager', () => {
   describe('cleanupTempFiles', () => {
     it('should remove keyinfo file without throwing error', async () => {
       await keyManager.generateAndStoreVideoKey(testVideoId);
-      
+
       // Should not throw even if keyinfo file exists or doesn't exist
       await keyManager.cleanupTempFiles(testVideoId);
       await keyManager.cleanupTempFiles('non-existent');
-      
+
       // If we reach this point, no error was thrown
       expect(true).toBe(true);
     });
@@ -216,7 +220,7 @@ describe('AESKeyManager', () => {
   describe('constructor validation', () => {
     it('should throw error if HLS_MASTER_ENCRYPTION_SEED is missing', () => {
       delete process.env.HLS_MASTER_ENCRYPTION_SEED;
-      
+
       expect(() => new AESKeyManager()).toThrow('HLS_MASTER_ENCRYPTION_SEED environment variable is required');
     });
   });
@@ -227,10 +231,10 @@ describe('AESKeyManager', () => {
       const key1a = keyManager.generateVideoKey('video-1');
       const key1b = keyManager.generateVideoKey('video-1');
       const key2 = keyManager.generateVideoKey('video-2');
-      
+
       // Same video ID should produce same key
       expect(key1a).toEqual(key1b);
-      
+
       // Different video IDs should produce different keys
       expect(key1a).not.toEqual(key2);
     });
@@ -243,15 +247,15 @@ describe('AESKeyManager', () => {
         'video123numbers',
         'UPPERCASE-video',
       ];
-      
+
       const keys = specialIds.map(id => keyManager.generateVideoKey(id));
-      
+
       // All keys should be unique
       const uniqueKeys = new Set(keys.map(key => key.toString('hex')));
       expect(uniqueKeys.size).toBe(specialIds.length);
-      
+
       // All keys should be proper length
-      keys.forEach(key => {
+      keys.forEach((key) => {
         expect(key).toHaveLength(16);
       });
     });

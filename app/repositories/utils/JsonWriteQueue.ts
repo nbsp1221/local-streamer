@@ -1,6 +1,6 @@
-import { Mutex } from 'async-mutex';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { Mutex } from 'async-mutex';
 
 /**
  * JSON Write Queue for safe concurrent file operations
@@ -14,11 +14,11 @@ export class JsonWriteQueue {
    */
   private getMutex(filePath: string): Mutex {
     const normalizedPath = path.resolve(filePath);
-    
+
     if (!this.mutexMap.has(normalizedPath)) {
       this.mutexMap.set(normalizedPath, new Mutex());
     }
-    
+
     return this.mutexMap.get(normalizedPath)!;
   }
 
@@ -29,29 +29,30 @@ export class JsonWriteQueue {
    */
   async writeJson<T>(filePath: string, data: T): Promise<void> {
     const mutex = this.getMutex(filePath);
-    
+
     return mutex.runExclusive(async () => {
       try {
         // Ensure directory exists
         const dir = path.dirname(filePath);
         await fs.mkdir(dir, { recursive: true });
-        
+
         // Atomic write: write to temp file then rename
         const tempPath = `${filePath}.tmp`;
         const jsonContent = JSON.stringify(data, null, 2);
-        
+
         await fs.writeFile(tempPath, jsonContent, 'utf-8');
         await fs.rename(tempPath, filePath);
-        
-      } catch (error) {
+      }
+      catch (error) {
         // Clean up temp file if it exists
         const tempPath = `${filePath}.tmp`;
         try {
           await fs.unlink(tempPath);
-        } catch {
+        }
+        catch {
           // Ignore errors when cleaning up temp file
         }
-        
+
         throw new Error(`Failed to write JSON file ${filePath}: ${error}`);
       }
     });
@@ -66,12 +67,13 @@ export class JsonWriteQueue {
     try {
       const content = await fs.readFile(filePath, 'utf-8');
       return JSON.parse(content) as T;
-    } catch (error: any) {
+    }
+    catch (error: any) {
       // If file doesn't exist, return default value
       if (error.code === 'ENOENT') {
         return defaultValue;
       }
-      
+
       throw new Error(`Failed to read JSON file ${filePath}: ${error}`);
     }
   }
@@ -83,7 +85,8 @@ export class JsonWriteQueue {
     try {
       await fs.access(filePath);
       return true;
-    } catch {
+    }
+    catch {
       return false;
     }
   }

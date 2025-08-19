@@ -1,17 +1,17 @@
 import { redirect } from 'react-router';
-import { findUserById, hasAdminUser } from '~/services/user-store.server';
+import type { PublicUser, User } from '~/types/auth';
 import {
-  createSession,
-  getSession,
-  deleteSession,
-  refreshSession,
-  getSessionIdFromRequest,
-  serializeCookie,
-  getDeleteCookieString,
-  getCookieOptions,
   COOKIE_NAME,
+  createSession,
+  deleteSession,
+  getCookieOptions,
+  getDeleteCookieString,
+  getSession,
+  getSessionIdFromRequest,
+  refreshSession,
+  serializeCookie,
 } from '~/services/session-store.server';
-import type { User, PublicUser } from '~/types/auth';
+import { findUserById, hasAdminUser } from '~/services/user-store.server';
 
 // Extract user info from request (authentication required)
 export async function requireAuth(request: Request): Promise<User> {
@@ -23,16 +23,16 @@ export async function requireAuth(request: Request): Promise<User> {
   }
 
   const user = await getOptionalUser(request);
-  
+
   if (!user) {
     // Save current URL to return after login
     const url = new URL(request.url);
     const redirectTo = url.pathname + url.search;
     const searchParams = new URLSearchParams([['redirectTo', redirectTo]]);
-    
+
     throw redirect(`/login?${searchParams}`);
   }
-  
+
   return user;
 }
 
@@ -40,16 +40,17 @@ export async function requireAuth(request: Request): Promise<User> {
 export async function getOptionalUser(request: Request): Promise<User | null> {
   const sessionId = getSessionIdFromRequest(request);
   if (!sessionId) return null;
-  
+
   try {
     // Get session and auto-refresh
     const session = await refreshSession(sessionId);
     if (!session) return null;
-    
+
     // Get user info
     const user = await findUserById(session.userId);
     return user;
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to get user from session:', error);
     return null;
   }
@@ -65,19 +66,19 @@ export function toPublicUser(user: User): PublicUser {
 export async function createUserSession(
   user: User,
   request: Request,
-  redirectTo: string = '/'
+  redirectTo: string = '/',
 ): Promise<Response> {
   // Extract User-Agent and IP address
   const userAgent = request.headers.get('User-Agent') || undefined;
   const ipAddress = getClientIP(request);
-  
+
   // Create new session
   const session = await createSession(user.id, userAgent, ipAddress);
-  
+
   // Set cookie
   const cookieOptions = getCookieOptions();
   const cookieString = serializeCookie(COOKIE_NAME, session.id, cookieOptions);
-  
+
   return redirect(redirectTo, {
     headers: {
       'Set-Cookie': cookieString,
@@ -88,11 +89,11 @@ export async function createUserSession(
 // Handle logout
 export async function logout(request: Request, redirectTo: string = '/login'): Promise<Response> {
   const sessionId = getSessionIdFromRequest(request);
-  
+
   if (sessionId) {
     await deleteSession(sessionId);
   }
-  
+
   return redirect(redirectTo, {
     headers: {
       'Set-Cookie': getDeleteCookieString(COOKIE_NAME),
@@ -108,22 +109,22 @@ export async function checkSetupRequired(): Promise<boolean> {
 // Verify admin privileges
 export async function requireAdmin(request: Request): Promise<User> {
   const user = await requireAuth(request);
-  
+
   if (user.role !== 'admin') {
     throw new Response('Forbidden', { status: 403 });
   }
-  
+
   return user;
 }
 
 // Verify current user or admin privileges
 export async function requireOwnerOrAdmin(request: Request, targetUserId: string): Promise<User> {
   const user = await requireAuth(request);
-  
+
   if (user.id !== targetUserId && user.role !== 'admin') {
     throw new Response('Forbidden', { status: 403 });
   }
-  
+
   return user;
 }
 
@@ -134,18 +135,18 @@ export function getClientIP(request: Request): string | undefined {
   if (forwarded) {
     return forwarded.split(',')[0].trim();
   }
-  
+
   const realIP = request.headers.get('X-Real-IP');
   if (realIP) {
     return realIP;
   }
-  
+
   // Cloudflare
   const cfIP = request.headers.get('CF-Connecting-IP');
   if (cfIP) {
     return cfIP;
   }
-  
+
   return undefined;
 }
 
@@ -155,26 +156,27 @@ export async function validateSessionMiddleware(request: Request): Promise<{
   sessionValid: boolean;
 }> {
   const sessionId = getSessionIdFromRequest(request);
-  
+
   if (!sessionId) {
     return { user: null, sessionValid: false };
   }
-  
+
   try {
     const session = await getSession(sessionId);
     if (!session) {
       return { user: null, sessionValid: false };
     }
-    
+
     const user = await findUserById(session.userId);
     if (!user) {
       // Delete session if user was deleted
       await deleteSession(sessionId);
       return { user: null, sessionValid: false };
     }
-    
+
     return { user, sessionValid: true };
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Session validation error:', error);
     return { user: null, sessionValid: false };
   }
@@ -193,7 +195,7 @@ export function createAuthResponse(success: boolean, data?: any, error?: string)
 export function createUnauthorizedResponse(message: string = 'Authentication required') {
   return Response.json(
     { success: false, error: message },
-    { status: 401 }
+    { status: 401 },
   );
 }
 
@@ -201,7 +203,7 @@ export function createUnauthorizedResponse(message: string = 'Authentication req
 export function createForbiddenResponse(message: string = 'Insufficient permissions') {
   return Response.json(
     { success: false, error: message },
-    { status: 403 }
+    { status: 403 },
   );
 }
 
@@ -214,14 +216,14 @@ export function isValidEmail(email: string): boolean {
 // Check password strength (simplified)
 export function isValidPassword(password: string): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  
+
   if (password.length < 4) {
     errors.push('Password must be at least 4 characters long');
   }
-  
+
   return {
     valid: errors.length === 0,
-    errors
+    errors,
   };
 }
 

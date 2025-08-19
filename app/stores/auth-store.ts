@@ -22,7 +22,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   // Actions
   setUser: (user) => {
-    set({ user, isAuthenticated: !!user });
+    set({ user, isAuthenticated: Boolean(user) });
   },
 
   login: async (email: string, password: string) => {
@@ -33,20 +33,22 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json();
-      
+
       if (data.success && data.user) {
         set({ user: data.user, isAuthenticated: true });
         // Refresh page on successful login to reflect latest state
         window.location.href = '/';
         return { success: true };
-      } else {
+      }
+      else {
         return { success: false, error: data.error || 'Login failed' };
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Login error:', error);
       return { success: false, error: 'Network error' };
     }
@@ -56,11 +58,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',
-        credentials: 'include'
+        credentials: 'include',
       });
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Logout error:', error);
-    } finally {
+    }
+    finally {
       set({ user: null, isAuthenticated: false });
       // Redirect to login page after logout
       window.location.href = '/login';
@@ -70,26 +74,29 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   fetchUser: async () => {
     try {
       const response = await fetch('/api/auth/me', {
-        credentials: 'include'
+        credentials: 'include',
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.user) {
           set({ user: data.user, isAuthenticated: true });
-        } else {
+        }
+        else {
           set({ user: null, isAuthenticated: false });
         }
-      } else {
+      }
+      else {
         set({ user: null, isAuthenticated: false });
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to fetch user:', error);
       set({ user: null, isAuthenticated: false });
     }
-  }
+  },
 }));
 
 // Selector hooks for better performance
-export const useAuthUser = () => useAuthStore((state) => state.user);
-export const useIsAuthenticated = () => useAuthStore((state) => state.isAuthenticated);
+export const useAuthUser = () => useAuthStore(state => state.user);
+export const useIsAuthenticated = () => useAuthStore(state => state.isAuthenticated);

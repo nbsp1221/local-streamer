@@ -1,13 +1,13 @@
 import { stat } from 'fs/promises';
 import { join } from 'path';
 import { type LoaderFunctionArgs } from 'react-router';
-import { validateVideoRequest } from '~/services/hls-jwt.server';
 import { config } from '~/configs';
-import { 
-  getDashContentType, 
-  isValidDashSegmentName, 
-  handleDashRangeRequest, 
-  getDashSegmentHeaders 
+import { validateVideoRequest } from '~/services/hls-jwt.server';
+import {
+  getDashContentType,
+  getDashSegmentHeaders,
+  handleDashRangeRequest,
+  isValidDashSegmentName,
 } from '~/utils/dash-segments.server';
 
 /**
@@ -36,7 +36,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   try {
     // Construct file path: /data/videos/{videoId}/video/{filename}
     const segmentPath = join(config.paths.videos, videoId, 'video', filename);
-  
+
     // Check if segment exists
     let fileStats;
     try {
@@ -69,7 +69,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     if (error instanceof Response) {
       throw error;
     }
-    
+
     console.error(`Failed to serve video segment ${videoId}/video/${filename}:`, error);
     throw new Response('Failed to load video segment', { status: 500 });
   }

@@ -1,15 +1,15 @@
 import path from 'path';
-import { UseCase } from '~/lib/usecase.base';
+import { config } from '~/configs';
+import { InternalError, ValidationError } from '~/lib/errors';
 import { Result } from '~/lib/result';
-import { ValidationError, InternalError } from '~/lib/errors';
+import { UseCase } from '~/lib/usecase.base';
+import { type Video, type VideoFormat } from '~/types/video';
 import {
+  type AddVideoDependencies,
   type AddVideoRequest,
   type AddVideoResponse,
-  type AddVideoDependencies,
-  type EncodingOptions
+  type EncodingOptions,
 } from './add-video.types';
-import { type Video, type VideoFormat } from '~/types/video';
-import { config } from '~/configs';
 
 export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> {
   constructor(private readonly deps: AddVideoDependencies) {
@@ -57,7 +57,7 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
       // 9. Return success response
       return Result.ok({
         videoId,
-        message: hlsResult.success 
+        message: hlsResult.success
           ? 'Video added to library successfully with video conversion'
           : 'Video added to library but video conversion failed',
         hlsEnabled: hlsResult.success,
@@ -67,8 +67,8 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
       this.deps.logger?.error('Failed to add video to library', error);
       return Result.fail(
         new InternalError(
-          error instanceof Error ? error.message : 'Failed to add video to library'
-        )
+          error instanceof Error ? error.message : 'Failed to add video to library',
+        ),
       );
     }
   }
@@ -91,7 +91,7 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
     if (!moved) {
       this.deps.logger?.info(
         `No temporary thumbnail available for: ${title} (${videoId}). ` +
-        `Thumbnail will be generated during video conversion if needed`
+        `Thumbnail will be generated during video conversion if needed`,
       );
     }
 

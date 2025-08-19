@@ -1,9 +1,9 @@
 import { promises as fs } from 'fs';
 import { existsSync } from 'fs';
 import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 import * as argon2 from 'argon2';
-import type { User, CreateUserData, PublicUser } from '~/types/auth';
+import { v4 as uuidv4 } from 'uuid';
+import type { CreateUserData, PublicUser, User } from '~/types/auth';
 import { config } from '~/configs';
 
 const DATA_DIR = config.paths.data;
@@ -24,7 +24,8 @@ async function ensureDataFiles() {
     if (!existsSync(USERS_FILE)) {
       await fs.writeFile(USERS_FILE, '[]', 'utf-8');
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to ensure user data files:', error);
     throw new Error('Failed to initialize user data files');
   }
@@ -36,14 +37,15 @@ export async function getUsers(): Promise<User[]> {
     await ensureDataFiles();
     const content = await fs.readFile(USERS_FILE, 'utf-8');
     const users = JSON.parse(content);
-    
+
     // Restore Date objects
     return users.map((user: any) => ({
       ...user,
       createdAt: new Date(user.createdAt),
-      updatedAt: new Date(user.updatedAt)
+      updatedAt: new Date(user.updatedAt),
     }));
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to load users:', error);
     return [];
   }
@@ -53,16 +55,17 @@ export async function getUsers(): Promise<User[]> {
 export async function saveUsers(users: User[]): Promise<void> {
   try {
     await ensureDataFiles();
-    
+
     // Convert Date objects to ISO strings
     const serializedUsers = users.map(user => ({
       ...user,
       createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString()
+      updatedAt: user.updatedAt.toISOString(),
     }));
-    
+
     await fs.writeFile(USERS_FILE, JSON.stringify(serializedUsers, null, 2), 'utf-8');
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to save users:', error);
     throw new Error('Failed to save users');
   }
@@ -72,7 +75,8 @@ export async function saveUsers(users: User[]): Promise<void> {
 export async function hashPassword(password: string): Promise<string> {
   try {
     return await argon2.hash(password, ARGON2_OPTIONS);
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to hash password:', error);
     throw new Error('Failed to hash password');
   }
@@ -82,7 +86,8 @@ export async function hashPassword(password: string): Promise<string> {
 export async function verifyPassword(hash: string, password: string): Promise<boolean> {
   try {
     return await argon2.verify(hash, password);
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to verify password:', error);
     return false;
   }
@@ -91,28 +96,28 @@ export async function verifyPassword(hash: string, password: string): Promise<bo
 // Create new user
 export async function createUser(userData: CreateUserData): Promise<User> {
   const users = await getUsers();
-  
+
   // Check for duplicate email
   const existingUser = users.find(user => user.email.toLowerCase() === userData.email.toLowerCase());
   if (existingUser) {
     throw new Error('User with this email already exists');
   }
-  
+
   // Hash password
   const passwordHash = await hashPassword(userData.password);
-  
+
   const newUser: User = {
     id: uuidv4(),
     email: userData.email.toLowerCase(),
     passwordHash,
     role: userData.role || 'user',
     createdAt: new Date(),
-    updatedAt: new Date()
+    updatedAt: new Date(),
   };
-  
+
   users.push(newUser);
   await saveUsers(users);
-  
+
   return newUser;
 }
 
@@ -140,7 +145,7 @@ export async function authenticateUser(email: string, password: string): Promise
   if (!user) {
     return null;
   }
-  
+
   const isValid = await verifyPassword(user.passwordHash, password);
   return isValid ? user : null;
 }
@@ -155,27 +160,27 @@ export async function hasAdminUser(): Promise<boolean> {
 export async function updateUser(userId: string, updates: Partial<Omit<User, 'id' | 'createdAt'>>): Promise<User | null> {
   const users = await getUsers();
   const userIndex = users.findIndex(user => user.id === userId);
-  
+
   if (userIndex === -1) {
     return null;
   }
-  
+
   // Hash password if updating
   if (updates.passwordHash && typeof updates.passwordHash === 'string') {
     updates.passwordHash = await hashPassword(updates.passwordHash);
   }
-  
+
   const updatedUser = {
     ...users[userIndex],
     ...updates,
     id: userId, // ID cannot be changed
     createdAt: users[userIndex].createdAt, // Creation date cannot be changed
-    updatedAt: new Date()
+    updatedAt: new Date(),
   };
-  
+
   users[userIndex] = updatedUser;
   await saveUsers(users);
-  
+
   return updatedUser;
 }
 

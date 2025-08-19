@@ -1,5 +1,5 @@
-import type { User, CreateUserData, PublicUser } from "~/types/auth";
-import type { BaseRepository } from "./BaseRepository";
+import type { CreateUserData, PublicUser, User } from '~/types/auth';
+import type { BaseRepository } from './BaseRepository';
 
 /**
  * Input for updating an existing user

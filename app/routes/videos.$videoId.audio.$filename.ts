@@ -1,13 +1,13 @@
 import { stat } from 'fs/promises';
 import { join } from 'path';
 import { type LoaderFunctionArgs } from 'react-router';
-import { validateVideoRequest } from '~/services/hls-jwt.server';
 import { config } from '~/configs';
+import { validateVideoRequest } from '~/services/hls-jwt.server';
 import {
   getDashContentType,
-  isValidDashSegmentName,
+  getDashSegmentHeaders,
   handleDashRangeRequest,
-  getDashSegmentHeaders
+  isValidDashSegmentName,
 } from '~/utils/dash-segments.server';
 
 /**
@@ -36,7 +36,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   try {
     // Construct file path: /data/videos/{videoId}/audio/{filename}
     const segmentPath = join(config.paths.videos, videoId, 'audio', filename);
-  
+
     // Check if segment exists
     let fileStats;
     try {
@@ -58,7 +58,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     // Create read stream for the segment
     const { createReadStream } = await import('fs');
     const stream = createReadStream(segmentPath);
-    
+
     console.log(`🔊 Audio segment served: ${videoId}/audio/${filename} (${Math.round(fileStats.size / 1024)}KB)`);
 
     return new Response(stream as any, {
@@ -69,7 +69,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     if (error instanceof Response) {
       throw error;
     }
-    
+
     console.error(`Failed to serve audio segment ${videoId}/audio/${filename}:`, error);
     throw new Response('Failed to load audio segment', { status: 500 });
   }

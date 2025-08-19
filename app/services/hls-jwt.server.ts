@@ -37,7 +37,7 @@ export function generateVideoToken(
   videoId: string,
   userId: string,
   ip?: string,
-  userAgent?: string
+  userAgent?: string,
 ): string {
   const payload: HLSTokenPayload = {
     videoId,
@@ -63,7 +63,7 @@ export function validateHLSToken(
   token: string,
   expectedVideoId?: string,
   ip?: string,
-  userAgent?: string
+  userAgent?: string,
 ): HLSTokenValidation {
   try {
     // Verify token signature and expiry
@@ -104,12 +104,14 @@ export function validateHLSToken(
       valid: true,
       payload: decoded,
     };
-  } catch (error) {
+  }
+  catch (error) {
     let errorMessage = 'Invalid token';
-    
+
     if (error instanceof jwt.TokenExpiredError) {
       errorMessage = 'Token expired';
-    } else if (error instanceof jwt.JsonWebTokenError) {
+    }
+    else if (error instanceof jwt.JsonWebTokenError) {
       errorMessage = 'Invalid token signature';
     }
 
@@ -145,10 +147,10 @@ export function extractHLSToken(request: Request): string | null {
  */
 export async function validateVideoRequest(
   request: Request,
-  expectedVideoId?: string
+  expectedVideoId?: string,
 ): Promise<HLSTokenValidation> {
   const token = extractHLSToken(request);
-  
+
   if (!token) {
     return {
       valid: false,
@@ -183,17 +185,17 @@ function getClientIP(request: Request): string | undefined {
   if (forwarded) {
     return forwarded.split(',')[0].trim();
   }
-  
+
   const realIP = request.headers.get('X-Real-IP');
   if (realIP) {
     return realIP;
   }
-  
+
   const cfIP = request.headers.get('CF-Connecting-IP');
   if (cfIP) {
     return cfIP;
   }
-  
+
   return undefined;
 }
 
@@ -209,10 +211,11 @@ export function shouldRefreshToken(token: string): boolean {
 
     const now = Math.floor(Date.now() / 1000);
     const timeUntilExpiry = decoded.exp - now;
-    
+
     // Refresh if less than 5 minutes remaining
     return timeUntilExpiry < 300;
-  } catch {
+  }
+  catch {
     return true;
   }
 }

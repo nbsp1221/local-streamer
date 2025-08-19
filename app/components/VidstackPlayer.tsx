@@ -3,13 +3,13 @@ import {
   type MediaPlayerInstance,
   type MediaProviderAdapter,
   type MediaProviderChangeEvent,
+  isDASHProvider,
   MediaPlayer,
   MediaProvider,
-  isDASHProvider,
 } from '@vidstack/react';
 import {
-  DefaultVideoLayout,
   defaultLayoutIcons,
+  DefaultVideoLayout,
 } from '@vidstack/react/player/layouts/default';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type Video } from '~/types/video';
@@ -30,7 +30,7 @@ interface VideoTokenResponse {
   urls?: {
     manifest: string;
     clearkey: string;
-  }
+  };
   error?: string;
 }
 
@@ -103,7 +103,7 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
         }
 
         return Promise.resolve(request);
-      }
+      };
 
       dashInstance.addRequestInterceptor(requestInterceptor);
       console.log('✅ [Vidstack] Network Interceptor registered successfully');
@@ -111,7 +111,7 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
     catch (error) {
       console.error('❌ [Vidstack] Failed to register Network Interceptor:', error);
     }
-  }
+  };
 
   // Configure Clear Key DRM with proper format
   const configureClearKeyDRM = async (dashInstance: any) => {
@@ -217,9 +217,9 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
         </div>
       )}
       {videoSrc && (
-        <MediaPlayer 
+        <MediaPlayer
           ref={playerRef}
-          title={video.title} 
+          title={video.title}
           src={videoSrc}
           poster={video.thumbnailUrl}
           playsInline
@@ -234,7 +234,7 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
           onProviderChange={handleProviderChange}
         >
           <MediaProvider />
-          <DefaultVideoLayout 
+          <DefaultVideoLayout
             icons={defaultLayoutIcons}
             colorScheme="dark"
             menuContainer=".vds-player"

@@ -1,11 +1,11 @@
+import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import { existsSync, statSync } from 'fs';
 import path from 'path';
-import { spawn } from 'child_process';
 import { v4 as uuidv4 } from 'uuid';
 import type { PendingVideo, VideoFormat } from '~/types/video';
-import { generateSmartThumbnail } from './thumbnail-generator.server';
 import { config, ffmpeg } from '~/configs';
+import { generateSmartThumbnail } from './thumbnail-generator.server';
 
 const INCOMING_DIR = config.paths.incoming;
 const THUMBNAILS_DIR = config.paths.thumbnails;
@@ -22,13 +22,13 @@ const SUPPORTED_FORMATS = config.constants.supportedVideoFormats;
 function toVideoFormat(extension: string): VideoFormat {
   const ext = extension.startsWith('.') ? extension.slice(1) : extension;
   const lowerExt = ext.toLowerCase() as VideoFormat;
-  
+
   // Type guard to ensure we only return valid VideoFormat values
   const validFormats: VideoFormat[] = ['mp4', 'avi', 'mkv', 'mov', 'webm', 'm4v', 'flv', 'wmv'];
   if (validFormats.includes(lowerExt)) {
     return lowerExt;
   }
-  
+
   throw new Error(`Unsupported video format: ${extension}`);
 }
 
@@ -52,10 +52,10 @@ export async function scanIncomingFiles(): Promise<PendingVideo[]> {
     for (const filename of files) {
       const filePath = path.join(INCOMING_DIR, filename);
       const stat = statSync(filePath);
-      
+
       // Check if it's a file (exclude directories)
       if (!stat.isFile()) continue;
-      
+
       // Check if it's a supported video format
       const ext = path.extname(filename).toLowerCase();
       if (!SUPPORTED_FORMATS.includes(ext)) continue;
@@ -66,7 +66,7 @@ export async function scanIncomingFiles(): Promise<PendingVideo[]> {
       // Generate thumbnail if it doesn't exist
       let thumbnailUrl: string | undefined;
       const thumbnailPath = getThumbnailPreviewPath(filename);
-      
+
       if (!existsSync(thumbnailPath)) {
         console.log(`🎬 Generating preview thumbnail for: ${filename}`);
         try {
@@ -74,13 +74,16 @@ export async function scanIncomingFiles(): Promise<PendingVideo[]> {
           if (result.success) {
             thumbnailUrl = getThumbnailPreviewUrl(filename);
             console.log(`✅ Preview thumbnail generated: ${filename}`);
-          } else {
+          }
+          else {
             console.log(`⚠️ Failed to generate preview thumbnail: ${filename}`, result.error);
           }
-        } catch (error) {
+        }
+        catch (error) {
           console.error(`❌ Error generating preview thumbnail for ${filename}:`, error);
         }
-      } else {
+      }
+      else {
         // Thumbnail already exists
         thumbnailUrl = getThumbnailPreviewUrl(filename);
       }
@@ -92,13 +95,14 @@ export async function scanIncomingFiles(): Promise<PendingVideo[]> {
         type: mimeType,
         format: toVideoFormat(ext),
         path: filePath,
-        thumbnailUrl
+        thumbnailUrl,
       });
     }
 
     // Sort by filename
     return pendingVideos.sort((a, b) => a.filename.localeCompare(b.filename));
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to scan incoming files:', error);
     return [];
   }
@@ -112,23 +116,23 @@ export async function moveToLibrary(filename: string): Promise<string> {
   if (!filename || typeof filename !== 'string') {
     throw new Error('Invalid filename: filename must be a non-empty string');
   }
-  
+
   // Check for path traversal sequences and directory separators
-  if (filename.includes('..') || 
-      filename.includes('/') || 
-      filename.includes('\\') || 
-      filename.includes('\0') ||
-      path.isAbsolute(filename)) {
+  if (filename.includes('..') ||
+    filename.includes('/') ||
+    filename.includes('\\') ||
+    filename.includes('\0') ||
+    path.isAbsolute(filename)) {
     throw new Error('Invalid filename: path traversal or absolute paths not allowed');
   }
-  
+
   // Ensure filename doesn't start with special characters
   if (filename.startsWith('.') || filename.startsWith('-')) {
     throw new Error('Invalid filename: cannot start with . or -');
   }
-  
+
   const sourcePath = path.join(INCOMING_DIR, filename);
-  
+
   // Check if source file exists
   if (!existsSync(sourcePath)) {
     throw new Error(`File not found: ${filename}`);
@@ -138,20 +142,20 @@ export async function moveToLibrary(filename: string): Promise<string> {
   const videoId = uuidv4();
   const ext = path.extname(filename);
   const targetFilename = `video${ext}`;
-  
+
   // Create target directory
   const targetDir = path.join(VIDEOS_DIR, videoId);
   await fs.mkdir(targetDir, { recursive: true });
-  
+
   // Target file path
   const targetPath = path.join(targetDir, targetFilename);
-  
+
   try {
     // Move file to target directory
     await fs.rename(sourcePath, targetPath);
-    
+
     console.log(`📦 File moved successfully: ${filename} → ${targetPath}`);
-    
+
     return videoId;
   }
   catch (error: any) {
@@ -191,17 +195,19 @@ export async function moveToLibrary(filename: string): Promise<string> {
       if (existsSync(targetPath)) {
         await fs.unlink(targetPath);
       }
-      
+
       // Remove target directory if empty
       try {
         await fs.rmdir(targetDir);
-      } catch (rmDirError) {
+      }
+      catch (rmDirError) {
         // Directory might not be empty or might not exist, ignore
       }
-    } catch (cleanupError) {
+    }
+    catch (cleanupError) {
       console.error('Directory cleanup failed:', cleanupError);
     }
-    
+
     throw new Error(`Failed to move file from ${filename}: ${error}`);
   }
 }
@@ -235,16 +241,18 @@ export async function extractVideoDuration(filePath: string): Promise<number> {
   return new Promise((resolve) => {
     // Use ffprobe to extract duration in JSON format (much more efficient)
     const ffprobeArgs = [
-      '-v', 'quiet',
-      '-print_format', 'json',
+      '-v',
+      'quiet',
+      '-print_format',
+      'json',
       '-show_format',
       '-show_streams',
-      filePath
+      filePath,
     ];
 
     console.log(`🔍 Extracting duration using: ${ffmpeg.ffprobePath}`);
     const ffprobeProcess = spawn(ffmpeg.ffprobePath, ffprobeArgs);
-  
+
     let stdout = '';
     let stderr = '';
 
@@ -259,19 +267,21 @@ export async function extractVideoDuration(filePath: string): Promise<number> {
     ffprobeProcess.on('close', (code: number | null) => {
       if (code === 0) {
         const duration = parseDurationFromJson(stdout);
-        
+
         if (duration !== undefined) {
           const roundedDuration = Math.round(duration);
           console.log(`✅ Video duration extracted: ${roundedDuration}s for ${path.basename(filePath)}`);
           resolve(roundedDuration);
-        } else {
+        }
+        else {
           console.warn(`⚠️ Could not extract duration from ffprobe output for ${path.basename(filePath)}`);
           if (stderr) {
             console.warn('ffprobe stderr:', stderr.substring(0, 500));
           }
           resolve(0);
         }
-      } else {
+      }
+      else {
         console.warn(`⚠️ ffprobe exited with code ${code} for ${path.basename(filePath)}`);
         if (stderr) {
           console.warn('ffprobe stderr:', stderr.substring(0, 500));
@@ -294,14 +304,14 @@ export async function getVideoInfo(filePath: string) {
   const stat = statSync(filePath);
   const ext = path.extname(filePath).toLowerCase();
   const duration = await extractVideoDuration(filePath);
-  
+
   console.log(`📁 Processing video file: ${path.basename(filePath)}`);
-  
+
   return {
     size: stat.size,
     format: toVideoFormat(ext),
     mimeType: getMimeType(ext),
-    duration
+    duration,
   };
 }
 
@@ -317,9 +327,9 @@ function getMimeType(ext: string): string {
     '.webm': 'video/webm',
     '.m4v': 'video/x-m4v',
     '.flv': 'video/x-flv',
-    '.wmv': 'video/x-ms-wmv'
+    '.wmv': 'video/x-ms-wmv',
   };
-  
+
   return mimeTypes[ext] || 'video/unknown';
 }
 
@@ -382,16 +392,17 @@ export function tempThumbnailExists(filename: string): boolean {
 export async function moveTempThumbnailToLibrary(filename: string, videoId: string): Promise<boolean> {
   const tempThumbnailPath = getThumbnailPreviewPath(filename);
   const libraryThumbnailPath = path.join(VIDEOS_DIR, videoId, 'thumbnail.jpg');
-  
+
   if (!existsSync(tempThumbnailPath)) {
     return false;
   }
-  
+
   try {
     await fs.rename(tempThumbnailPath, libraryThumbnailPath);
     console.log(`✅ Moved temporary thumbnail: ${tempThumbnailPath} → ${libraryThumbnailPath}`);
     return true;
-  } catch (error) {
+  }
+  catch (error) {
     console.error('❌ Failed to move temporary thumbnail:', error);
     return false;
   }
@@ -402,18 +413,19 @@ export async function moveTempThumbnailToLibrary(filename: string, videoId: stri
  */
 export async function deleteVideoFiles(videoId: string): Promise<void> {
   const videoDir = path.join(VIDEOS_DIR, videoId);
-  
+
   // Check if video directory exists
   if (!existsSync(videoDir)) {
     console.warn(`⚠️ Video directory not found: ${videoDir}`);
     return;
   }
-  
+
   try {
     // Remove entire video directory and all its contents
     await fs.rm(videoDir, { recursive: true, force: true });
     console.log(`✅ Video files deleted successfully: ${videoId}`);
-  } catch (error) {
+  }
+  catch (error) {
     console.error(`❌ Failed to delete video files for ${videoId}:`, error);
     throw new Error(`Failed to delete video files: ${error}`);
   }

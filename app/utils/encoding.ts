@@ -13,15 +13,15 @@ export const DEFAULT_ENCODING_OPTIONS: EncodingOptions = {
 export const OPTIMAL_ENCODING_SETTINGS = {
   'cpu-h265': {
     codec: 'libx265',
-    quality: 18,        // CRF value - visually lossless quality
-    preset: 'slow',     // Best compression efficiency for CPU
+    quality: 18, // CRF value - visually lossless quality
+    preset: 'slow', // Best compression efficiency for CPU
     qualityParam: 'crf',
     additionalFlags: ['-tune', 'fastdecode'], // Optimize for streaming playback
   },
   'gpu-h265': {
     codec: 'hevc_nvenc',
-    quality: 19,        // CQ value - near lossless quality
-    preset: 'p6',       // Optimal quality/speed balance for GPU
+    quality: 19, // CQ value - near lossless quality
+    preset: 'p6', // Optimal quality/speed balance for GPU
     qualityParam: 'cq',
     additionalFlags: ['-tune', 'hq', '-rc', 'vbr'], // High quality tuning + variable bitrate
   },
@@ -46,12 +46,12 @@ export function getOptimalSettings(encoder: EncodingOptions['encoder']) {
   if (!isValidEncoder(encoder)) {
     throw new Error(`Invalid encoder type: ${encoder}. Supported encoders: ${SUPPORTED_ENCODERS.join(', ')}`);
   }
-  
+
   const settings = OPTIMAL_ENCODING_SETTINGS[encoder];
   if (!settings) {
     throw new Error(`No optimal settings found for encoder: ${encoder}`);
   }
-  
+
   return settings;
 }
 
@@ -97,10 +97,10 @@ export function getEstimatedSizeMultiplier(encoder: EncodingOptions['encoder']):
   // Base multipliers by encoder type (relative to original)
   // Using the optimal settings for each encoder with higher quality (CRF 18/CQ 19)
   const multipliers = {
-    'cpu-h265': 0.12,   // Higher quality (CRF 18) = larger files but excellent compression
-    'gpu-h265': 0.20,   // Higher quality (CQ 19) = larger files with p6 preset
+    'cpu-h265': 0.12, // Higher quality (CRF 18) = larger files but excellent compression
+    'gpu-h265': 0.20, // Higher quality (CQ 19) = larger files with p6 preset
   };
-  
+
   return multipliers[encoder];
 }
 
@@ -110,10 +110,10 @@ export function getEstimatedSizeMultiplier(encoder: EncodingOptions['encoder']):
 export function getEstimatedSpeedMultiplier(encoder: EncodingOptions['encoder']): number {
   // Speed estimates based on optimal settings
   const speeds = {
-    'cpu-h265': 1.8,    // Slower with 'slow' preset but better quality
-    'gpu-h265': 30.0,   // Very fast with p6 preset
+    'cpu-h265': 1.8, // Slower with 'slow' preset but better quality
+    'gpu-h265': 30.0, // Very fast with p6 preset
   };
-  
+
   return speeds[encoder];
 }
 
@@ -128,20 +128,20 @@ export function getEncodingDescription(options: EncodingOptions): {
 } {
   const sizeMultiplier = getEstimatedSizeMultiplier(options.encoder);
   const speedMultiplier = getEstimatedSpeedMultiplier(options.encoder);
-  
+
   const descriptions = {
     'cpu-h265': {
       title: 'CPU H.265',
       description: 'Visually Lossless • Slower Encoding',
     },
     'gpu-h265': {
-      title: 'GPU H.265', 
+      title: 'GPU H.265',
       description: 'Near Lossless • Fast Encoding',
     },
   };
-  
+
   const info = descriptions[options.encoder];
-  
+
   return {
     title: info.title,
     description: info.description,
@@ -157,11 +157,11 @@ export function validateEncodingOptions(options: EncodingOptions): boolean {
   if (!options || typeof options !== 'object') {
     return false;
   }
-  
+
   if (!options.encoder || typeof options.encoder !== 'string') {
     return false;
   }
-  
+
   return isValidEncoder(options.encoder);
 }
 
@@ -172,11 +172,11 @@ export function validateEncodingOptionsStrict(options: EncodingOptions): void {
   if (!options || typeof options !== 'object') {
     throw new Error('Encoding options must be a valid object');
   }
-  
+
   if (!options.encoder || typeof options.encoder !== 'string') {
     throw new Error('Encoder type is required and must be a string');
   }
-  
+
   if (!isValidEncoder(options.encoder)) {
     throw new Error(`Invalid encoder type: ${options.encoder}. Supported encoders: ${SUPPORTED_ENCODERS.join(', ')}`);
   }

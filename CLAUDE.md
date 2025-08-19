@@ -22,6 +22,9 @@ Local Streamer is a personal media server application built with React Router v7
 - `bun run build` - Create production build
 - `bun run start` - Start production server with built files
 - `bun run typecheck` - Run TypeScript type checking with React Router type generation
+- `bun run lint` - Run ESLint to check code quality and style
+- `bun run lint:fix` - Run ESLint with auto-fix for correctable issues
+- `bun run test` - Run test suite with Vitest
 
 ## Technology Stack
 

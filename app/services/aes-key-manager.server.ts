@@ -12,7 +12,7 @@ export class AESKeyManager {
     this.masterSeed = process.env.HLS_MASTER_ENCRYPTION_SEED!;
     this.saltPrefix = process.env.KEY_SALT_PREFIX!;
     this.rounds = parseInt(process.env.KEY_DERIVATION_ROUNDS!) || 100000;
-    
+
     if (!this.masterSeed) {
       throw new Error('HLS_MASTER_ENCRYPTION_SEED environment variable is required');
     }
@@ -25,7 +25,7 @@ export class AESKeyManager {
     const salt = crypto.createHash('sha256')
       .update(this.saltPrefix + videoId)
       .digest();
-    
+
     return crypto.pbkdf2Sync(this.masterSeed, salt, this.rounds, 16, 'sha256');
   }
 
@@ -35,7 +35,7 @@ export class AESKeyManager {
   async storeVideoKey(videoId: string, key: Buffer): Promise<void> {
     const videoDir = join(config.paths.videos, videoId);
     await fs.mkdir(videoDir, { recursive: true });
-    
+
     const keyPath = join(videoDir, 'key.bin');
     await fs.writeFile(keyPath, key);
   }
@@ -56,7 +56,8 @@ export class AESKeyManager {
       const keyPath = join(config.paths.videos, videoId, 'key.bin');
       await fs.access(keyPath);
       return true;
-    } catch {
+    }
+    catch {
       return false;
     }
   }
@@ -67,13 +68,13 @@ export class AESKeyManager {
   async createKeyInfoFile(videoId: string): Promise<string> {
     const videoDir = join(config.paths.videos, videoId);
     const keyInfoPath = join(videoDir, 'keyinfo.txt');
-    
+
     const keyUrl = `/api/hls-key/${videoId}`;
     const keyPath = join(videoDir, 'key.bin');
-    
+
     const keyInfo = `${keyUrl}\n${keyPath}\n`;
     await fs.writeFile(keyInfoPath, keyInfo);
-    
+
     return keyInfoPath;
   }
 
@@ -84,7 +85,7 @@ export class AESKeyManager {
     const key = this.generateVideoKey(videoId);
     await this.storeVideoKey(videoId, key);
     const keyInfoFile = await this.createKeyInfoFile(videoId);
-    
+
     return { key, keyInfoFile };
   }
 
@@ -95,7 +96,8 @@ export class AESKeyManager {
     try {
       const keyInfoPath = join(config.paths.videos, videoId, 'keyinfo.txt');
       await fs.unlink(keyInfoPath);
-    } catch {
+    }
+    catch {
       // Ignore cleanup errors
     }
   }

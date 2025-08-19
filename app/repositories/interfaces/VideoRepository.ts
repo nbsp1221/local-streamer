@@ -1,5 +1,5 @@
-import type { Video, PendingVideo, VideoFormat } from "~/types/video";
-import type { BaseRepository } from "./BaseRepository";
+import type { PendingVideo, Video, VideoFormat } from '~/types/video';
+import type { BaseRepository } from './BaseRepository';
 
 /**
  * Input for creating a new video
@@ -57,7 +57,6 @@ export interface VideoRepository extends BaseRepository<Video, CreateVideoInput,
    * Search videos by query (title or tags)
    */
   search(query: string): Promise<Video[]>;
-
 
   /**
    * Schedule original file cleanup

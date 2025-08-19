@@ -1,5 +1,5 @@
-import path from 'path';
 import { createReadStream } from 'fs';
+import path from 'path';
 
 export type SegmentType = 'video' | 'audio';
 
@@ -51,7 +51,7 @@ export function handleDashRangeRequest(
   filePath: string,
   rangeHeader: string,
   fileSize: number,
-  contentType: string
+  contentType: string,
 ): Response {
   const parts = rangeHeader.replace(/bytes=/, '').split('-');
   const start = parseInt(parts[0], 10);
@@ -62,8 +62,8 @@ export function handleDashRangeRequest(
     return new Response('Range not satisfiable', {
       status: 416,
       headers: {
-        'Content-Range': `bytes */${fileSize}`
-      }
+        'Content-Range': `bytes */${fileSize}`,
+      },
     });
   }
 

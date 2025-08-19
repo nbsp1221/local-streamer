@@ -1,6 +1,6 @@
-import { X } from "lucide-react";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
+import { X } from 'lucide-react';
+import { Badge } from '~/components/ui/badge';
+import { Button } from '~/components/ui/button';
 
 interface TagFilterProps {
   activeTags: string[];
@@ -16,15 +16,16 @@ export function TagFilter({ activeTags, onTagRemove, onClearAll }: TagFilterProp
       <span className="text-sm font-medium text-muted-foreground">
         Active filters:
       </span>
-      
+
       <div className="flex flex-wrap gap-2 flex-1">
-        {activeTags.map((tag) => (
+        {activeTags.map(tag => (
           <Badge
             key={tag}
             variant="default"
             className="px-3 py-1 cursor-pointer hover:bg-primary/80 transition-colors"
           >
-            #{tag}
+            #
+            {tag}
             <Button
               variant="ghost"
               size="sm"
@@ -36,7 +37,7 @@ export function TagFilter({ activeTags, onTagRemove, onClearAll }: TagFilterProp
           </Badge>
         ))}
       </div>
-      
+
       <Button
         variant="outline"
         size="sm"

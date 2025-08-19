@@ -1,19 +1,19 @@
 import { spawn } from 'child_process';
+import { createHash, randomBytes } from 'crypto';
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import { randomBytes, createHash } from 'crypto';
-import { config, ffmpeg } from '~/configs';
-import { AESKeyManager } from './aes-key-manager.server';
 import type { EncodingOptions } from '~/modules/video/add-video/add-video.types';
-import { 
+import { config, ffmpeg } from '~/configs';
+import {
   DEFAULT_ENCODING_OPTIONS,
+  getAdditionalFlags,
   getCodecName,
+  getPresetValue,
   getQualityParam,
   getQualityValue,
-  getPresetValue,
-  getAdditionalFlags,
-  validateEncodingOptionsStrict
+  validateEncodingOptionsStrict,
 } from '~/utils/encoding';
+import { AESKeyManager } from './aes-key-manager.server';
 
 interface VideoAnalysis {
   duration: number; // in seconds
@@ -37,32 +37,33 @@ export class HLSConverter {
    */
   async convertVideo(videoId: string, inputPath: string, encodingOptions?: EncodingOptions): Promise<void> {
     console.log(`🎬 Starting video conversion for video: ${videoId}`);
-    
+
     const videoDir = join(config.paths.videos, videoId);
     await fs.mkdir(videoDir, { recursive: true });
-    
+
     try {
       // 1. Analyze input video to determine optimal encoding settings
       console.log(`📊 Analyzing video: ${inputPath}`);
       const videoAnalysis = await this.analyzeVideo(inputPath);
       console.log(`📊 Analysis: ${videoAnalysis.duration}s, ${videoAnalysis.bitrate}kbps, ${videoAnalysis.fileSize} bytes`);
-      
+
       // 2. Generate AES-128 key for encryption
       const { keyInfoFile } = await this.keyManager.generateAndStoreVideoKey(videoId);
-      
+
       // 3. Execute video conversion with encoding options
       const playlistPath = join(videoDir, 'playlist.m3u8');
       const options = encodingOptions || DEFAULT_ENCODING_OPTIONS;
       await this.executeVideoConversion(inputPath, keyInfoFile, playlistPath, videoId, options, videoAnalysis);
-      
+
       // 4. Cleanup temporary files
       await this.keyManager.cleanupTempFiles(videoId);
-      
+
       // 4. Remove original file to save storage
       await this.removeOriginalFile(inputPath);
-      
+
       console.log(`✅ Video conversion completed for video: ${videoId}`);
-    } catch (error) {
+    }
+    catch (error) {
       console.error(`❌ Video conversion failed for video: ${videoId}`, error);
       await this.cleanup(videoId);
       throw error;
@@ -75,12 +76,12 @@ export class HLSConverter {
    * This ensures consistent DRM, folder structure, and audio/video separation
    */
   private async executeVideoConversion(
-    inputPath: string, 
-    keyInfoFile: string, 
+    inputPath: string,
+    keyInfoFile: string,
     playlistPath: string,
     videoId: string,
     encodingOptions: EncodingOptions,
-    videoAnalysis: VideoAnalysis
+    videoAnalysis: VideoAnalysis,
   ): Promise<void> {
     console.log(`🎯 Using unified two-step workflow: FFmpeg → Shaka Packager for ${encodingOptions.encoder}`);
     await this.executeTwoStepConversion(inputPath, keyInfoFile, playlistPath, videoId, encodingOptions, videoAnalysis);
@@ -92,12 +93,12 @@ export class HLSConverter {
    * Step 2: Shaka Packager for encrypted fMP4 DASH
    */
   private async executeTwoStepConversion(
-    inputPath: string, 
-    keyInfoFile: string, 
+    inputPath: string,
+    keyInfoFile: string,
     playlistPath: string,
     videoId: string,
     encodingOptions: EncodingOptions,
-    videoAnalysis: VideoAnalysis
+    videoAnalysis: VideoAnalysis,
   ): Promise<void> {
     const videoDir = join(config.paths.videos, videoId);
     const intermediatePath = join(videoDir, 'intermediate.mp4');
@@ -112,16 +113,18 @@ export class HLSConverter {
       await this.executeShakaPackager(intermediatePath, videoDir, videoId, keyInfoFile);
 
       console.log(`✅ Two-step conversion completed for ${videoId}`);
-
-    } catch (error) {
+    }
+    catch (error) {
       console.error(`❌ Two-step conversion failed for ${videoId}:`, error);
       throw error;
-    } finally {
+    }
+    finally {
       // Cleanup intermediate file
       try {
         await fs.unlink(intermediatePath);
         console.log(`🧹 Cleaned up intermediate file: ${intermediatePath}`);
-      } catch {
+      }
+      catch {
         // Ignore cleanup errors for non-existent files
       }
     }
@@ -136,7 +139,7 @@ export class HLSConverter {
     outputPath: string,
     encodingOptions: EncodingOptions,
     videoAnalysis: VideoAnalysis,
-    videoId: string
+    videoId: string,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
@@ -149,26 +152,27 @@ export class HLSConverter {
         const qualityParam = this.validateQualityParam(getQualityParam(encodingOptions.encoder));
         const qualityValue = this.validateQualityValue(getQualityValue(encodingOptions.encoder));
         const additionalFlags = this.validateAdditionalFlags(getAdditionalFlags(encodingOptions.encoder));
-        
+
         // Calculate target bitrate (reuse existing logic)
         const { targetVideoBitrate, audioSettings } = this.calculateOptimalBitrates(videoAnalysis, encodingOptions.encoder);
         console.log(`🎯 Target video bitrate: ${targetVideoBitrate}k, Audio: ${audioSettings.codec} ${audioSettings.bitrate}`);
 
         // Build FFmpeg command for MP4 output (no HLS flags)
         const ffmpegArgs = [
-          '-i', inputPath,
-          
+          '-i',
+          inputPath,
+
           // Video encoding with bitrate constraints (same as existing logic)
-          '-c:v', codec,
-          '-preset', preset,
+          '-c:v',
+          codec,
+          '-preset',
+          preset,
         ];
-        
+
         // Add quality and bitrate control based on encoder (same as existing logic)
         if (encodingOptions.encoder === 'cpu-h265') {
           ffmpegArgs.push(
-            `-${qualityParam}`, qualityValue.toString(),
-            '-maxrate', `${targetVideoBitrate}k`,
-            '-bufsize', `${targetVideoBitrate * 2}k`
+            `-${qualityParam}`, qualityValue.toString(), '-maxrate', `${targetVideoBitrate}k`, '-bufsize', `${targetVideoBitrate * 2}k`,
           );
         }
         else if (encodingOptions.encoder === 'gpu-h265') {
@@ -179,7 +183,7 @@ export class HLSConverter {
             videoId,
             targetVideoBitrate,
             audioSettings,
-            preset
+            preset,
           ).then(() => {
             console.log(`✅ GPU 2-pass transcoding completed for ${videoId}`);
             resolve();
@@ -188,27 +192,25 @@ export class HLSConverter {
           });
           return; // Skip single-pass execution
         }
-        
+
         // Add additional encoding flags
         ffmpegArgs.push(...additionalFlags);
-        
+
         // Add audio settings (same as existing logic)
         if (audioSettings.codec === 'copy') {
           ffmpegArgs.push('-c:a', 'copy');
-        } else {
+        }
+        else {
           ffmpegArgs.push(
-            '-c:a', audioSettings.codec,
-            '-b:a', audioSettings.bitrate,
-            '-ac', '2',
-            '-ar', '44100'
+            '-c:a', audioSettings.codec, '-b:a', audioSettings.bitrate, '-ac', '2', '-ar', '44100',
           );
         }
-        
+
         // Add MP4 optimization flags
         ffmpegArgs.push('-movflags', '+faststart', outputPath);
 
         console.log(`⚙️  Encoding Settings: ${codec} ${qualityParam}=${qualityValue} preset=${preset}`);
-        console.log(`🔧 FFmpeg transcoding command: ${config.ffmpeg.ffmpegPath} ${ffmpegArgs.join(' ')}`); 
+        console.log(`🔧 FFmpeg transcoding command: ${config.ffmpeg.ffmpegPath} ${ffmpegArgs.join(' ')}`);
 
         const ffmpegProcess = spawn(config.ffmpeg.ffmpegPath, ffmpegArgs);
 
@@ -259,8 +261,9 @@ export class HLSConverter {
     inputPath: string,
     outputDir: string,
     videoId: string,
-    keyInfoFile: string
+    keyInfoFile: string,
   ): Promise<void> {
+    // eslint-disable-next-line no-async-promise-executor
     return new Promise(async (resolve, reject) => {
       try {
         // Create video/ and audio/ subdirectories
@@ -271,37 +274,41 @@ export class HLSConverter {
         // Read the existing AES key from the key manager
         const key = await this.keyManager.getVideoKey(videoId);
         const keyHex = key.toString('hex');
-        
+
         // Generate consistent Key ID from video ID (same as Clear Key license server)
         const keyId = this.generateKeyId(videoId);
-        
+
         console.log(`🔑 Using AES-128 key for encryption (Key ID: ${keyId})`);
         console.log(`[PACKAGER] Using KEY for ${videoId}: ${keyHex}`);
-        
+
         // Shaka Packager arguments for encrypted fMP4 DASH with separated video/audio
         const segmentDuration = process.env.HLS_SEGMENT_DURATION || '10';
 
         const packagerArgs = [
           // Video stream with encryption → video/ folder
           `in=${inputPath},stream=video,init_segment=${join(outputDir, 'video', 'init.mp4')},segment_template=${join(outputDir, 'video', 'segment-$Number%04d$.m4s')},drm_label=CENC`,
-          
+
           // Audio stream with encryption → audio/ folder
           `in=${inputPath},stream=audio,init_segment=${join(outputDir, 'audio', 'init.mp4')},segment_template=${join(outputDir, 'audio', 'segment-$Number%04d$.m4s')},drm_label=CENC`,
-          
+
           `--enable_raw_key_encryption`,
-          `--protection_scheme`, `cenc`,
+          `--protection_scheme`,
+          `cenc`,
           // Shared encryption key for both video and audio streams
-          `--keys`, `label=CENC:key_id=${keyId}:key=${keyHex}`,
+          `--keys`,
+          `label=CENC:key_id=${keyId}:key=${keyHex}`,
 
           `--generate_static_live_mpd`,
-          `--mpd_output`, join(outputDir, 'manifest.mpd'),
-          `--segment_duration`, segmentDuration
+          `--mpd_output`,
+          join(outputDir, 'manifest.mpd'),
+          `--segment_duration`,
+          segmentDuration,
         ];
 
         console.log(`🔧 Shaka Packager command: ${config.ffmpeg.shakaPackagerPath} ${packagerArgs.join(' ')}`);
-        
+
         const packagerProcess = spawn(config.ffmpeg.shakaPackagerPath, packagerArgs);
-        
+
         let stderrOutput = '';
         let stdoutOutput = '';
 
@@ -319,7 +326,8 @@ export class HLSConverter {
           if (code === 0) {
             console.log(`✅ Shaka Packager completed successfully`);
             resolve();
-          } else {
+          }
+          else {
             console.error(`❌ Shaka Packager exited with code ${code}`);
             console.error(`Shaka Packager stderr: ${stderrOutput}`);
             console.error(`Shaka Packager stdout: ${stdoutOutput}`);
@@ -331,8 +339,8 @@ export class HLSConverter {
           console.error(`❌ Shaka Packager process error:`, error);
           reject(error);
         });
-        
-      } catch (error) {
+      }
+      catch (error) {
         console.error(`❌ Shaka Packager setup error:`, error);
         reject(error instanceof Error ? error : new Error('Shaka Packager setup failed'));
       }
@@ -365,10 +373,10 @@ export class HLSConverter {
    * Validate preset parameter
    */
   private validatePreset(preset: string, encoder: EncodingOptions['encoder']): string {
-    const allowedPresets = encoder === 'gpu-h265' 
+    const allowedPresets = encoder === 'gpu-h265'
       ? ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7']
       : ['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium', 'slow', 'slower', 'veryslow'];
-    
+
     if (!allowedPresets.includes(preset)) {
       throw new Error(`Invalid preset: ${preset} for encoder: ${encoder}. Allowed presets: ${allowedPresets.join(', ')}`);
     }
@@ -401,8 +409,12 @@ export class HLSConverter {
    */
   private validateAdditionalFlags(flags: string[]): string[] {
     const allowedFlags = [
-      '-tune', 'fastdecode', 'hq', 'uhq',
-      '-rc', 'vbr'
+      '-tune',
+      'fastdecode',
+      'hq',
+      'uhq',
+      '-rc',
+      'vbr',
     ];
 
     for (const flag of flags) {
@@ -415,11 +427,11 @@ export class HLSConverter {
     for (let i = 0; i < flags.length; i += 2) {
       const flagName = flags[i];
       const flagValue = flags[i + 1];
-      
+
       if (flagName === '-tune' && !['fastdecode', 'hq', 'uhq'].includes(flagValue)) {
         throw new Error(`Invalid tune value: ${flagValue}. Allowed values: fastdecode, hq, uhq`);
       }
-      
+
       if (flagName === '-rc' && flagValue !== 'vbr') {
         throw new Error(`Invalid rc value: ${flagValue}. Allowed values: vbr`);
       }
@@ -438,23 +450,23 @@ export class HLSConverter {
     videoId: string,
     targetVideoBitrate: number,
     audioSettings: { codec: string; bitrate: string },
-    preset: string
+    preset: string,
   ): Promise<void> {
     const videoDir = join(config.paths.videos, videoId);
     const logFile = join(videoDir, 'ffmpeg2pass');
-    
+
     console.log(`🎯 Starting GPU 2-pass encoding for ${videoId}`);
-    
+
     try {
       // Pass 1: Analysis
       console.log(`📊 Pass 1: Analyzing video complexity...`);
       await this.executePass1(
-        inputPath, 
-        targetVideoBitrate, 
-        preset, 
-        logFile
+        inputPath,
+        targetVideoBitrate,
+        preset,
+        logFile,
       );
-      
+
       // Pass 2: High-quality encoding to intermediate MP4
       console.log(`🎬 Pass 2: Encoding to intermediate MP4 with optimal bitrate distribution...`);
       await this.executePass2(
@@ -463,20 +475,21 @@ export class HLSConverter {
         targetVideoBitrate,
         audioSettings,
         preset,
-        logFile
+        logFile,
       );
-      
+
       console.log(`✅ GPU 2-pass encoding completed for ${videoId}`);
-      
-    } catch (error) {
+    }
+    catch (error) {
       console.error(`❌ GPU 2-pass encoding failed for ${videoId}:`, error);
       throw error;
-    } finally {
+    }
+    finally {
       // Cleanup log files
       await this.cleanupPassLogFiles(logFile);
     }
   }
-  
+
   /**
    * Execute Pass 1: Video analysis for optimal bitrate distribution
    */
@@ -484,52 +497,65 @@ export class HLSConverter {
     inputPath: string,
     targetVideoBitrate: number,
     preset: string,
-    logFile: string
+    logFile: string,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const pass1Args = [
-        '-y', '-i', inputPath,
-        '-c:v', 'hevc_nvenc',
-        '-preset', preset,
-        '-tune', 'uhq',
-        '-b:v', `${targetVideoBitrate}k`,
-        '-maxrate', `${targetVideoBitrate}k`,
-        '-bufsize', `${targetVideoBitrate * 2}k`,
-        '-rc', 'vbr',
-        '-pass', '1',
-        '-passlogfile', logFile,
+        '-y',
+        '-i',
+        inputPath,
+        '-c:v',
+        'hevc_nvenc',
+        '-preset',
+        preset,
+        '-tune',
+        'uhq',
+        '-b:v',
+        `${targetVideoBitrate}k`,
+        '-maxrate',
+        `${targetVideoBitrate}k`,
+        '-bufsize',
+        `${targetVideoBitrate * 2}k`,
+        '-rc',
+        'vbr',
+        '-pass',
+        '1',
+        '-passlogfile',
+        logFile,
         '-an', // No audio in pass 1
-        '-f', 'null',
-        '/dev/null'
+        '-f',
+        'null',
+        '/dev/null',
       ];
-      
+
       console.log(`🔧 Pass 1 command: ${config.ffmpeg.ffmpegPath} ${pass1Args.join(' ')}`);
-      
+
       const ffmpegProcess = spawn(config.ffmpeg.ffmpegPath, pass1Args);
       let stderrOutput = '';
-      
+
       ffmpegProcess.stderr?.on('data', (data) => {
         stderrOutput += data.toString();
       });
-      
+
       ffmpegProcess.on('close', (code) => {
         if (code === 0) {
           console.log(`✅ Pass 1 analysis completed`);
           resolve();
-        } else {
+        }
+        else {
           console.error(`❌ Pass 1 failed with code ${code}`);
           console.error(`Pass 1 stderr: ${stderrOutput}`);
           reject(new Error(`Pass 1 failed with code ${code}`));
         }
       });
-      
+
       ffmpegProcess.on('error', (error) => {
         console.error(`❌ Pass 1 process error:`, error);
         reject(error);
       });
     });
   }
-  
+
   /**
    * Execute Pass 2: High-quality encoding to intermediate MP4
    * Modified for two-step workflow (no HLS flags)
@@ -540,44 +566,53 @@ export class HLSConverter {
     targetVideoBitrate: number,
     audioSettings: { codec: string; bitrate: string },
     preset: string,
-    logFile: string
+    logFile: string,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const pass2Args = [
-        '-y', '-i', inputPath,
-        
+        '-y',
+        '-i',
+        inputPath,
+
         // Video encoding with Pass 1 analysis data
-        '-c:v', 'hevc_nvenc',
-        '-preset', preset,
-        '-tune', 'uhq',
-        '-b:v', `${targetVideoBitrate}k`,
-        '-maxrate', `${targetVideoBitrate}k`, 
-        '-bufsize', `${targetVideoBitrate * 2}k`,
-        '-rc', 'vbr',
-        '-pass', '2',
-        '-passlogfile', logFile
+        '-c:v',
+        'hevc_nvenc',
+        '-preset',
+        preset,
+        '-tune',
+        'uhq',
+        '-b:v',
+        `${targetVideoBitrate}k`,
+        '-maxrate',
+        `${targetVideoBitrate}k`,
+        '-bufsize',
+        `${targetVideoBitrate * 2}k`,
+        '-rc',
+        'vbr',
+        '-pass',
+        '2',
+        '-passlogfile',
+        logFile,
       ];
-      
+
       // Add audio settings
       if (audioSettings.codec === 'copy') {
         pass2Args.push('-c:a', 'copy');
-      } else {
+      }
+      else {
         pass2Args.push(
-          '-c:a', audioSettings.codec,
-          '-b:a', audioSettings.bitrate,
-          '-ac', '2',
-          '-ar', '44100'
+          '-c:a', audioSettings.codec, '-b:a', audioSettings.bitrate, '-ac', '2', '-ar', '44100',
         );
       }
-      
+
       // MP4 optimization for intermediate file
       pass2Args.push('-movflags', '+faststart', outputPath);
-      
+
       console.log(`🔧 Pass 2 command: ${config.ffmpeg.ffmpegPath} ${pass2Args.join(' ')}`);
-      
+
       const ffmpegProcess = spawn(config.ffmpeg.ffmpegPath, pass2Args);
       let stderrOutput = '';
-      
+
       ffmpegProcess.stderr?.on('data', (data) => {
         stderrOutput += data.toString();
         // Show encoding progress
@@ -586,25 +621,26 @@ export class HLSConverter {
           console.log(`FFmpeg progress: ${output.trim()}`);
         }
       });
-      
+
       ffmpegProcess.on('close', (code) => {
         if (code === 0) {
           console.log(`✅ Pass 2 MP4 encoding completed`);
           resolve();
-        } else {
+        }
+        else {
           console.error(`❌ Pass 2 failed with code ${code}`);
           console.error(`Pass 2 stderr: ${stderrOutput}`);
           reject(new Error(`Pass 2 failed with code ${code}`));
         }
       });
-      
+
       ffmpegProcess.on('error', (error) => {
         console.error(`❌ Pass 2 process error:`, error);
         reject(error);
       });
     });
   }
-  
+
   /**
    * Clean up FFmpeg pass log files
    */
@@ -615,18 +651,20 @@ export class HLSConverter {
         `${logFilePrefix}-0.log`,
         `${logFilePrefix}-0.log.mbtree`,
         `${logFilePrefix}.log`,
-        `${logFilePrefix}.log.mbtree`
+        `${logFilePrefix}.log.mbtree`,
       ];
-      
+
       for (const logFile of logFiles) {
         try {
           await fs.unlink(logFile);
           console.log(`🧹 Cleaned up log file: ${logFile}`);
-        } catch {
+        }
+        catch {
           // Ignore cleanup errors for non-existent files
         }
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.warn(`⚠️  Failed to cleanup pass log files:`, error);
     }
   }
@@ -637,11 +675,13 @@ export class HLSConverter {
   private async analyzeVideo(inputPath: string): Promise<VideoAnalysis> {
     return new Promise((resolve, reject) => {
       const ffprobeArgs = [
-        '-v', 'quiet',
-        '-print_format', 'json',
+        '-v',
+        'quiet',
+        '-print_format',
+        'json',
         '-show_format',
         '-show_streams',
-        inputPath
+        inputPath,
       ];
 
       const ffprobeProcess = spawn(config.ffmpeg.ffprobePath, ffprobeArgs);
@@ -664,29 +704,30 @@ export class HLSConverter {
 
         try {
           const probeData = JSON.parse(stdout);
-          
+
           // Extract file size
           const fileSize = parseInt(probeData.format.size || '0', 10);
           const duration = parseFloat(probeData.format.duration || '0');
           const totalBitrate = parseInt(probeData.format.bit_rate || '0', 10) / 1000; // Convert to kbps
-          
+
           // Find video and audio streams
           const videoStream = probeData.streams.find((s: any) => s.codec_type === 'video');
           const audioStream = probeData.streams.find((s: any) => s.codec_type === 'audio');
-          
+
           const videoCodec = videoStream?.codec_name || 'unknown';
           const audioCodec = audioStream?.codec_name || 'unknown';
           const audioBitrate = audioStream?.bit_rate ? parseInt(audioStream.bit_rate, 10) / 1000 : 128; // Default to 128kbps
-          
+
           resolve({
             duration,
             bitrate: totalBitrate,
             audioBitrate,
             audioCodec,
             videoCodec,
-            fileSize
+            fileSize,
           });
-        } catch (error) {
+        }
+        catch (error) {
           reject(new Error(`Failed to parse ffprobe output: ${error}`));
         }
       });
@@ -696,7 +737,7 @@ export class HLSConverter {
       });
     });
   }
-  
+
   /**
    * Calculate optimal bitrates to prevent file size inflation
    */
@@ -706,36 +747,37 @@ export class HLSConverter {
   } {
     // Use original bitrate as ceiling - don't exceed but same size is acceptable
     const maxTotalBitrate = Math.floor(analysis.bitrate);
-    
+
     // Smart audio handling
     let audioSettings: { codec: string; bitrate: string };
     let audioBitrateValue: number;
-    
+
     if (analysis.audioCodec === 'aac' && analysis.audioBitrate <= 160) {
       // Original is already efficient AAC, copy it
       audioSettings = { codec: 'copy', bitrate: '' };
       audioBitrateValue = analysis.audioBitrate;
       console.log(`📧 Copying original AAC audio (${analysis.audioBitrate}kbps)`);
-    } else {
+    }
+    else {
       // Re-encode audio
       const targetAudioBitrate = Math.min(128, analysis.audioBitrate * 0.8); // Don't exceed 128kbps or 80% of original
       audioSettings = { codec: 'aac', bitrate: `${Math.floor(targetAudioBitrate)}k` };
       audioBitrateValue = targetAudioBitrate;
       console.log(`🔄 Re-encoding audio: ${analysis.audioCodec} ${analysis.audioBitrate}kbps → AAC ${Math.floor(targetAudioBitrate)}kbps`);
     }
-    
+
     // Calculate target video bitrate (total - audio - overhead)
     const hlsOverheadEstimate = 50; // kbps estimate for HLS segmentation overhead
     const targetVideoBitrate = Math.max(
       500, // Minimum 500kbps for video quality
-      Math.floor(maxTotalBitrate - audioBitrateValue - hlsOverheadEstimate)
+      Math.floor(maxTotalBitrate - audioBitrateValue - hlsOverheadEstimate),
     );
-    
+
     console.log(`📊 Bitrate calculation: Original ${analysis.bitrate}k → Max total ${maxTotalBitrate}k (Video: ${targetVideoBitrate}k + Audio: ${audioBitrateValue}k + Overhead: ${hlsOverheadEstimate}k)`);
-    
+
     return {
       targetVideoBitrate,
-      audioSettings
+      audioSettings,
     };
   }
 
@@ -746,10 +788,11 @@ export class HLSConverter {
     try {
       // Check for DASH manifest
       const manifestPath = join(config.paths.videos, videoId, 'manifest.mpd');
-      
+
       await fs.access(manifestPath);
       return await this.keyManager.hasVideoKey(videoId);
-    } catch {
+    }
+    catch {
       return false;
     }
   }
@@ -781,7 +824,8 @@ export class HLSConverter {
       const videoDir = join(config.paths.videos, videoId);
       const files = await fs.readdir(videoDir);
       return files.filter(file => file.endsWith('.m4s')).sort();
-    } catch {
+    }
+    catch {
       return [];
     }
   }
@@ -802,12 +846,12 @@ export class HLSConverter {
     if (segmentPath.includes('..') || segmentPath.includes('\\') || segmentPath.startsWith('/') || segmentPath.endsWith('/')) {
       return false;
     }
-    
+
     // Check for null bytes (security vulnerability)
     if (segmentPath.includes('\0')) {
       return false;
     }
-    
+
     // Validate new folder structure: video/init.mp4, video/segment-0001.m4s, audio/init.mp4, audio/segment-0001.m4s
     return /^(video|audio)\/(init\.mp4|segment-\d{4}\.m4s)$/.test(segmentPath);
   }
@@ -820,11 +864,11 @@ export class HLSConverter {
       const videoDir = join(config.paths.videos, videoId);
       await fs.rm(videoDir, { recursive: true, force: true });
       console.log(`🧹 Cleaned up HLS files for video: ${videoId}`);
-    } catch (error) {
+    }
+    catch (error) {
       console.error(`⚠️  Failed to cleanup HLS files for ${videoId}:`, error);
     }
   }
-
 
   /**
    * Remove original file after successful video conversion
@@ -833,7 +877,8 @@ export class HLSConverter {
     try {
       await fs.unlink(originalPath);
       console.log(`🗑️  Removed original file: ${originalPath}`);
-    } catch (error) {
+    }
+    catch (error) {
       console.warn(`⚠️  Failed to remove original file ${originalPath}:`, error);
       // Don't throw error - conversion succeeded, original cleanup is non-critical
     }

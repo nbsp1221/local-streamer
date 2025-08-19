@@ -1,17 +1,17 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { Label } from "~/components/ui/label";
-import { Alert, AlertDescription } from "~/components/ui/alert";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
-import { LogIn, Eye, EyeOff } from "lucide-react";
-import { useIsAuthenticated, useAuthStore } from "~/stores/auth-store";
+import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { Alert, AlertDescription } from '~/components/ui/alert';
+import { Button } from '~/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
+import { Input } from '~/components/ui/input';
+import { Label } from '~/components/ui/label';
+import { useAuthStore, useIsAuthenticated } from '~/stores/auth-store';
 
 export function meta() {
   return [
-    { title: "Login - Local Streamer" },
-    { name: "description", content: "Sign in to your Local Streamer account" },
+    { title: 'Login - Local Streamer' },
+    { name: 'description', content: 'Sign in to your Local Streamer account' },
   ];
 }
 
@@ -19,10 +19,10 @@ export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isAuthenticated = useIsAuthenticated();
-  const login = useAuthStore((state) => state.login);
-  
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const login = useAuthStore(state => state.login);
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +30,7 @@ export default function Login() {
   // If already authenticated, redirect to intended page or home
   useEffect(() => {
     if (isAuthenticated) {
-      const redirectTo = searchParams.get("redirectTo") || "/";
+      const redirectTo = searchParams.get('redirectTo') || '/';
       navigate(redirectTo, { replace: true });
     }
   }, [isAuthenticated]);
@@ -41,7 +41,7 @@ export default function Login() {
 
     // Basic validation
     if (!email || !password) {
-      setError("Please enter both email and password");
+      setError('Please enter both email and password');
       return;
     }
 
@@ -49,18 +49,21 @@ export default function Login() {
 
     try {
       const result = await login(email, password);
-      
+
       if (result.success) {
         // Login successful, redirect to intended page or home
-        const redirectTo = searchParams.get("redirectTo") || "/";
+        const redirectTo = searchParams.get('redirectTo') || '/';
         navigate(redirectTo, { replace: true });
-      } else {
-        setError(result.error || "Login failed");
       }
-    } catch (error) {
-      console.error("Login error:", error);
-      setError("Network error occurred");
-    } finally {
+      else {
+        setError(result.error || 'Login failed');
+      }
+    }
+    catch (error) {
+      console.error('Login error:', error);
+      setError('Network error occurred');
+    }
+    finally {
       setLoading(false);
     }
   };
@@ -95,7 +98,7 @@ export default function Login() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={e => setEmail(e.target.value)}
                 placeholder="Enter your email"
                 disabled={loading}
                 autoComplete="email"
@@ -108,9 +111,9 @@ export default function Login() {
               <div className="relative">
                 <Input
                   id="password"
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={e => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   disabled={loading}
                   autoComplete="current-password"
@@ -134,12 +137,12 @@ export default function Login() {
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing In..." : "Sign In"}
+              {loading ? 'Signing In...' : 'Sign In'}
             </Button>
           </form>
 
           <div className="mt-6 text-sm text-muted-foreground text-center">
-            <p>Don't have an account? Contact your administrator.</p>
+            <p>{`Don't have an account? Contact your administrator.`}</p>
           </div>
         </CardContent>
       </Card>

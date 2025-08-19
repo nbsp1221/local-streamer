@@ -1,31 +1,32 @@
-import type { Route } from "./+types/scan-incoming";
-import { scanIncomingFiles, ensureIncomingDirectory } from "~/services/file-manager.server";
-import { requireAuth } from "~/utils/auth.server";
+import { ensureIncomingDirectory, scanIncomingFiles } from '~/services/file-manager.server';
+import { requireAuth } from '~/utils/auth.server';
+import type { Route } from './+types/scan-incoming';
 
 export async function loader({ request }: Route.LoaderArgs) {
   // Authentication check
   await requireAuth(request);
-  
+
   try {
     // Ensure incoming directory exists
     await ensureIncomingDirectory();
-    
+
     // Scan files
     const files = await scanIncomingFiles();
-    
+
     return Response.json({
       success: true,
       files,
-      count: files.length
+      count: files.length,
     });
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to scan incoming files:', error);
-    
+
     return Response.json({
       success: false,
       error: 'Failed to scan incoming files',
       files: [],
-      count: 0
+      count: 0,
     }, { status: 500 });
   }
 }

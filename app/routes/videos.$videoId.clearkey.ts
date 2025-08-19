@@ -1,7 +1,7 @@
 import crypto from 'crypto';
-import { type LoaderFunctionArgs, type ActionFunctionArgs } from 'react-router';
-import { validateVideoRequest } from '~/services/hls-jwt.server';
+import { type ActionFunctionArgs, type LoaderFunctionArgs } from 'react-router';
 import { AESKeyManager } from '~/services/aes-key-manager.server';
+import { validateVideoRequest } from '~/services/hls-jwt.server';
 
 /**
  * Convert hex string to base64url
@@ -61,10 +61,10 @@ async function handleClearKeyRequest(request: Request, videoId: string) {
         {
           kty: 'oct',
           kid: keyIdBase64Url,
-          k: keyBase64Url
-        }
+          k: keyBase64Url,
+        },
       ],
-      type: 'temporary'
+      type: 'temporary',
     };
 
     // Log key access for security monitoring
@@ -90,7 +90,7 @@ async function handleClearKeyRequest(request: Request, videoId: string) {
         'X-Content-Type-Options': 'nosniff',
         'X-Frame-Options': 'DENY',
         'Referrer-Policy': 'strict-origin-when-cross-origin',
-      }
+      },
     });
   }
   catch (error) {

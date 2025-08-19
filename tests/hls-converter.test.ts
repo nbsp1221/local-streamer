@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
-import path from 'path';
 import os from 'os';
-import { HLSConverter } from '../app/services/hls-converter.server';
+import path from 'path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { AESKeyManager } from '../app/services/aes-key-manager.server';
+import { HLSConverter } from '../app/services/hls-converter.server';
 
 // Mock environment variables for testing
 const mockEnv = {
@@ -23,10 +23,10 @@ describe('HLSConverter', () => {
   beforeEach(async () => {
     // Create temporary test directory
     testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hls-converter-test-'));
-    
+
     // Backup original environment variables
     originalEnv = {};
-    Object.keys(mockEnv).forEach(key => {
+    Object.keys(mockEnv).forEach((key) => {
       originalEnv[key] = process.env[key];
     });
 
@@ -47,14 +47,14 @@ describe('HLSConverter', () => {
             const key = this.generateVideoKey(videoId);
             const videoDir = path.join(testDir, videoId);
             await fs.mkdir(videoDir, { recursive: true });
-            
+
             const keyPath = path.join(videoDir, 'key.bin');
             await fs.writeFile(keyPath, key);
-            
+
             const keyInfoPath = path.join(videoDir, 'keyinfo.txt');
             const keyInfo = `/api/hls-key/${videoId}\n${keyPath}\n`;
             await fs.writeFile(keyInfoPath, keyInfo);
-            
+
             return { key, keyInfoFile: keyInfoPath };
           }
 
@@ -62,7 +62,8 @@ describe('HLSConverter', () => {
             try {
               const keyInfoPath = path.join(testDir, videoId, 'keyinfo.txt');
               await fs.unlink(keyInfoPath);
-            } catch {
+            }
+            catch {
               // Ignore cleanup errors
             }
           }
@@ -72,7 +73,8 @@ describe('HLSConverter', () => {
               const keyPath = path.join(testDir, videoId, 'key.bin');
               await fs.access(keyPath);
               return true;
-            } catch {
+            }
+            catch {
               return false;
             }
           }
@@ -99,7 +101,8 @@ describe('HLSConverter', () => {
           const videoDir = path.join(testDir, videoId);
           const files = await fs.readdir(videoDir);
           return files.filter(file => file.endsWith('.m4s')).sort();
-        } catch {
+        }
+        catch {
           return [];
         }
       }
@@ -108,7 +111,8 @@ describe('HLSConverter', () => {
         try {
           const videoDir = path.join(testDir, videoId);
           await fs.rm(videoDir, { recursive: true, force: true });
-        } catch {
+        }
+        catch {
           // Ignore cleanup errors
         }
       }
@@ -120,7 +124,8 @@ describe('HLSConverter', () => {
     Object.entries(originalEnv).forEach(([key, value]) => {
       if (value === undefined) {
         delete process.env[key];
-      } else {
+      }
+      else {
         process.env[key] = value;
       }
     });
@@ -128,7 +133,8 @@ describe('HLSConverter', () => {
     // Clean up test files
     try {
       await fs.rm(testDir, { recursive: true, force: true });
-    } catch {
+    }
+    catch {
       // Ignore cleanup errors
     }
 
@@ -173,7 +179,7 @@ describe('HLSConverter', () => {
         'audio/init.mp4',
       ];
 
-      validNames.forEach(name => {
+      validNames.forEach((name) => {
         expect(hlsConverter.isValidSegmentName(name)).toBe(true);
       });
     });
@@ -191,7 +197,7 @@ describe('HLSConverter', () => {
         '',
       ];
 
-      invalidNames.forEach(name => {
+      invalidNames.forEach((name) => {
         expect(hlsConverter.isValidSegmentName(name)).toBe(false);
       });
     });
@@ -206,7 +212,7 @@ describe('HLSConverter', () => {
     it('should return sorted segment list', async () => {
       const videoDir = path.join(testDir, testVideoId);
       await fs.mkdir(videoDir, { recursive: true });
-      
+
       // Create segment files in random order (new naming format)
       const segmentNames = ['segment-0002.m4s', 'segment-0000.m4s', 'segment-0001.m4s'];
       for (const name of segmentNames) {
@@ -238,7 +244,7 @@ describe('HLSConverter', () => {
     it('should not throw error if directory does not exist', async () => {
       // Should complete without throwing error
       await hlsConverter.cleanup('non-existent-video');
-      
+
       // If we reach this point, no error was thrown
       expect(true).toBe(true);
     });

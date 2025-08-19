@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Video, PendingVideo, VideoFormat } from "~/types/video";
-import type { VideoRepository, PendingVideoRepository, CreateVideoInput, UpdateVideoInput } from "~/repositories/interfaces/VideoRepository";
-import { BaseJsonRepository } from "~/repositories/base/BaseJsonRepository";
-import { config } from "~/configs";
+import type { CreateVideoInput, PendingVideoRepository, UpdateVideoInput, VideoRepository } from '~/repositories/interfaces/VideoRepository';
+import type { PendingVideo, Video, VideoFormat } from '~/types/video';
+import { config } from '~/configs';
+import { BaseJsonRepository } from '~/repositories/base/BaseJsonRepository';
 
 /**
  * JSON-based implementation of VideoRepository
@@ -45,7 +45,7 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
       duration: input.duration || 0, // Default to 0 if not provided
       format: input.format,
       description: input.description,
-      addedAt: new Date()
+      addedAt: new Date(),
     };
   }
 
@@ -53,11 +53,7 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
    * Find videos by tag
    */
   async findByTag(tag: string): Promise<Video[]> {
-    return this.findWhere(video => 
-      video.tags.some(videoTag => 
-        videoTag.toLowerCase() === tag.toLowerCase()
-      )
-    );
+    return this.findWhere(video => video.tags.some(videoTag => videoTag.toLowerCase() === tag.toLowerCase()));
   }
 
   /**
@@ -65,18 +61,14 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
    */
   async findByTitle(title: string): Promise<Video[]> {
     const searchTerm = title.toLowerCase();
-    return this.findWhere(video => 
-      video.title.toLowerCase().includes(searchTerm)
-    );
+    return this.findWhere(video => video.title.toLowerCase().includes(searchTerm));
   }
 
   /**
    * Find videos by format
    */
   async findByFormat(format: VideoFormat): Promise<Video[]> {
-    return this.findWhere(video => 
-      video.format.toLowerCase() === format.toLowerCase()
-    );
+    return this.findWhere(video => video.format.toLowerCase() === format.toLowerCase());
   }
 
   /**
@@ -85,11 +77,11 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
   async getAllTags(): Promise<string[]> {
     const videos = await this.findAll();
     const tagSet = new Set<string>();
-    
-    videos.forEach(video => {
+
+    videos.forEach((video) => {
       video.tags.forEach(tag => tagSet.add(tag));
     });
-    
+
     return Array.from(tagSet).sort();
   }
 
@@ -98,21 +90,17 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
    */
   async search(query: string): Promise<Video[]> {
     const searchTerm = query.toLowerCase();
-    
-    return this.findWhere(video => {
+
+    return this.findWhere((video) => {
       // Search in title
       const matchesTitle = video.title.toLowerCase().includes(searchTerm);
-      
+
       // Search in tags
-      const matchesTags = video.tags.some(tag => 
-        tag.toLowerCase().includes(searchTerm)
-      );
-      
+      const matchesTags = video.tags.some(tag => tag.toLowerCase().includes(searchTerm));
+
       return matchesTitle || matchesTags;
     });
   }
-
-
 
   /**
    * Schedule original file cleanup
@@ -159,7 +147,7 @@ export class JsonPendingVideoRepository extends BaseJsonRepository<PendingVideo,
   protected createEntity(input: Omit<PendingVideo, 'id'>): PendingVideo {
     return {
       id: uuidv4(),
-      ...input
+      ...input,
     };
   }
 
@@ -176,13 +164,13 @@ export class JsonPendingVideoRepository extends BaseJsonRepository<PendingVideo,
   async deleteByFilename(filename: string): Promise<boolean> {
     const videos = await this.readAllFromFile();
     const initialLength = videos.length;
-    
+
     const filteredVideos = videos.filter(video => video.filename !== filename);
-    
+
     if (filteredVideos.length === initialLength) {
       return false; // Video not found
     }
-    
+
     await this.writeAllToFile(filteredVideos);
     return true;
   }

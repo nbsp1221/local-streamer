@@ -6,14 +6,14 @@ export const security = {
     refreshThreshold: 4 * 24 * 60 * 60 * 1000, // 4 days (session refresh threshold)
     cookieName: 'session_id',
   },
-  
+
   argon2: {
     type: argon2.argon2id,
     memoryCost: 2 ** 16, // 64MB
-    timeCost: 3,         // 3 iterations
-    parallelism: 1,      // 1 thread
+    timeCost: 3, // 3 iterations
+    parallelism: 1, // 1 thread
   },
-  
+
   video: {
     // Master encryption seed for key derivation (required for video encryption)
     masterSeed: (() => {
@@ -23,14 +23,14 @@ export const security = {
       }
       return seed;
     })(),
-    
+
     // Key derivation settings
     keyDerivation: {
       algorithm: process.env.KEY_DERIVATION_ALGORITHM || 'PBKDF2-SHA256',
       rounds: parseInt(process.env.KEY_DERIVATION_ROUNDS!) || 100000,
       saltPrefix: process.env.KEY_SALT_PREFIX || 'local-streamer-hls-v1',
     },
-    
+
     // Authentication settings for video streaming
     auth: {
       secret: (() => {
@@ -46,14 +46,14 @@ export const security = {
         process.env.FRONTEND_URL,
       ].filter(Boolean),
     },
-    
+
     // Streaming settings
     streaming: {
       segmentDuration: parseInt(process.env.HLS_SEGMENT_DURATION!) || 10,
       playlistType: 'vod' as const,
       deleteSegments: true,
     },
-    
+
     // FFmpeg encoding settings
     encoding: {
       videoCodec: 'libx264',

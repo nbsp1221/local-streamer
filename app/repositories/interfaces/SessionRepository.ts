@@ -1,5 +1,5 @@
-import type { Session, CookieOptions } from "~/types/auth";
-import type { BaseRepository } from "./BaseRepository";
+import type { CookieOptions, Session } from '~/types/auth';
+import type { BaseRepository } from './BaseRepository';
 
 /**
  * Input for creating a new session

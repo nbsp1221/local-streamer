@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Session, CookieOptions } from "~/types/auth";
-import type { SessionRepository, CreateSessionInput, UpdateSessionInput } from "~/repositories/interfaces/SessionRepository";
-import { BaseJsonRepository } from "~/repositories/base/BaseJsonRepository";
-import { config } from "~/configs";
+import type { CreateSessionInput, SessionRepository, UpdateSessionInput } from '~/repositories/interfaces/SessionRepository';
+import type { CookieOptions, Session } from '~/types/auth';
+import { config } from '~/configs';
+import { BaseJsonRepository } from '~/repositories/base/BaseJsonRepository';
 
 /**
  * JSON-based implementation of SessionRepository
@@ -19,7 +19,7 @@ export class JsonSessionRepository extends BaseJsonRepository<Session, CreateSes
       expiresAt: new Date(data.expiresAt),
       createdAt: new Date(data.createdAt),
       updatedAt: new Date(data.updatedAt),
-      lastAccessedAt: data.lastAccessedAt ? new Date(data.lastAccessedAt) : undefined
+      lastAccessedAt: data.lastAccessedAt ? new Date(data.lastAccessedAt) : undefined,
     };
   }
 
@@ -32,7 +32,7 @@ export class JsonSessionRepository extends BaseJsonRepository<Session, CreateSes
       expiresAt: entity.expiresAt.toISOString(),
       createdAt: entity.createdAt.toISOString(),
       updatedAt: entity.updatedAt.toISOString(),
-      lastAccessedAt: entity.lastAccessedAt?.toISOString()
+      lastAccessedAt: entity.lastAccessedAt?.toISOString(),
     };
   }
 
@@ -42,7 +42,7 @@ export class JsonSessionRepository extends BaseJsonRepository<Session, CreateSes
   protected createEntity(input: CreateSessionInput): Session {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + config.security.session.duration);
-    
+
     return {
       id: uuidv4(),
       userId: input.userId,
@@ -52,7 +52,7 @@ export class JsonSessionRepository extends BaseJsonRepository<Session, CreateSes
       isActive: true,
       createdAt: now,
       updatedAt: now,
-      lastAccessedAt: now
+      lastAccessedAt: now,
     };
   }
 
@@ -68,12 +68,10 @@ export class JsonSessionRepository extends BaseJsonRepository<Session, CreateSes
    */
   async findActiveByUserId(userId: string): Promise<Session[]> {
     const now = new Date();
-    
-    return this.findWhere(session => 
-      session.userId === userId && 
-      session.isActive && 
-      session.expiresAt > now
-    );
+
+    return this.findWhere(session => session.userId === userId &&
+      session.isActive &&
+      session.expiresAt > now);
   }
 
   /**
@@ -82,17 +80,15 @@ export class JsonSessionRepository extends BaseJsonRepository<Session, CreateSes
   async cleanupExpired(): Promise<number> {
     const sessions = await this.readAllFromFile();
     const now = new Date();
-    
-    const activeSessions = sessions.filter(session => 
-      session.expiresAt > now && session.isActive
-    );
-    
+
+    const activeSessions = sessions.filter(session => session.expiresAt > now && session.isActive);
+
     const expiredCount = sessions.length - activeSessions.length;
-    
+
     if (expiredCount > 0) {
       await this.writeAllToFile(activeSessions);
     }
-    
+
     return expiredCount;
   }
 
@@ -102,45 +98,45 @@ export class JsonSessionRepository extends BaseJsonRepository<Session, CreateSes
   async refreshSession(sessionId: string): Promise<Session | null> {
     const sessions = await this.readAllFromFile();
     const sessionIndex = sessions.findIndex(session => session.id === sessionId);
-    
+
     if (sessionIndex === -1) {
       return null;
     }
-    
+
     const session = sessions[sessionIndex];
-    
+
     // Check if session is still valid
     if (!session.isActive || session.expiresAt <= new Date()) {
       return null;
     }
-    
+
     // Check if session needs refresh (within refresh threshold)
     const now = new Date();
     const timeUntilExpiry = session.expiresAt.getTime() - now.getTime();
     const refreshThreshold = config.security.session.refreshThreshold;
-    
+
     if (timeUntilExpiry > refreshThreshold) {
       // Session doesn't need refresh yet, just update last accessed
       sessions[sessionIndex] = {
         ...session,
         lastAccessedAt: now,
-        updatedAt: now
+        updatedAt: now,
       };
-      
+
       await this.writeAllToFile(sessions);
       return sessions[sessionIndex];
     }
-    
+
     // Refresh the session
     const newExpiresAt = new Date(now.getTime() + config.security.session.duration);
-    
+
     sessions[sessionIndex] = {
       ...session,
       expiresAt: newExpiresAt,
       lastAccessedAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
-    
+
     await this.writeAllToFile(sessions);
     return sessions[sessionIndex];
   }
@@ -151,17 +147,17 @@ export class JsonSessionRepository extends BaseJsonRepository<Session, CreateSes
   async deactivateSession(sessionId: string): Promise<boolean> {
     const sessions = await this.readAllFromFile();
     const sessionIndex = sessions.findIndex(session => session.id === sessionId);
-    
+
     if (sessionIndex === -1) {
       return false;
     }
-    
+
     sessions[sessionIndex] = {
       ...sessions[sessionIndex],
       isActive: false,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
-    
+
     await this.writeAllToFile(sessions);
     return true;
   }
@@ -172,22 +168,22 @@ export class JsonSessionRepository extends BaseJsonRepository<Session, CreateSes
   async deactivateAllUserSessions(userId: string): Promise<number> {
     const sessions = await this.readAllFromFile();
     let deactivatedCount = 0;
-    
+
     for (let i = 0; i < sessions.length; i++) {
       if (sessions[i].userId === userId && sessions[i].isActive) {
         sessions[i] = {
           ...sessions[i],
           isActive: false,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         };
         deactivatedCount++;
       }
     }
-    
+
     if (deactivatedCount > 0) {
       await this.writeAllToFile(sessions);
     }
-    
+
     return deactivatedCount;
   }
 
@@ -196,11 +192,11 @@ export class JsonSessionRepository extends BaseJsonRepository<Session, CreateSes
    */
   async isValidSession(sessionId: string): Promise<boolean> {
     const session = await this.findById(sessionId);
-    
+
     if (!session) {
       return false;
     }
-    
+
     const now = new Date();
     return session.isActive && session.expiresAt > now;
   }
@@ -214,7 +210,7 @@ export class JsonSessionRepository extends BaseJsonRepository<Session, CreateSes
       secure: config.server.isProduction,
       sameSite: 'lax',
       maxAge: maxAge || config.security.session.duration / 1000, // in seconds
-      path: '/'
+      path: '/',
     };
   }
 
@@ -224,7 +220,7 @@ export class JsonSessionRepository extends BaseJsonRepository<Session, CreateSes
   async update(id: string, updates: UpdateSessionInput): Promise<Session | null> {
     const updateData = {
       ...updates,
-      updatedAt: new Date()
+      updatedAt: new Date(),
     };
 
     return super.update(id, updateData as UpdateSessionInput);

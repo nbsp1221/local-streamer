@@ -1,8 +1,7 @@
-import { Link } from "react-router";
-import { Search, Upload, LogOut, User } from "lucide-react";
-import { Input } from "~/components/ui/input";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
+import { LogOut, Search, Upload, User } from 'lucide-react';
+import { Link } from 'react-router';
+import { Badge } from '~/components/ui/badge';
+import { Button } from '~/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,8 +9,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
-import { useAuthUser, useAuthStore } from "~/stores/auth-store";
+} from '~/components/ui/dropdown-menu';
+import { Input } from '~/components/ui/input';
+import { useAuthStore, useAuthUser } from '~/stores/auth-store';
 
 interface NavBarProps {
   searchQuery: string;
@@ -21,13 +21,14 @@ interface NavBarProps {
 
 export function NavBar({ searchQuery, onSearchChange, pendingCount = 0 }: NavBarProps) {
   const user = useAuthUser();
-  const logout = useAuthStore((state) => state.logout);
+  const logout = useAuthStore(state => state.logout);
 
   const handleLogout = async () => {
     try {
       await logout();
-    } catch (error) {
-      console.error("Logout failed:", error);
+    }
+    catch (error) {
+      console.error('Logout failed:', error);
     }
   };
 
@@ -51,7 +52,7 @@ export function NavBar({ searchQuery, onSearchChange, pendingCount = 0 }: NavBar
                 type="search"
                 placeholder="Search by title, tags..."
                 value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
+                onChange={e => onSearchChange(e.target.value)}
                 className="pl-10"
               />
             </div>
@@ -122,7 +123,7 @@ export function NavBar({ searchQuery, onSearchChange, pendingCount = 0 }: NavBar
               type="search"
               placeholder="Search by title, tags..."
               value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
+              onChange={e => onSearchChange(e.target.value)}
               className="pl-10"
             />
           </div>

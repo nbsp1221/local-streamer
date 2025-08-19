@@ -1,5 +1,5 @@
-import { VideoCard } from "~/components/VideoCard";
-import type { Video } from "~/types/video";
+import type { Video } from '~/types/video';
+import { VideoCard } from '~/components/VideoCard';
 
 interface VideoGridProps {
   videos: Video[];
@@ -18,9 +18,9 @@ export function VideoGrid({ videos, onQuickView, onTagClick }: VideoGridProps) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-      {videos.map((video) => (
-        <VideoCard 
-          key={video.id} 
+      {videos.map(video => (
+        <VideoCard
+          key={video.id}
           video={video}
           onQuickView={onQuickView}
           onTagClick={onTagClick}

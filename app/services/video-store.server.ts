@@ -1,6 +1,6 @@
-import type { Video, PendingVideo } from '~/types/video';
 import type { CreateVideoInput, UpdateVideoInput } from '~/repositories/interfaces/VideoRepository';
-import { getVideoRepository, getPendingVideoRepository } from '~/repositories';
+import type { PendingVideo, Video } from '~/types/video';
+import { getPendingVideoRepository, getVideoRepository } from '~/repositories';
 
 // Get video list
 export async function getVideos(): Promise<Video[]> {
@@ -31,7 +31,7 @@ export async function savePendingVideos(pendingVideos: PendingVideo[]): Promise<
 // Add new video
 export async function addVideo(video: Video): Promise<void> {
   const videoRepository = getVideoRepository();
-  
+
   // Convert Video to CreateVideoInput
   const createInput: CreateVideoInput = {
     id: video.id, // Pass the correct ID
@@ -41,9 +41,9 @@ export async function addVideo(video: Video): Promise<void> {
     thumbnailUrl: video.thumbnailUrl,
     duration: video.duration,
     format: video.format,
-    description: video.description
+    description: video.description,
   };
-  
+
   await videoRepository.create(createInput);
 }
 
@@ -52,16 +52,17 @@ export async function deleteVideo(videoId: string): Promise<void> {
   // Import deleteVideoFiles function
   const { deleteVideoFiles } = await import('./file-manager.server');
   const videoRepository = getVideoRepository();
-  
+
   try {
     // Delete physical files first
     await deleteVideoFiles(videoId);
-    
+
     // Then remove from metadata
     await videoRepository.delete(videoId);
-    
+
     console.log(`✅ Video completely deleted: ${videoId}`);
-  } catch (error) {
+  }
+  catch (error) {
     console.error(`❌ Failed to delete video ${videoId}:`, error);
     throw new Error(`Failed to delete video: ${error}`);
   }
@@ -76,7 +77,7 @@ export async function findVideoById(videoId: string): Promise<Video | null> {
 // Update video
 export async function updateVideo(videoId: string, updates: Partial<Omit<Video, 'id' | 'addedAt'>>): Promise<Video | null> {
   const videoRepository = getVideoRepository();
-  
+
   // Convert updates to UpdateVideoInput format
   const updateInput: UpdateVideoInput = {
     title: updates.title,
@@ -85,8 +86,8 @@ export async function updateVideo(videoId: string, updates: Partial<Omit<Video, 
     thumbnailUrl: updates.thumbnailUrl,
     duration: updates.duration,
     format: updates.format,
-    description: updates.description
+    description: updates.description,
   };
-  
+
   return videoRepository.update(videoId, updateInput);
 }

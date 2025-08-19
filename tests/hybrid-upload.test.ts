@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
-import path from 'path';
 import os from 'os';
+import path from 'path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock environment variables
 const mockEnv = {
@@ -18,13 +18,13 @@ describe('HLS Upload System', () => {
   beforeEach(async () => {
     // Create temporary test directory
     testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hybrid-upload-test-'));
-    
+
     // Backup and set environment variables
     originalEnv = {};
-    Object.keys(mockEnv).forEach(key => {
+    Object.keys(mockEnv).forEach((key) => {
       originalEnv[key] = process.env[key];
     });
-    
+
     Object.entries(mockEnv).forEach(([key, value]) => {
       process.env[key] = value;
     });
@@ -35,7 +35,8 @@ describe('HLS Upload System', () => {
     Object.entries(originalEnv).forEach(([key, value]) => {
       if (value === undefined) {
         delete process.env[key];
-      } else {
+      }
+      else {
         process.env[key] = value;
       }
     });
@@ -43,14 +44,15 @@ describe('HLS Upload System', () => {
     // Clean up test directory
     try {
       await fs.rm(testDir, { recursive: true, force: true });
-    } catch {
+    }
+    catch {
       // Ignore cleanup errors
     }
   });
 
   it('should support HLS upload when enabled', () => {
     expect(process.env.HLS_ENABLED).toBe('true');
-    
+
     // This test verifies environment configuration for HLS
     expect(process.env.HLS_MASTER_ENCRYPTION_SEED).toBeDefined();
     expect(process.env.KEY_SALT_PREFIX).toBeDefined();
@@ -61,7 +63,7 @@ describe('HLS Upload System', () => {
     // Verify HLS is enabled by default in test
     const isHLSEnabled = process.env.HLS_ENABLED === 'true';
     expect(isHLSEnabled).toBe(true);
-    
+
     // HLS should be the primary streaming method
     // The generateHLSVersion function should work when properly configured
   });
@@ -72,14 +74,14 @@ describe('HLS Upload System', () => {
       success: true,
       videoId: 'test-video-id',
       message: 'Video added to library successfully with HLS',
-      hlsEnabled: true
+      hlsEnabled: true,
     };
 
     const mockFailureResponse = {
       success: true,
-      videoId: 'test-video-id', 
+      videoId: 'test-video-id',
       message: 'Video added to library but HLS generation failed',
-      hlsEnabled: false
+      hlsEnabled: false,
     };
 
     // Verify response structure
@@ -99,39 +101,40 @@ describe('HLS Upload System', () => {
       tags: ['test'],
       duration: 120,
       addedAt: new Date(),
-      format: 'mp4'
+      format: 'mp4',
     };
 
     const videoWithoutHLS = {
       ...videoWithHLS,
-      hasHLS: false
+      hasHLS: false,
     };
 
     const directVideo = {
       ...videoWithHLS,
-      videoUrl: 'https://example.com/video.mp4'
+      videoUrl: 'https://example.com/video.mp4',
     };
 
     // Test source generation logic (mirrors VideoPlayer logic)
     function generateSources(video: typeof videoWithHLS) {
       const sources = [];
-      
+
       if (video.videoUrl.startsWith('/data/videos/')) {
         if (video.hasHLS) {
           sources.push({
             src: `/api/hls/${video.id}/playlist.m3u8`,
             type: 'hls',
-            label: 'HLS Stream'
+            label: 'HLS Stream',
           });
         }
-      } else {
+      }
+      else {
         sources.push({
           src: video.videoUrl,
           type: 'direct',
-          label: 'Direct Stream'
+          label: 'Direct Stream',
         });
       }
-      
+
       return sources;
     }
 
@@ -153,10 +156,10 @@ describe('HLS Upload System', () => {
   it('should verify single-source configuration', () => {
     // Test that HLS is the only source for local videos
     const sources = [
-      { src: '/api/hls/video/playlist.m3u8', type: 'hls' as const, label: 'HLS' }
+      { src: '/api/hls/video/playlist.m3u8', type: 'hls' as const, label: 'HLS' },
     ];
 
-    let currentSrc = sources[0].src;
+    const currentSrc = sources[0].src;
 
     // Simulate error handling with single source
     const handleError = () => {
@@ -167,7 +170,7 @@ describe('HLS Upload System', () => {
     // Error should result in failure (no fallbacks)
     expect(handleError()).toBe(false);
     expect(currentSrc).toBe('/api/hls/video/playlist.m3u8');
-    
+
     // Verify sources array has only one item
     expect(sources).toHaveLength(1);
     expect(sources[0].type).toBe('hls');
