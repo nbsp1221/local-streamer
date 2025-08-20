@@ -16,40 +16,50 @@ export const security = {
 
   video: {
     // Master encryption seed for key derivation (required for video encryption)
-    masterSeed: (() => {
+    get masterSeed() {
       const seed = process.env.HLS_MASTER_ENCRYPTION_SEED;
       if (!seed) {
         throw new Error('HLS_MASTER_ENCRYPTION_SEED environment variable is required for video encryption');
       }
       return seed;
-    })(),
+    },
 
     // Key derivation settings
     keyDerivation: {
-      algorithm: process.env.KEY_DERIVATION_ALGORITHM || 'PBKDF2-SHA256',
-      rounds: parseInt(process.env.KEY_DERIVATION_ROUNDS!) || 100000,
-      saltPrefix: process.env.KEY_SALT_PREFIX || 'local-streamer-hls-v1',
+      get algorithm() {
+        return process.env.KEY_DERIVATION_ALGORITHM || 'PBKDF2-SHA256';
+      },
+      get rounds() {
+        return parseInt(process.env.KEY_DERIVATION_ROUNDS!) || 100000;
+      },
+      get saltPrefix() {
+        return process.env.KEY_SALT_PREFIX || 'local-streamer-hls-v1';
+      },
     },
 
     // Authentication settings for video streaming
     auth: {
-      secret: (() => {
+      get secret() {
         const secret = process.env.HLS_JWT_SECRET;
         if (!secret) {
           throw new Error('HLS_JWT_SECRET environment variable is required for video streaming authentication');
         }
         return secret;
-      })(),
-      allowedOrigins: [
-        'http://localhost:5173',
-        'http://localhost:3000',
-        process.env.FRONTEND_URL,
-      ].filter(Boolean),
+      },
+      get allowedOrigins() {
+        return [
+          'http://localhost:5173',
+          'http://localhost:3000',
+          process.env.FRONTEND_URL,
+        ].filter(Boolean);
+      },
     },
 
     // Streaming settings
     streaming: {
-      segmentDuration: parseInt(process.env.HLS_SEGMENT_DURATION!) || 10,
+      get segmentDuration() {
+        return parseInt(process.env.HLS_SEGMENT_DURATION!) || 10;
+      },
       playlistType: 'vod' as const,
       deleteSegments: true,
     },
