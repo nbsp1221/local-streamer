@@ -2,7 +2,6 @@ import { ConflictError, InternalError, ValidationError } from '~/lib/errors';
 import { Result } from '~/lib/result';
 import { UseCase } from '~/lib/usecase.base';
 import {
-  type CheckSetupStatusResponse,
   type SetupUserDependencies,
   type SetupUserRequest,
   type SetupUserResponse,
@@ -11,27 +10,6 @@ import {
 export class SetupUserUseCase extends UseCase<SetupUserRequest, SetupUserResponse> {
   constructor(private readonly deps: SetupUserDependencies) {
     super();
-  }
-
-  /**
-   * Check if setup is needed (no admin user exists)
-   */
-  async checkSetupStatus(): Promise<Result<CheckSetupStatusResponse>> {
-    try {
-      const adminExists = await this.deps.userRepository.hasAdminUser();
-
-      return Result.ok({
-        needsSetup: !adminExists,
-      });
-    }
-    catch (error) {
-      this.deps.logger?.error('Failed to check setup status', error);
-      return Result.fail(
-        new InternalError(
-          error instanceof Error ? error.message : 'Failed to check setup status',
-        ),
-      );
-    }
   }
 
   /**
@@ -56,16 +34,25 @@ export class SetupUserUseCase extends UseCase<SetupUserRequest, SetupUserRespons
 
       this.deps.logger?.info(`Admin user created: ${user.email} (${user.id})`);
 
-      // 4. Create session and handle response data
-      const sessionResult = await this.createUserSession(user.id);
+      // 4. Create session with request context
+      const sessionResult = await this.createUserSession(user.id, request.userAgent, request.ipAddress);
       if (!sessionResult.success) {
         return sessionResult;
       }
 
-      // 5. Return success response
+      // 5. Create cookie string
+      const cookieOptions = this.deps.sessionManager.getCookieOptions();
+      const cookieString = this.deps.sessionManager.serializeCookie(
+        this.deps.sessionManager.cookieName,
+        sessionResult.data.sessionId,
+        cookieOptions,
+      );
+
+      // 6. Return success response with cookie information
       return Result.ok({
         userId: user.id,
         sessionId: sessionResult.data.sessionId,
+        cookieString,
         message: 'Admin user created successfully',
         user: this.deps.securityService.toPublicUser(user),
       });
@@ -87,7 +74,7 @@ export class SetupUserUseCase extends UseCase<SetupUserRequest, SetupUserRespons
   /**
    * Create session for the newly created user
    */
-  async createUserSession(userId: string, userAgent?: string, ipAddress?: string): Promise<Result<{ sessionId: string }>> {
+  private async createUserSession(userId: string, userAgent?: string, ipAddress?: string): Promise<Result<{ sessionId: string }>> {
     try {
       const session = await this.deps.sessionManager.createSession(userId, userAgent, ipAddress);
 

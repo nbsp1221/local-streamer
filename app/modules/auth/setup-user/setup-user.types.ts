@@ -1,14 +1,16 @@
 import type { SessionRepository } from '~/repositories/interfaces/SessionRepository';
-import type { UserRepository } from '~/repositories/interfaces/UserRepository';
 
 export interface SetupUserRequest {
   email: string;
   password: string;
+  userAgent?: string;
+  ipAddress?: string;
 }
 
 export interface SetupUserResponse {
   userId: string;
   sessionId: string;
+  cookieString: string;
   message: string;
   user: {
     id: string;
@@ -17,17 +19,17 @@ export interface SetupUserResponse {
   };
 }
 
-export interface CheckSetupStatusResponse {
-  needsSetup: boolean;
-}
-
 export interface SetupUserDependencies {
-  userRepository: UserRepository;
+  userRepository: {
+    hasAdminUser: () => Promise<boolean>;
+    create: (userData: { email: string; password: string; role?: 'admin' | 'user' }) => Promise<any>;
+  };
   sessionRepository: SessionRepository;
   sessionManager: {
     createSession: (userId: string, userAgent?: string, ipAddress?: string) => Promise<{ id: string }>;
     getCookieOptions: () => any;
     serializeCookie: (name: string, value: string, options: any) => string;
+    cookieName: string;
   };
   securityService: {
     isValidEmail: (email: string) => boolean;

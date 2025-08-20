@@ -30,6 +30,7 @@ describe('SetupUserUseCase', () => {
       createSession: vi.fn(),
       getCookieOptions: vi.fn(),
       serializeCookie: vi.fn(),
+      cookieName: 'session',
     };
 
     // Create mock security service
@@ -59,59 +60,14 @@ describe('SetupUserUseCase', () => {
     useCase = new SetupUserUseCase(mockDependencies);
   });
 
-  describe('checkSetupStatus', () => {
-    it('should return needsSetup: true when no admin exists', async () => {
-      // Arrange
-      mockUserRepository.hasAdminUser.mockResolvedValue(false);
-
-      // Act
-      const result = await useCase.checkSetupStatus();
-
-      // Assert
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.needsSetup).toBe(true);
-      }
-      expect(mockUserRepository.hasAdminUser).toHaveBeenCalledOnce();
-    });
-
-    it('should return needsSetup: false when admin already exists', async () => {
-      // Arrange
-      mockUserRepository.hasAdminUser.mockResolvedValue(true);
-
-      // Act
-      const result = await useCase.checkSetupStatus();
-
-      // Assert
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.needsSetup).toBe(false);
-      }
-    });
-
-    it('should handle database errors gracefully', async () => {
-      // Arrange
-      mockUserRepository.hasAdminUser.mockRejectedValue(new Error('Database connection failed'));
-
-      // Act
-      const result = await useCase.checkSetupStatus();
-
-      // Assert
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error).toBeInstanceOf(InternalError);
-        expect(result.error.message).toContain('Database connection failed');
-      }
-      expect(mockLogger.error).toHaveBeenCalled();
-    });
-  });
-
   describe('execute - Success scenarios', () => {
     it('should create admin user successfully', async () => {
       // Arrange
       const request: SetupUserRequest = {
         email: 'admin@example.com',
         password: 'SecurePassword123!',
+        userAgent: 'Mozilla/5.0',
+        ipAddress: '192.168.1.1',
       };
 
       const mockUser = {
@@ -127,6 +83,8 @@ describe('SetupUserUseCase', () => {
       mockSecurityService.isValidPassword.mockReturnValue({ valid: true, errors: [] });
       mockUserRepository.create.mockResolvedValue(mockUser);
       mockSessionManager.createSession.mockResolvedValue(mockSession);
+      mockSessionManager.getCookieOptions.mockReturnValue({ httpOnly: true });
+      mockSessionManager.serializeCookie.mockReturnValue('session=session-123; HttpOnly');
       mockSecurityService.toPublicUser.mockReturnValue({
         id: mockUser.id,
         email: mockUser.email,
@@ -141,6 +99,7 @@ describe('SetupUserUseCase', () => {
       if (result.success) {
         expect(result.data.userId).toBe('user-123');
         expect(result.data.sessionId).toBe('session-123');
+        expect(result.data.cookieString).toBe('session=session-123; HttpOnly');
         expect(result.data.message).toContain('successfully');
         expect(result.data.user.email).toBe('admin@example.com');
       }
@@ -151,7 +110,9 @@ describe('SetupUserUseCase', () => {
         password: 'SecurePassword123!',
         role: 'admin',
       });
-      expect(mockSessionManager.createSession).toHaveBeenCalledWith('user-123', undefined, undefined);
+      expect(mockSessionManager.createSession).toHaveBeenCalledWith('user-123', 'Mozilla/5.0', '192.168.1.1');
+      expect(mockSessionManager.getCookieOptions).toHaveBeenCalledOnce();
+      expect(mockSessionManager.serializeCookie).toHaveBeenCalledWith('session', 'session-123', { httpOnly: true });
       expect(mockLogger.info).toHaveBeenCalledWith(
         expect.stringContaining('Admin user created: admin@example.com'),
       );
@@ -164,6 +125,8 @@ describe('SetupUserUseCase', () => {
       const request: SetupUserRequest = {
         email: 'admin@example.com',
         password: 'SecurePassword123!',
+        userAgent: 'Mozilla/5.0',
+        ipAddress: '192.168.1.1',
       };
 
       mockUserRepository.hasAdminUser.mockResolvedValue(true);
@@ -186,6 +149,8 @@ describe('SetupUserUseCase', () => {
       const request: SetupUserRequest = {
         email: '',
         password: 'SecurePassword123!',
+        userAgent: 'Mozilla/5.0',
+        ipAddress: '192.168.1.1',
       };
 
       mockUserRepository.hasAdminUser.mockResolvedValue(false);
@@ -206,6 +171,8 @@ describe('SetupUserUseCase', () => {
       const request: SetupUserRequest = {
         email: 'admin@example.com',
         password: '',
+        userAgent: 'Mozilla/5.0',
+        ipAddress: '192.168.1.1',
       };
 
       mockUserRepository.hasAdminUser.mockResolvedValue(false);
@@ -226,6 +193,8 @@ describe('SetupUserUseCase', () => {
       const request: SetupUserRequest = {
         email: 'invalid-email',
         password: 'SecurePassword123!',
+        userAgent: 'Mozilla/5.0',
+        ipAddress: '192.168.1.1',
       };
 
       mockUserRepository.hasAdminUser.mockResolvedValue(false);
@@ -247,6 +216,8 @@ describe('SetupUserUseCase', () => {
       const request: SetupUserRequest = {
         email: 'admin@example.com',
         password: 'weak',
+        userAgent: 'Mozilla/5.0',
+        ipAddress: '192.168.1.1',
       };
 
       mockUserRepository.hasAdminUser.mockResolvedValue(false);
@@ -274,6 +245,8 @@ describe('SetupUserUseCase', () => {
       const request: SetupUserRequest = {
         email: 'admin@example.com',
         password: 'SecurePassword123!',
+        userAgent: 'Mozilla/5.0',
+        ipAddress: '192.168.1.1',
       };
 
       mockUserRepository.hasAdminUser.mockResolvedValue(false);
@@ -300,6 +273,8 @@ describe('SetupUserUseCase', () => {
       const request: SetupUserRequest = {
         email: 'admin@example.com',
         password: 'SecurePassword123!',
+        userAgent: 'Mozilla/5.0',
+        ipAddress: '192.168.1.1',
       };
 
       const mockUser = {
@@ -326,39 +301,6 @@ describe('SetupUserUseCase', () => {
 
       // Note: addLoginDelay is not called for session creation failures
       // as they are technical errors, not authentication failures
-    });
-  });
-
-  describe('createUserSession', () => {
-    it('should create session successfully', async () => {
-      // Arrange
-      const mockSession = { id: 'session-123' };
-      mockSessionManager.createSession.mockResolvedValue(mockSession);
-
-      // Act
-      const result = await useCase.createUserSession('user-123', 'Mozilla/5.0', '192.168.1.1');
-
-      // Assert
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.sessionId).toBe('session-123');
-      }
-      expect(mockSessionManager.createSession).toHaveBeenCalledWith('user-123', 'Mozilla/5.0', '192.168.1.1');
-    });
-
-    it('should handle session creation error', async () => {
-      // Arrange
-      mockSessionManager.createSession.mockRejectedValue(new Error('Session store down'));
-
-      // Act
-      const result = await useCase.createUserSession('user-123');
-
-      // Assert
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error).toBeInstanceOf(InternalError);
-        expect(result.error.message).toContain('Failed to create session');
-      }
     });
   });
 });
