@@ -101,11 +101,6 @@ export async function logout(request: Request, redirectTo: string = '/login'): P
   });
 }
 
-// Check if initial setup is required
-export async function checkSetupRequired(): Promise<boolean> {
-  return !(await hasAdminUser());
-}
-
 // Verify admin privileges
 export async function requireAdmin(request: Request): Promise<User> {
   const user = await requireAuth(request);
