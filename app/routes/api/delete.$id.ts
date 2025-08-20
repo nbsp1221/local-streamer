@@ -1,12 +1,13 @@
-import { deleteVideo, findVideoById } from '~/services/video-store.server';
+import type { DeleteVideoRequest } from '~/modules/video/delete-video/delete-video.types';
+import { DeleteVideoUseCase } from '~/modules/video/delete-video/delete-video.usecase';
+import { getVideoRepository } from '~/repositories';
+import * as fileManager from '~/services/file-manager.server';
 import { requireAuth } from '~/utils/auth.server';
 import type { Route } from './+types/delete.$id';
 
 export async function action({ request, params }: Route.ActionArgs) {
   // Authentication check
   await requireAuth(request);
-
-  const { id } = params;
 
   // Only allow DELETE method
   if (request.method !== 'DELETE') {
@@ -16,41 +17,47 @@ export async function action({ request, params }: Route.ActionArgs) {
     }, { status: 405 });
   }
 
-  if (!id) {
-    return Response.json({
-      success: false,
-      error: 'Video ID is required',
-    }, { status: 400 });
-  }
-
   try {
-    // Check if video exists before deletion
-    const video = await findVideoById(id);
-    if (!video) {
+    // Create request object
+    const deleteRequest: DeleteVideoRequest = {
+      videoId: params.id,
+    };
+
+    // Create UseCase with dependencies
+    const useCase = new DeleteVideoUseCase({
+      videoRepository: getVideoRepository(),
+      fileManager: {
+        deleteVideoFiles: fileManager.deleteVideoFiles,
+      },
+      logger: console,
+    });
+
+    // Execute UseCase
+    const result = await useCase.execute(deleteRequest);
+
+    // Return response based on result
+    if (result.success) {
+      return Response.json({
+        success: true,
+        ...result.data,
+      });
+    }
+    else {
+      const statusCode = result.error instanceof Error && 'statusCode' in result.error
+        ? (result.error as any).statusCode
+        : 500;
       return Response.json({
         success: false,
-        error: 'Video not found',
-      }, { status: 404 });
+        error: result.error.message,
+      }, { status: statusCode });
     }
-
-    // Delete video completely (files + metadata)
-    await deleteVideo(id);
-
-    console.log(`Video deleted successfully: ${video.title} (${id})`);
-
-    return Response.json({
-      success: true,
-      message: 'Video deleted successfully',
-      videoId: id,
-      title: video.title,
-    });
   }
   catch (error) {
-    console.error('Failed to delete video:', error);
+    console.error('Unexpected error in delete route:', error);
 
     return Response.json({
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to delete video',
+      error: error instanceof Error ? error.message : 'Unexpected error occurred',
     }, { status: 500 });
   }
 }
