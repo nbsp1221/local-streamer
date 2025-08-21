@@ -1,7 +1,11 @@
+import { createReadStream } from 'fs';
 import { stat } from 'fs/promises';
 import { join } from 'path';
 import { type LoaderFunctionArgs } from 'react-router';
+import type { MediaSegmentRequest } from '~/modules/video/media-segment/media-segment.types';
 import { config } from '~/configs';
+import { DomainError } from '~/lib/errors';
+import { MediaSegmentUseCase } from '~/modules/video/media-segment/media-segment.usecase';
 import { validateVideoRequest } from '~/services/hls-jwt.server';
 import {
   getDashContentType,
@@ -9,6 +13,45 @@ import {
   handleDashRangeRequest,
   isValidDashSegmentName,
 } from '~/utils/dash-segments.server';
+
+/**
+ * Create MediaSegmentUseCase with dependencies for audio segments
+ */
+function createMediaSegmentUseCase() {
+  return new MediaSegmentUseCase({
+    jwtValidator: {
+      validateVideoRequest,
+    },
+    fileSystem: {
+      stat: async (path: string) => {
+        const stats = await stat(path);
+        return { size: stats.size, mtime: stats.mtime };
+      },
+      exists: async (path: string) => {
+        try {
+          await stat(path);
+          return true;
+        }
+        catch {
+          return false;
+        }
+      },
+      createReadStream: (path: string) => {
+        return createReadStream(path) as unknown as ReadableStream;
+      },
+    },
+    dashUtils: {
+      isValidDashSegmentName,
+      getDashContentType,
+      getDashSegmentHeaders,
+      handleDashRangeRequest,
+    },
+    pathResolver: {
+      getVideoSegmentPath: (videoId: string, mediaType: 'audio' | 'video', filename: string) => join(config.paths.videos, videoId, mediaType, filename),
+    },
+    logger: console,
+  });
+}
 
 /**
  * Handle audio segments (init.mp4, segment-*.m4s) from audio/ folder
@@ -21,49 +64,37 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response('Video ID and filename required', { status: 400 });
   }
 
-  // Validate JWT token
-  const validation = await validateVideoRequest(request, videoId);
-  if (!validation.valid) {
-    console.warn(`Audio segment access denied for ${videoId}/audio/${filename}: ${validation.error}`);
-    throw new Response(validation.error || 'Unauthorized', { status: 401 });
-  }
-
-  // Validate audio segment filename (init.mp4 or segment-*.m4s)
-  if (!isValidDashSegmentName(filename)) {
-    throw new Response('Invalid audio segment name', { status: 400 });
-  }
-
   try {
-    // Construct file path: /data/videos/{videoId}/audio/{filename}
-    const segmentPath = join(config.paths.videos, videoId, 'audio', filename);
+    const mediaSegmentRequest: MediaSegmentRequest = {
+      videoId,
+      filename,
+      mediaType: 'audio',
+      request,
+    };
 
-    // Check if segment exists
-    let fileStats;
-    try {
-      fileStats = await stat(segmentPath);
+    // Create UseCase and execute
+    const mediaSegmentUseCase = createMediaSegmentUseCase();
+    const result = await mediaSegmentUseCase.execute(mediaSegmentRequest);
+
+    if (result.success) {
+      // Handle range response differently
+      if (result.data.isRangeResponse) {
+        return new Response(result.data.stream, {
+          status: result.data.statusCode,
+          headers: result.data.headers,
+        });
+      }
+
+      // Return regular streaming response
+      return new Response(result.data.stream as any, {
+        headers: result.data.headers,
+      });
     }
-    catch {
-      throw new Response('Audio segment not found', { status: 404 });
+    else {
+      // Handle UseCase errors
+      const statusCode = result.error instanceof DomainError ? result.error.statusCode : 500;
+      throw new Response(result.error.message, { status: statusCode });
     }
-
-    // Get proper Content-Type for DASH segment
-    const contentType = getDashContentType(filename, 'audio');
-
-    // Handle range requests for better streaming performance
-    const range = request.headers.get('range');
-    if (range) {
-      return handleDashRangeRequest(segmentPath, range, fileStats.size, contentType);
-    }
-
-    // Create read stream for the segment
-    const { createReadStream } = await import('fs');
-    const stream = createReadStream(segmentPath);
-
-    console.log(`🔊 Audio segment served: ${videoId}/audio/${filename} (${Math.round(fileStats.size / 1024)}KB)`);
-
-    return new Response(stream as any, {
-      headers: getDashSegmentHeaders(contentType, fileStats.size),
-    });
   }
   catch (error) {
     if (error instanceof Response) {
