@@ -3,6 +3,7 @@ import { createHash, randomBytes } from 'crypto';
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import type { EncodingOptions } from '~/modules/video/add-video/add-video.types';
+import type { VideoAnalysisRepository } from '~/modules/video/analysis/repositories/video-analysis-repository.types';
 import type { VideoAnalysis, VideoAnalysisService } from '~/modules/video/analysis/video-analysis.types';
 import { config, ffmpeg } from '~/configs';
 import { FFprobeAnalysisService } from '~/modules/video/analysis/ffprobe-analysis.service';
@@ -21,9 +22,18 @@ export class HLSConverter {
   private keyManager: AESKeyManager;
   private analysisService: VideoAnalysisService;
 
-  constructor(analysisService?: VideoAnalysisService) {
+  constructor(analysisService?: VideoAnalysisService, repository?: VideoAnalysisRepository) {
     this.keyManager = new AESKeyManager();
-    this.analysisService = analysisService || new FFprobeAnalysisService();
+
+    if (analysisService) {
+      this.analysisService = analysisService;
+    }
+    else if (repository) {
+      this.analysisService = new FFprobeAnalysisService(repository);
+    }
+    else {
+      this.analysisService = new FFprobeAnalysisService();
+    }
   }
 
   /**

@@ -1,73 +1,27 @@
-import { spawn } from 'child_process';
 import type { EncodingOptions } from '~/modules/video/add-video/add-video.types';
-import { config } from '~/configs';
+import type { VideoAnalysisRepository } from './repositories/video-analysis-repository.types';
 import type { BitrateCalculation, VideoAnalysis, VideoAnalysisService } from './video-analysis.types';
+import { FFprobeRepository } from './repositories/ffprobe.repository';
 
 export class FFprobeAnalysisService implements VideoAnalysisService {
+  private repository: VideoAnalysisRepository;
+
+  constructor(repository?: VideoAnalysisRepository) {
+    this.repository = repository || new FFprobeRepository();
+  }
+
   async analyze(inputPath: string): Promise<VideoAnalysis> {
-    return new Promise((resolve, reject) => {
-      const ffprobeArgs = [
-        '-v',
-        'quiet',
-        '-print_format',
-        'json',
-        '-show_format',
-        '-show_streams',
-        inputPath,
-      ];
+    const metadata = await this.repository.getVideoMetadata(inputPath);
 
-      const ffprobeProcess = spawn(config.ffmpeg.ffprobePath, ffprobeArgs);
-      let stdout = '';
-      let stderr = '';
-
-      ffprobeProcess.stdout?.on('data', (data) => {
-        stdout += data.toString();
-      });
-
-      ffprobeProcess.stderr?.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      ffprobeProcess.on('close', (code) => {
-        if (code !== 0) {
-          reject(new Error(`ffprobe failed with code ${code}: ${stderr}`));
-          return;
-        }
-
-        try {
-          const probeData = JSON.parse(stdout);
-
-          // Extract file size
-          const fileSize = parseInt(probeData.format.size || '0', 10);
-          const duration = parseFloat(probeData.format.duration || '0');
-          const totalBitrate = parseInt(probeData.format.bit_rate || '0', 10) / 1000; // Convert to kbps
-
-          // Find video and audio streams
-          const videoStream = probeData.streams.find((s: any) => s.codec_type === 'video');
-          const audioStream = probeData.streams.find((s: any) => s.codec_type === 'audio');
-
-          const videoCodec = videoStream?.codec_name || 'unknown';
-          const audioCodec = audioStream?.codec_name || 'unknown';
-          const audioBitrate = audioStream?.bit_rate ? parseInt(audioStream.bit_rate, 10) / 1000 : 128; // Default to 128kbps
-
-          resolve({
-            duration,
-            bitrate: totalBitrate,
-            audioBitrate,
-            audioCodec,
-            videoCodec,
-            fileSize,
-          });
-        }
-        catch (error) {
-          reject(new Error(`Failed to parse ffprobe output: ${error}`));
-        }
-      });
-
-      ffprobeProcess.on('error', (error) => {
-        reject(new Error(`ffprobe process error: ${error}`));
-      });
-    });
+    // Return the same structure as VideoAnalysis interface
+    return {
+      duration: metadata.duration,
+      bitrate: metadata.bitrate,
+      audioBitrate: metadata.audioBitrate,
+      audioCodec: metadata.audioCodec,
+      videoCodec: metadata.videoCodec,
+      fileSize: metadata.fileSize,
+    };
   }
 
   calculateOptimalBitrates(analysis: VideoAnalysis, encoder: EncodingOptions['encoder']): BitrateCalculation {
