@@ -1,8 +1,30 @@
-import type { AuthResponse, LoginFormData } from '~/types/auth';
-import { COOKIE_NAME, createSession, getCookieOptions, serializeCookie } from '~/services/session-store.server';
+import type { LoginRequest } from '~/modules/auth/login/login.types';
+import type { LoginFormData } from '~/types/auth';
+import { DomainError } from '~/lib/errors';
+import { LoginUseCase } from '~/modules/auth/login/login.usecase';
+import { createSession } from '~/services/session-store.server';
 import { authenticateUser } from '~/services/user-store.server';
-import { addLoginDelay, getClientIP, isValidEmail, toPublicUser } from '~/utils/auth.server';
+import { addLoginDelay, getClientIP, isValidEmail } from '~/utils/auth.server';
 import type { Route } from './+types/login';
+
+// Create UseCase with dependencies
+function createLoginUseCase() {
+  const userRepository = {
+    authenticateUser,
+  };
+
+  const sessionRepository = {
+    createSession,
+  };
+
+  return new LoginUseCase({
+    userRepository,
+    sessionRepository,
+    logger: console,
+    addLoginDelay,
+    isValidEmail,
+  });
+}
 
 export async function action({ request }: Route.ActionArgs): Promise<Response> {
   if (request.method !== 'POST') {
@@ -17,66 +39,48 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
     const formData: LoginFormData = await request.json();
     const { email, password } = formData;
 
-    // Validate input values
-    if (!email || !password) {
-      await addLoginDelay();
-      return Response.json(
-        { success: false, error: 'Email and password are required' },
-        { status: 400 },
-      );
-    }
-
-    // Validate email format
-    if (!isValidEmail(email)) {
-      await addLoginDelay();
-      return Response.json(
-        { success: false, error: 'Invalid email address' },
-        { status: 400 },
-      );
-    }
-
-    // Authenticate user
-    const user = await authenticateUser(email, password);
-
-    if (!user) {
-      // Add delay on failure (brute force attack protection)
-      await addLoginDelay();
-      return Response.json(
-        { success: false, error: 'Invalid email or password' },
-        { status: 401 },
-      );
-    }
-
-    console.log(`✅ User logged in: ${user.email} (${user.id})`);
-
-    // Extract User-Agent and IP address
+    // Extract User-Agent and IP address for session creation
     const userAgent = request.headers.get('User-Agent') || undefined;
     const ipAddress = getClientIP(request);
 
-    // Create new session
-    const session = await createSession(user.id, userAgent, ipAddress);
+    const loginRequest: LoginRequest = {
+      email,
+      password,
+      userAgent,
+      ipAddress,
+    };
 
-    // Set cookie
-    const cookieOptions = getCookieOptions();
-    const cookieString = serializeCookie(COOKIE_NAME, session.id, cookieOptions);
+    // Create UseCase and execute
+    const loginUseCase = createLoginUseCase();
+    const result = await loginUseCase.execute(loginRequest);
 
-    // Return JSON response (with cookie)
-    return Response.json(
-      {
-        success: true,
-        user: toPublicUser(user),
-      },
-      {
-        headers: {
-          'Set-Cookie': cookieString,
+    if (result.success) {
+      // Return success response with cookie from UseCase
+      return Response.json(
+        {
+          success: true,
+          user: result.data.user,
         },
-      },
-    );
+        {
+          headers: {
+            'Set-Cookie': result.data.cookieString,
+          },
+        },
+      );
+    }
+    else {
+      // Handle UseCase errors
+      const statusCode = result.error instanceof DomainError ? result.error.statusCode : 500;
+      return Response.json(
+        { success: false, error: result.error.message },
+        { status: statusCode },
+      );
+    }
   }
   catch (error) {
     console.error('Login error:', error);
 
-    // Add delay even on error
+    // Add security delay on any error
     await addLoginDelay();
 
     return Response.json(
