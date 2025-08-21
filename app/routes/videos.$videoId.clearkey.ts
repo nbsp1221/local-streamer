@@ -1,5 +1,8 @@
 import crypto from 'crypto';
 import { type ActionFunctionArgs, type LoaderFunctionArgs } from 'react-router';
+import type { ClearKeyRequest } from '~/modules/video/clear-key/clear-key.types';
+import { DomainError } from '~/lib/errors';
+import { ClearKeyUseCase } from '~/modules/video/clear-key/clear-key.usecase';
 import { AESKeyManager } from '~/services/aes-key-manager.server';
 import { validateVideoRequest } from '~/services/hls-jwt.server';
 
@@ -21,6 +24,28 @@ function generateKeyId(videoId: string): string {
 }
 
 /**
+ * Create ClearKeyUseCase with dependencies
+ */
+function createClearKeyUseCase() {
+  const keyManager = new AESKeyManager();
+
+  return new ClearKeyUseCase({
+    jwtValidator: {
+      validateVideoRequest,
+    },
+    keyManager: {
+      hasVideoKey: keyManager.hasVideoKey.bind(keyManager),
+      getVideoKey: keyManager.getVideoKey.bind(keyManager),
+    },
+    keyUtils: {
+      generateKeyId,
+      hexToBase64Url,
+    },
+    logger: console,
+  });
+}
+
+/**
  * Handle Clear Key DRM license requests
  */
 async function handleClearKeyRequest(request: Request, videoId: string) {
@@ -28,70 +53,27 @@ async function handleClearKeyRequest(request: Request, videoId: string) {
     throw new Response('Video ID required', { status: 400 });
   }
 
-  // CRITICAL: Validate JWT Token for key delivery
-  const validation = await validateVideoRequest(request, videoId);
-  if (!validation.valid) {
-    console.warn(`Clear Key license access denied for ${videoId}: ${validation.error}`);
-    throw new Response(validation.error || 'Unauthorized', { status: 401 });
-  }
-
   try {
-    const keyManager = new AESKeyManager();
-
-    // Check if key exists for this video
-    const hasKey = await keyManager.hasVideoKey(videoId);
-    if (!hasKey) {
-      throw new Response('Key not found', { status: 404 });
-    }
-
-    // Get the encryption key
-    const key = await keyManager.getVideoKey(videoId);
-    const keyHex = key.toString('hex');
-
-    // Generate consistent key ID for this video
-    const keyId = generateKeyId(videoId);
-
-    // Convert to base64url format (required by Clear Key spec)
-    const keyIdBase64Url = hexToBase64Url(keyId);
-    const keyBase64Url = hexToBase64Url(keyHex);
-
-    // Create Clear Key license response
-    const clearKeyResponse = {
-      keys: [
-        {
-          kty: 'oct',
-          kid: keyIdBase64Url,
-          k: keyBase64Url,
-        },
-      ],
-      type: 'temporary',
+    const clearKeyRequest: ClearKeyRequest = {
+      videoId,
+      request,
     };
 
-    // Log key access for security monitoring
-    const userId = validation.payload?.userId || 'unknown';
-    console.log(`🔑 Clear Key license delivered for video: ${videoId}, user: ${userId} (KID: ${keyId})`);
+    // Create UseCase and execute
+    const clearKeyUseCase = createClearKeyUseCase();
+    const result = await clearKeyUseCase.execute(clearKeyRequest);
 
-    return new Response(JSON.stringify(clearKeyResponse), {
-      headers: {
-        'Content-Type': 'application/json',
-
-        // CRITICAL SECURITY: Prevent caching of encryption keys
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-
-        // Allow CORS for EME requests
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Credentials': 'false',
-        'Access-Control-Allow-Methods': 'GET, POST',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie',
-
-        // Security headers
-        'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'DENY',
-        'Referrer-Policy': 'strict-origin-when-cross-origin',
-      },
-    });
+    if (result.success) {
+      // Return Clear Key license response with security headers
+      return new Response(JSON.stringify(result.data.clearKeyResponse), {
+        headers: result.data.headers,
+      });
+    }
+    else {
+      // Handle UseCase errors
+      const statusCode = result.error instanceof DomainError ? result.error.statusCode : 403;
+      throw new Response(result.error.message, { status: statusCode });
+    }
   }
   catch (error) {
     if (error instanceof Response) {
