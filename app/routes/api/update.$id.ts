@@ -1,4 +1,6 @@
-import { findVideoById, updateVideo } from '~/services/video-store.server';
+import type { UpdateVideoRequest } from '~/modules/video/update-video/update-video.types';
+import { UpdateVideoUseCase } from '~/modules/video/update-video/update-video.usecase';
+import { getVideoRepository } from '~/repositories';
 import { requireAuth } from '~/utils/auth.server';
 import type { Route } from './+types/update.$id';
 
@@ -6,50 +8,54 @@ export async function action({ request, params }: Route.ActionArgs) {
   // Authentication check
   await requireAuth(request);
 
-  const videoId = params.id;
-
   if (request.method !== 'PUT' && request.method !== 'PATCH') {
     return Response.json({ success: false, error: 'Method not allowed' }, { status: 405 });
   }
 
   try {
-    // Check if video exists
-    const existingVideo = await findVideoById(videoId);
-    if (!existingVideo) {
-      return Response.json({ success: false, error: 'Video not found' }, { status: 404 });
-    }
-
     // Parse request body
     const body = await request.json();
-    const { title, tags, description } = body;
 
-    // Validate required fields
-    if (!title || typeof title !== 'string' || title.trim().length === 0) {
-      return Response.json({ success: false, error: 'Title is required' }, { status: 400 });
-    }
-
-    // Prepare updates
-    const updates = {
-      title: title.trim(),
-      tags: Array.isArray(tags) ? tags.filter((tag: any) => typeof tag === 'string' && tag.trim().length > 0) : [],
-      description: typeof description === 'string' ? description.trim() : undefined,
+    // Create request object
+    const updateRequest: UpdateVideoRequest = {
+      videoId: params.id,
+      title: body.title,
+      tags: body.tags,
+      description: body.description,
     };
 
-    // Update video
-    const updatedVideo = await updateVideo(videoId, updates);
-
-    if (!updatedVideo) {
-      return Response.json({ success: false, error: 'Failed to update video' }, { status: 500 });
-    }
-
-    return Response.json({
-      success: true,
-      video: updatedVideo,
-      message: `Video "${updatedVideo.title}" updated successfully`,
+    // Create UseCase with dependencies
+    const useCase = new UpdateVideoUseCase({
+      videoRepository: getVideoRepository(),
+      logger: console,
     });
+
+    // Execute UseCase
+    const result = await useCase.execute(updateRequest);
+
+    // Return response based on result
+    if (result.success) {
+      return Response.json({
+        success: true,
+        ...result.data,
+      });
+    }
+    else {
+      const statusCode = result.error instanceof Error && 'statusCode' in result.error
+        ? (result.error as any).statusCode
+        : 500;
+      return Response.json({
+        success: false,
+        error: result.error.message,
+      }, { status: statusCode });
+    }
   }
   catch (error) {
-    console.error('Update video error:', error);
-    return Response.json({ success: false, error: 'Internal server error' }, { status: 500 });
+    console.error('Unexpected error in update route:', error);
+
+    return Response.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unexpected error occurred',
+    }, { status: 500 });
   }
 }
