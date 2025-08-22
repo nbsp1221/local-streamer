@@ -1,7 +1,12 @@
-import { DecryptThumbnailUseCase } from '~/modules/thumbnail/decrypt-thumbnail/decrypt-thumbnail.usecase';
-import { ThumbnailEncryptionService } from '~/modules/thumbnail/shared/thumbnail-encryption.service';
 import { AESKeyManager } from '~/services/aes-key-manager.server';
 import { requireAuth } from '~/utils/auth.server';
+import { ThumbnailEncryptionService } from '../shared/thumbnail-encryption.service';
+import { DecryptThumbnailUseCase } from './decrypt-thumbnail.usecase';
+
+interface RouteParams {
+  request: Request;
+  params: { id: string };
+}
 
 /**
  * Create dependencies for the DecryptThumbnailUseCase
@@ -19,7 +24,11 @@ function createDependencies() {
   };
 }
 
-export async function loader({ request, params }: { request: Request; params: { id: string } }) {
+/**
+ * Handle thumbnail decryption API endpoint
+ * Streams decrypted thumbnail image with proper headers
+ */
+export async function loader({ request, params }: RouteParams) {
   // Authentication check
   await requireAuth(request);
 
@@ -41,7 +50,7 @@ export async function loader({ request, params }: { request: Request; params: { 
       const { imageBuffer, mimeType, size } = result.data;
 
       // Generate ETag for caching
-      const eTag = `"thumbnail-${videoId}-${size}"`;
+      const eTag = `"encrypted-${videoId}-${size}"`;
 
       // Check if client has cached version
       const ifNoneMatch = request.headers.get('If-None-Match');
@@ -56,14 +65,14 @@ export async function loader({ request, params }: { request: Request; params: { 
           'Content-Length': size.toString(),
           'Cache-Control': 'private, max-age=3600', // 1 hour cache for encrypted content
           'ETag': eTag,
-          'X-Content-Source': 'decrypted-thumbnail',
+          'X-Content-Source': 'encrypted-thumbnail',
         },
       });
     }
     else {
       // Handle business logic errors
       if (result.error.message.includes('not found')) {
-        return new Response('Thumbnail not found', { status: 404 });
+        return new Response('Encrypted thumbnail not found', { status: 404 });
       }
 
       console.error('Failed to decrypt thumbnail:', result.error);

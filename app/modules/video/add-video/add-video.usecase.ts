@@ -3,6 +3,7 @@ import { config } from '~/configs';
 import { InternalError, ValidationError } from '~/lib/errors';
 import { Result } from '~/lib/result';
 import { UseCase } from '~/lib/usecase.base';
+import { encryptedThumbnailGenerator } from '~/modules/thumbnail/shared/thumbnail-generator-encrypted.server';
 import { type Video, type VideoFormat } from '~/types/video';
 import {
   type AddVideoDependencies,
@@ -35,7 +36,7 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
       const videoPath = path.join(config.paths.videos, videoId, `video${ext}`);
       const videoInfo = await this.deps.fileManager.getVideoInfo(videoPath);
 
-      // 5. Handle thumbnail
+      // 5. Handle thumbnail (move only, encryption happens after HLS)
       await this.handleThumbnail(request.filename, videoId, request.title);
 
       // 6. Create video entity
@@ -54,7 +55,11 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
       // 8. Generate HLS version
       const hlsResult = await this.generateHLS(videoId, videoPath, request.encodingOptions);
 
-      // 9. Return success response
+      // 9. Encrypt thumbnail after HLS generation (when AES key is available)
+      // Always attempt encryption since thumbnails are generated during HLS conversion
+      await this.encryptThumbnailAfterHLS(videoId, request.title);
+
+      // 10. Return success response
       return Result.ok({
         videoId,
         message: hlsResult.success
@@ -86,16 +91,39 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
   }
 
   private async handleThumbnail(filename: string, videoId: string, title: string): Promise<boolean> {
+    // Move temporary thumbnail if available (encryption happens later)
     const moved = await this.deps.fileManager.moveTempThumbnailToLibrary(filename, videoId);
 
-    if (!moved) {
+    if (moved) {
+      this.deps.logger?.info(`Temporary thumbnail moved for: ${title} (${videoId})`);
+      return true;
+    }
+    else {
       this.deps.logger?.info(
         `No temporary thumbnail available for: ${title} (${videoId}). ` +
-        `Thumbnail will be generated during video conversion if needed`,
+        `Encrypted thumbnail will be generated during video conversion if needed`,
       );
+      return false;
     }
+  }
 
-    return moved;
+  /**
+   * Encrypt thumbnail after HLS generation when AES key is available
+   */
+  private async encryptThumbnailAfterHLS(videoId: string, title: string): Promise<void> {
+    try {
+      const encryptionResult = await encryptedThumbnailGenerator.migrateExistingThumbnail(videoId);
+
+      if (encryptionResult.success) {
+        this.deps.logger?.info(`✅ Thumbnail encrypted for: ${title} (${videoId})`);
+      }
+      else {
+        this.deps.logger?.error(`❌ Failed to encrypt thumbnail for ${videoId}: ${encryptionResult.error}`);
+      }
+    }
+    catch (error) {
+      this.deps.logger?.error(`❌ Failed to encrypt thumbnail for ${videoId}:`, error);
+    }
   }
 
   private createVideoEntity(props: {
