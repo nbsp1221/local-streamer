@@ -3,7 +3,6 @@ import { config } from '~/configs';
 import { InternalError, ValidationError } from '~/lib/errors';
 import { Result } from '~/lib/result';
 import { UseCase } from '~/lib/usecase.base';
-import { encryptedThumbnailGenerator } from '~/modules/thumbnail/shared/thumbnail-generator-encrypted.server';
 import { type Video, type VideoFormat } from '~/types/video';
 import {
   type AddVideoDependencies,
@@ -112,6 +111,8 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
    */
   private async encryptThumbnailAfterHLS(videoId: string, title: string): Promise<void> {
     try {
+      // Lazy load to avoid environment variable issues during testing
+      const { encryptedThumbnailGenerator } = await import('~/modules/thumbnail/shared/thumbnail-generator-encrypted.server');
       const encryptionResult = await encryptedThumbnailGenerator.migrateExistingThumbnail(videoId);
 
       if (encryptionResult.success) {

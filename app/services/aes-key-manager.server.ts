@@ -9,8 +9,11 @@ export class AESKeyManager {
   private readonly rounds: number;
 
   constructor() {
-    this.masterSeed = process.env.HLS_MASTER_ENCRYPTION_SEED!;
-    this.saltPrefix = process.env.KEY_SALT_PREFIX!;
+    // Use test defaults in test environment
+    const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+
+    this.masterSeed = process.env.HLS_MASTER_ENCRYPTION_SEED || (isTest ? 'test-master-seed-for-unit-tests-only' : '');
+    this.saltPrefix = process.env.KEY_SALT_PREFIX || (isTest ? 'test-salt' : '');
     this.rounds = parseInt(process.env.KEY_DERIVATION_ROUNDS!) || 100000;
 
     if (!this.masterSeed) {

@@ -218,10 +218,23 @@ describe('AESKeyManager', () => {
   });
 
   describe('constructor validation', () => {
-    it('should throw error if HLS_MASTER_ENCRYPTION_SEED is missing', () => {
+    it('should throw error if HLS_MASTER_ENCRYPTION_SEED is missing in non-test environment', () => {
       delete process.env.HLS_MASTER_ENCRYPTION_SEED;
+      const originalNodeEnv = process.env.NODE_ENV;
+      const originalVitest = process.env.VITEST;
 
-      expect(() => new AESKeyManager()).toThrow('HLS_MASTER_ENCRYPTION_SEED environment variable is required');
+      // Simulate non-test environment
+      delete process.env.NODE_ENV;
+      delete process.env.VITEST;
+
+      try {
+        expect(() => new AESKeyManager()).toThrow('HLS_MASTER_ENCRYPTION_SEED environment variable is required');
+      }
+      finally {
+        // Restore environment variables
+        if (originalNodeEnv) process.env.NODE_ENV = originalNodeEnv;
+        if (originalVitest) process.env.VITEST = originalVitest;
+      }
     });
   });
 
