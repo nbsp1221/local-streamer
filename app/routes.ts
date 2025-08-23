@@ -7,6 +7,7 @@ export default [
   route('setup', 'routes/setup.tsx'),
   route('login', 'routes/login.tsx'),
   route('api/thumbnail/:id', 'routes/api/thumbnail.$id.ts'),
+  route('api/thumbnail-encrypted/:id', 'modules/thumbnail/decrypt-thumbnail/decrypt-thumbnail.route.ts'),
   route('api/thumbnail-preview/:filename', 'routes/api/thumbnail-preview.$filename.ts'),
   route('api/scan-incoming', 'routes/api/scan-incoming.ts'),
   route('api/add-to-library', 'routes/api/add-to-library.ts'),

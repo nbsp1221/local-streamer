@@ -17,6 +17,7 @@ import {
   validateEncodingOptionsStrict,
 } from '~/utils/encoding';
 import { AESKeyManager } from './aes-key-manager.server';
+import { generateSmartThumbnail } from './thumbnail-generator.server';
 
 export class HLSConverter {
   private keyManager: AESKeyManager;
@@ -60,10 +61,13 @@ export class HLSConverter {
       const options = encodingOptions || DEFAULT_ENCODING_OPTIONS;
       await this.executeVideoConversion(inputPath, keyInfoFile, playlistPath, videoId, options, videoAnalysis);
 
-      // 4. Cleanup temporary files
+      // 4. Generate thumbnail after video conversion
+      await this.generateVideoThumbnail(videoId, inputPath);
+
+      // 5. Cleanup temporary files
       await this.keyManager.cleanupTempFiles(videoId);
 
-      // 4. Remove original file to save storage
+      // 6. Remove original file to save storage
       await this.removeOriginalFile(inputPath);
 
       console.log(`✅ Video conversion completed for video: ${videoId}`);
@@ -760,6 +764,29 @@ export class HLSConverter {
     }
     catch (error) {
       console.error(`⚠️  Failed to cleanup HLS files for ${videoId}:`, error);
+    }
+  }
+
+  /**
+   * Generate thumbnail for video after conversion
+   */
+  private async generateVideoThumbnail(videoId: string, inputPath: string): Promise<void> {
+    try {
+      const videoDir = join(config.paths.videos, videoId);
+      const thumbnailPath = join(videoDir, 'thumbnail.jpg');
+
+      console.log(`🎬 Generating thumbnail for video: ${videoId}`);
+      const result = await generateSmartThumbnail(inputPath, thumbnailPath);
+
+      if (result.success) {
+        console.log(`✅ Thumbnail generated successfully for video: ${videoId}`);
+      }
+      else {
+        console.error(`❌ Thumbnail generation failed for video: ${videoId}: ${result.error}`);
+      }
+    }
+    catch (error) {
+      console.error(`❌ Thumbnail generation error for video: ${videoId}:`, error);
     }
   }
 
