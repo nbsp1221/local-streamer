@@ -82,7 +82,7 @@ export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
 
             {/* Added date */}
             <p className="text-xs text-muted-foreground">
-              {video.addedAt.toLocaleDateString()}
+              {video.createdAt.toLocaleDateString()}
             </p>
           </div>
         </div>

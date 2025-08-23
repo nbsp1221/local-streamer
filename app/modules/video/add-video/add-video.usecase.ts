@@ -3,7 +3,7 @@ import { config } from '~/configs';
 import { InternalError, ValidationError } from '~/lib/errors';
 import { Result } from '~/lib/result';
 import { UseCase } from '~/lib/usecase.base';
-import { type Video, type VideoFormat } from '~/types/video';
+import { type Video } from '~/types/video';
 import {
   type AddVideoDependencies,
   type AddVideoRequest,
@@ -45,7 +45,6 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
         tags: request.tags,
         description: request.description,
         duration: videoInfo.duration,
-        format: videoInfo.format,
       });
 
       // 7. Save to database
@@ -133,17 +132,15 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
     tags: string[];
     description?: string;
     duration: number;
-    format: VideoFormat;
   }): Video {
     return {
       id: props.id,
       title: props.title.trim(),
       tags: props.tags.filter(tag => tag.trim().length > 0).map(tag => tag.trim()),
       thumbnailUrl: `/api/thumbnail/${props.id}`,
-      videoUrl: `/data/videos/${props.id}/playlist.m3u8`, // HLS playlist
+      videoUrl: `/videos/${props.id}/manifest.mpd`, // DASH manifest
       duration: props.duration,
-      format: props.format,
-      addedAt: new Date(),
+      createdAt: new Date(),
       description: props.description?.trim(),
     };
   }
@@ -156,7 +153,6 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
       videoUrl: video.videoUrl,
       thumbnailUrl: video.thumbnailUrl,
       duration: video.duration,
-      format: video.format,
       description: video.description,
     });
 

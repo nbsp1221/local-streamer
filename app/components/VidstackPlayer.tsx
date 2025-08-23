@@ -193,7 +193,7 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
 
   const videoSrc = video.videoUrl.startsWith('http')
     ? video.videoUrl
-    : (videoToken ? `/videos/${video.id}/manifest.mpd?token=${videoToken}` : null);
+    : (videoToken ? `${video.videoUrl}?token=${videoToken}` : null);
 
   if (error) {
     return (

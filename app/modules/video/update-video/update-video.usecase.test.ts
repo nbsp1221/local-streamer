@@ -48,8 +48,7 @@ describe('UpdateVideoUseCase', () => {
         videoUrl: '/data/videos/video-123/playlist.m3u8',
         thumbnailUrl: '/api/thumbnail/video-123',
         duration: 120,
-        format: 'mp4' as const,
-        addedAt: new Date(),
+        createdAt: new Date(),
         description: 'Old description',
       };
 
@@ -98,8 +97,7 @@ describe('UpdateVideoUseCase', () => {
         videoUrl: '/data/videos/video-123/playlist.m3u8',
         thumbnailUrl: '/api/thumbnail/video-123',
         duration: 120,
-        format: 'mp4' as const,
-        addedAt: new Date(),
+        createdAt: new Date(),
       };
 
       const updatedVideo = {
@@ -145,8 +143,7 @@ describe('UpdateVideoUseCase', () => {
         videoUrl: '/data/videos/video-123/playlist.m3u8',
         thumbnailUrl: '/api/thumbnail/video-123',
         duration: 120,
-        format: 'mp4' as const,
-        addedAt: new Date(),
+        createdAt: new Date(),
       };
 
       const updatedVideo = {
@@ -331,8 +328,7 @@ describe('UpdateVideoUseCase', () => {
         videoUrl: '/data/videos/video-123/playlist.m3u8',
         thumbnailUrl: '/api/thumbnail/video-123',
         duration: 120,
-        format: 'mp4' as const,
-        addedAt: new Date(),
+        createdAt: new Date(),
       };
 
       mockVideoRepository.findById.mockResolvedValue(existingVideo);
@@ -370,8 +366,7 @@ describe('UpdateVideoUseCase', () => {
         videoUrl: '/data/videos/video-123/playlist.m3u8',
         thumbnailUrl: '/api/thumbnail/video-123',
         duration: 120,
-        format: 'mp4' as const,
-        addedAt: new Date(),
+        createdAt: new Date(),
       };
 
       mockVideoRepository.findById.mockResolvedValue(existingVideo);
@@ -411,8 +406,7 @@ describe('UpdateVideoUseCase', () => {
         videoUrl: '/data/videos/video-123/playlist.m3u8',
         thumbnailUrl: '/api/thumbnail/video-123',
         duration: 120,
-        format: 'mp4' as const,
-        addedAt: new Date(),
+        createdAt: new Date(),
       };
 
       const updatedVideo = {
@@ -450,8 +444,7 @@ describe('UpdateVideoUseCase', () => {
         videoUrl: '/data/videos/video-123/playlist.m3u8',
         thumbnailUrl: '/api/thumbnail/video-123',
         duration: 120,
-        format: 'mp4' as const,
-        addedAt: new Date(),
+        createdAt: new Date(),
       };
 
       const updatedVideo = {
@@ -489,8 +482,7 @@ describe('UpdateVideoUseCase', () => {
         videoUrl: '/data/videos/video-123/playlist.m3u8',
         thumbnailUrl: '/api/thumbnail/video-123',
         duration: 120,
-        format: 'mp4' as const,
-        addedAt: new Date(),
+        createdAt: new Date(),
       };
 
       const updatedVideo = {

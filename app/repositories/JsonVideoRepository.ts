@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { CreateVideoInput, PendingVideoRepository, UpdateVideoInput, VideoRepository } from '~/repositories/interfaces/VideoRepository';
-import type { PendingVideo, Video, VideoFormat } from '~/types/video';
+import type { PendingVideo, Video } from '~/types/video';
 import { config } from '~/configs';
 import { BaseJsonRepository } from '~/repositories/base/BaseJsonRepository';
 
@@ -16,8 +16,10 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
   protected transformFromJson(data: any): Video {
     return {
       ...data,
-      addedAt: new Date(data.addedAt),
-      originalCleanupAt: data.originalCleanupAt ? new Date(data.originalCleanupAt) : undefined,
+      // Handle migration: use createdAt if available, otherwise migrate from addedAt
+      createdAt: new Date(data.createdAt || data.addedAt),
+      // Remove originalCleanupAt - ignore it completely
+      originalCleanupAt: undefined,
     };
   }
 
@@ -27,8 +29,8 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
   protected transformToJson(entity: Video): any {
     return {
       ...entity,
-      addedAt: entity.addedAt.toISOString(),
-      originalCleanupAt: entity.originalCleanupAt?.toISOString(),
+      createdAt: entity.createdAt.toISOString(),
+      // Don't serialize originalCleanupAt - it's removed
     };
   }
 
@@ -43,9 +45,8 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
       videoUrl: input.videoUrl,
       thumbnailUrl: input.thumbnailUrl,
       duration: input.duration || 0, // Default to 0 if not provided
-      format: input.format,
       description: input.description,
-      addedAt: new Date(),
+      createdAt: new Date(),
     };
   }
 
@@ -62,13 +63,6 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
   async findByTitle(title: string): Promise<Video[]> {
     const searchTerm = title.toLowerCase();
     return this.findWhere(video => video.title.toLowerCase().includes(searchTerm));
-  }
-
-  /**
-   * Find videos by format
-   */
-  async findByFormat(format: VideoFormat): Promise<Video[]> {
-    return this.findWhere(video => video.format.toLowerCase() === format.toLowerCase());
   }
 
   /**
@@ -100,21 +94,6 @@ export class JsonVideoRepository extends BaseJsonRepository<Video, CreateVideoIn
 
       return matchesTitle || matchesTags;
     });
-  }
-
-  /**
-   * Schedule original file cleanup
-   */
-  async scheduleOriginalCleanup(id: string, cleanupAt: Date): Promise<Video | null> {
-    const video = await this.findById(id);
-    if (!video) return null;
-
-    const updatedVideo: Video = {
-      ...video,
-      originalCleanupAt: cleanupAt,
-    };
-
-    return await this.update(id, updatedVideo);
   }
 }
 

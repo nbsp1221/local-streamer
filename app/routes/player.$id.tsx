@@ -130,7 +130,7 @@ export default function Player() {
                 <div>
                   <span className="font-medium">Added:</span>
                   <span className="ml-2">
-                    {currentVideo.addedAt.toLocaleDateString()}
+                    {currentVideo.createdAt.toLocaleDateString()}
                   </span>
                 </div>
               </div>

@@ -66,7 +66,7 @@ function RelatedVideoItem({ video, onTagClick }: RelatedVideoItemProps) {
             </h3>
 
             <p className="text-xs text-muted-foreground">
-              {video.addedAt.toLocaleDateString()}
+              {video.createdAt.toLocaleDateString()}
             </p>
           </div>
         </div>

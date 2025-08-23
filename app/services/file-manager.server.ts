@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import { existsSync, statSync } from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import type { PendingVideo, VideoFormat } from '~/types/video';
+import type { PendingVideo } from '~/types/video';
 import { config, ffmpeg } from '~/configs';
 import { generateSmartThumbnail } from './thumbnail-generator.server';
 
@@ -13,24 +13,6 @@ const VIDEOS_DIR = config.paths.videos;
 
 // Supported video formats
 const SUPPORTED_FORMATS = config.constants.supportedVideoFormats;
-
-/**
- * Convert file extension to VideoFormat type
- * @param extension File extension with or without dot (e.g., '.mp4' or 'mp4')
- * @returns VideoFormat or throws error for unsupported formats
- */
-function toVideoFormat(extension: string): VideoFormat {
-  const ext = extension.startsWith('.') ? extension.slice(1) : extension;
-  const lowerExt = ext.toLowerCase() as VideoFormat;
-
-  // Type guard to ensure we only return valid VideoFormat values
-  const validFormats: VideoFormat[] = ['mp4', 'avi', 'mkv', 'mov', 'webm', 'm4v', 'flv', 'wmv'];
-  if (validFormats.includes(lowerExt)) {
-    return lowerExt;
-  }
-
-  throw new Error(`Unsupported video format: ${extension}`);
-}
 
 /**
  * Scan video files in the incoming folder and return list
@@ -93,7 +75,6 @@ export async function scanIncomingFiles(): Promise<PendingVideo[]> {
         filename,
         size: stat.size,
         type: mimeType,
-        format: toVideoFormat(ext),
         path: filePath,
         thumbnailUrl,
       });
@@ -309,7 +290,6 @@ export async function getVideoInfo(filePath: string) {
 
   return {
     size: stat.size,
-    format: toVideoFormat(ext),
     mimeType: getMimeType(ext),
     duration,
   };

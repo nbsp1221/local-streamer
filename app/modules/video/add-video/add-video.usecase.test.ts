@@ -61,7 +61,6 @@ describe('AddVideoUseCase', () => {
       const mockVideoId = 'video-123';
       const mockVideoInfo = {
         duration: 120,
-        format: 'mp4' as const,
       };
 
       mockFileManager.moveToLibrary.mockResolvedValue(mockVideoId);
@@ -164,7 +163,6 @@ describe('AddVideoUseCase', () => {
       const mockVideoId = 'video-123';
       const mockVideoInfo = {
         duration: 120,
-        format: 'mp4' as const,
       };
 
       mockFileManager.moveToLibrary.mockResolvedValue(mockVideoId);
@@ -252,7 +250,6 @@ describe('AddVideoUseCase', () => {
       const mockVideoId = 'video-123';
       const mockVideoInfo = {
         duration: 120,
-        format: 'mp4' as const,
       };
 
       mockFileManager.moveToLibrary.mockResolvedValue(mockVideoId);
@@ -284,7 +281,6 @@ describe('AddVideoUseCase', () => {
       const mockVideoId = 'video-123';
       const mockVideoInfo = {
         duration: 120,
-        format: 'mp4' as const,
       };
 
       mockFileManager.moveToLibrary.mockResolvedValue(mockVideoId);
