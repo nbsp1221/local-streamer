@@ -1,5 +1,3 @@
-export type VideoFormat = 'mp4' | 'avi' | 'mkv' | 'mov' | 'webm' | 'm4v' | 'flv' | 'wmv';
-
 export interface Video {
   id: string;
   title: string;
@@ -7,10 +5,8 @@ export interface Video {
   thumbnailUrl?: string;
   videoUrl: string;
   duration: number; // seconds
-  addedAt: Date;
+  createdAt: Date;
   description?: string;
-  format: VideoFormat;
-  originalCleanupAt?: Date;
 }
 
 export interface PendingVideo {
@@ -18,7 +14,6 @@ export interface PendingVideo {
   filename: string;
   size: number; // bytes
   type: string; // mime type
-  format: VideoFormat;
   path?: string;
   thumbnailUrl?: string; // Optional thumbnail preview URL
 }

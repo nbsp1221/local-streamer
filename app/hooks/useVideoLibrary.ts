@@ -54,9 +54,8 @@ export function useVideoLibrary(initialVideos: Video[] = [], initialPendingVideo
       thumbnailUrl: `https://images.unsplash.com/photo-${Math.floor(Math.random() * 1000000000)}?w=600&h=400&fit=crop`,
       videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
       duration: Math.floor(Math.random() * 3600) + 300, // 5-65 minutes random
-      addedAt: new Date(),
+      createdAt: new Date(),
       description: `Description for ${metadata.title}`,
-      format: 'mp4',
     };
 
     setVideos(prev => [newVideo, ...prev]);

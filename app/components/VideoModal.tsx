@@ -196,7 +196,7 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
                   </div>
                   <div>
                     <span className="font-medium">Added:</span>
-                    <span className="ml-2">{video.addedAt.toLocaleDateString()}</span>
+                    <span className="ml-2">{video.createdAt.toLocaleDateString()}</span>
                   </div>
                 </div>
               </div>

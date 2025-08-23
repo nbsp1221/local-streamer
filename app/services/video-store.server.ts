@@ -40,7 +40,6 @@ export async function addVideo(video: Video): Promise<void> {
     videoUrl: video.videoUrl,
     thumbnailUrl: video.thumbnailUrl,
     duration: video.duration,
-    format: video.format,
     description: video.description,
   };
 
@@ -75,7 +74,7 @@ export async function findVideoById(videoId: string): Promise<Video | null> {
 }
 
 // Update video
-export async function updateVideo(videoId: string, updates: Partial<Omit<Video, 'id' | 'addedAt'>>): Promise<Video | null> {
+export async function updateVideo(videoId: string, updates: Partial<Omit<Video, 'id' | 'createdAt'>>): Promise<Video | null> {
   const videoRepository = getVideoRepository();
 
   // Convert updates to UpdateVideoInput format
@@ -85,7 +84,6 @@ export async function updateVideo(videoId: string, updates: Partial<Omit<Video, 
     videoUrl: updates.videoUrl,
     thumbnailUrl: updates.thumbnailUrl,
     duration: updates.duration,
-    format: updates.format,
     description: updates.description,
   };
 

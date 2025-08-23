@@ -91,41 +91,37 @@ describe('HLS Upload System', () => {
   });
 
   it('should verify video source priority logic', () => {
-    // Mock Video object with HLS support
-    const videoWithHLS = {
+    // Mock Video object with DASH support
+    const videoWithDASH = {
       id: 'test-video-1',
       title: 'Test Video',
-      videoUrl: '/data/videos/test-video-1/video.mp4',
-      hasHLS: true,
+      videoUrl: '/videos/test-video-1/manifest.mpd',
       thumbnailUrl: '/api/thumbnail/test-video-1',
       tags: ['test'],
       duration: 120,
-      addedAt: new Date(),
-      format: 'mp4',
+      createdAt: new Date(),
     };
 
-    const videoWithoutHLS = {
-      ...videoWithHLS,
-      hasHLS: false,
+    const localVideo = {
+      ...videoWithDASH,
     };
 
     const directVideo = {
-      ...videoWithHLS,
+      ...videoWithDASH,
       videoUrl: 'https://example.com/video.mp4',
     };
 
     // Test source generation logic (mirrors VideoPlayer logic)
-    function generateSources(video: typeof videoWithHLS) {
+    function generateSources(video: typeof videoWithDASH) {
       const sources = [];
 
-      if (video.videoUrl.startsWith('/data/videos/')) {
-        if (video.hasHLS) {
-          sources.push({
-            src: `/api/hls/${video.id}/playlist.m3u8`,
-            type: 'hls',
-            label: 'HLS Stream',
-          });
-        }
+      if (!video.videoUrl.startsWith('http')) {
+        // Local video - use DASH manifest
+        sources.push({
+          src: video.videoUrl, // Now stores /videos/${id}/manifest.mpd
+          type: 'dash',
+          label: 'DASH Stream',
+        });
       }
       else {
         sources.push({
@@ -138,41 +134,39 @@ describe('HLS Upload System', () => {
       return sources;
     }
 
-    // Test HLS-enabled video (should only have HLS)
-    const hlsSources = generateSources(videoWithHLS);
-    expect(hlsSources).toHaveLength(1);
-    expect(hlsSources[0].type).toBe('hls');
+    // Test local video (should use DASH)
+    const dashSources = generateSources(localVideo);
+    expect(dashSources).toHaveLength(1);
+    expect(dashSources[0].type).toBe('dash');
+    expect(dashSources[0].src).toBe('/videos/test-video-1/manifest.mpd');
 
-    // Test HLS-disabled video (should have no sources for local videos)
-    const noHlsSources = generateSources(videoWithoutHLS);
-    expect(noHlsSources).toHaveLength(0);
-
-    // Test direct video (should use direct URL)
+    // Test external video (should use direct URL)
     const directSources = generateSources(directVideo);
     expect(directSources).toHaveLength(1);
     expect(directSources[0].type).toBe('direct');
+    expect(directSources[0].src).toBe('https://example.com/video.mp4');
   });
 
   it('should verify single-source configuration', () => {
-    // Test that HLS is the only source for local videos
+    // Test that DASH is the only source for local videos
     const sources = [
-      { src: '/api/hls/video/playlist.m3u8', type: 'hls' as const, label: 'HLS' },
+      { src: '/videos/video-id/manifest.mpd', type: 'dash' as const, label: 'DASH' },
     ];
 
     const currentSrc = sources[0].src;
 
     // Simulate error handling with single source
     const handleError = () => {
-      // No fallback available for local videos with HLS-only system
+      // No fallback available for local videos with DASH-only system
       return false; // No fallbacks available
     };
 
     // Error should result in failure (no fallbacks)
     expect(handleError()).toBe(false);
-    expect(currentSrc).toBe('/api/hls/video/playlist.m3u8');
+    expect(currentSrc).toBe('/videos/video-id/manifest.mpd');
 
     // Verify sources array has only one item
     expect(sources).toHaveLength(1);
-    expect(sources[0].type).toBe('hls');
+    expect(sources[0].type).toBe('dash');
   });
 });

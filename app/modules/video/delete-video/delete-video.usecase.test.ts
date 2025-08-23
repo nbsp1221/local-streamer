@@ -52,8 +52,7 @@ describe('DeleteVideoUseCase', () => {
         videoUrl: '/data/videos/video-123/playlist.m3u8',
         thumbnailUrl: '/api/thumbnail/video-123',
         duration: 120,
-        format: 'mp4' as const,
-        addedAt: new Date(),
+        createdAt: new Date(),
       };
 
       mockVideoRepository.findById.mockResolvedValue(mockVideo);
@@ -93,8 +92,7 @@ describe('DeleteVideoUseCase', () => {
         videoUrl: '/data/videos/video-123/playlist.m3u8',
         thumbnailUrl: '/api/thumbnail/video-123',
         duration: 120,
-        format: 'mp4' as const,
-        addedAt: new Date(),
+        createdAt: new Date(),
       };
 
       mockVideoRepository.findById.mockResolvedValue(mockVideo);
@@ -236,8 +234,7 @@ describe('DeleteVideoUseCase', () => {
         videoUrl: '/data/videos/video-123/playlist.m3u8',
         thumbnailUrl: '/api/thumbnail/video-123',
         duration: 120,
-        format: 'mp4' as const,
-        addedAt: new Date(),
+        createdAt: new Date(),
       };
 
       mockVideoRepository.findById.mockResolvedValue(mockVideo);
@@ -281,8 +278,7 @@ describe('DeleteVideoUseCase', () => {
         videoUrl: '/data/videos/video-123/playlist.m3u8',
         thumbnailUrl: '/api/thumbnail/video-123',
         duration: 120,
-        format: 'mp4' as const,
-        addedAt: new Date(),
+        createdAt: new Date(),
       };
 
       mockVideoRepository.findById.mockResolvedValue(mockVideo);

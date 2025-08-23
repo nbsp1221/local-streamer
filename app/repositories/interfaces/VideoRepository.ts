@@ -1,4 +1,4 @@
-import type { PendingVideo, Video, VideoFormat } from '~/types/video';
+import type { PendingVideo, Video } from '~/types/video';
 import type { BaseRepository } from './BaseRepository';
 
 /**
@@ -11,7 +11,6 @@ export interface CreateVideoInput {
   videoUrl: string;
   thumbnailUrl?: string;
   duration?: number;
-  format: VideoFormat;
   description?: string;
 }
 
@@ -24,9 +23,7 @@ export interface UpdateVideoInput {
   videoUrl?: string;
   thumbnailUrl?: string;
   duration?: number;
-  format?: VideoFormat;
   description?: string;
-  originalCleanupAt?: Date;
 }
 
 /**
@@ -44,11 +41,6 @@ export interface VideoRepository extends BaseRepository<Video, CreateVideoInput,
   findByTitle(title: string): Promise<Video[]>;
 
   /**
-   * Find videos by format
-   */
-  findByFormat(format: VideoFormat): Promise<Video[]>;
-
-  /**
    * Get all unique tags across all videos
    */
   getAllTags(): Promise<string[]>;
@@ -57,11 +49,6 @@ export interface VideoRepository extends BaseRepository<Video, CreateVideoInput,
    * Search videos by query (title or tags)
    */
   search(query: string): Promise<Video[]>;
-
-  /**
-   * Schedule original file cleanup
-   */
-  scheduleOriginalCleanup(id: string, cleanupAt: Date): Promise<Video | null>;
 }
 
 /**

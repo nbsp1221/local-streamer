@@ -43,7 +43,6 @@ describe('JsonVideoRepository', () => {
     videoUrl: '/videos/test.mp4',
     thumbnailUrl: '/thumbnails/test.jpg',
     duration: 120,
-    format: 'mp4',
     description: 'A test video',
     ...overrides,
   });
@@ -60,11 +59,10 @@ describe('JsonVideoRepository', () => {
         videoUrl: input.videoUrl,
         thumbnailUrl: input.thumbnailUrl,
         duration: input.duration,
-        format: input.format,
         description: input.description,
       });
       expect(video.id).toBeDefined();
-      expect(video.addedAt).toBeInstanceOf(Date);
+      expect(video.createdAt).toBeInstanceOf(Date);
     });
 
     it('should find all videos', async () => {
@@ -107,9 +105,9 @@ describe('JsonVideoRepository', () => {
         title: 'Updated Title',
         tags: ['updated', 'test'],
       });
-      // Should preserve id and addedAt
+      // Should preserve id and createdAt
       expect(updatedVideo!.id).toBe(video.id);
-      expect(updatedVideo!.addedAt).toEqual(video.addedAt);
+      expect(updatedVideo!.createdAt).toEqual(video.createdAt);
     });
 
     it('should return null when updating non-existent video', async () => {
@@ -158,19 +156,16 @@ describe('JsonVideoRepository', () => {
       await repository.create(createSampleVideo({
         title: 'Action Movie',
         tags: ['action', 'thriller'],
-        format: 'mp4',
       }));
 
       await repository.create(createSampleVideo({
         title: 'Comedy Show',
         tags: ['comedy', 'funny'],
-        format: 'avi',
       }));
 
       await repository.create(createSampleVideo({
         title: 'Action Series',
         tags: ['action', 'series'],
-        format: 'mp4',
       }));
     });
 
@@ -198,20 +193,6 @@ describe('JsonVideoRepository', () => {
       const actionVideos = await repository.findByTitle('action');
 
       expect(actionVideos).toHaveLength(2);
-    });
-
-    it('should find videos by format', async () => {
-      const mp4Videos = await repository.findByFormat('mp4');
-
-      expect(mp4Videos).toHaveLength(2);
-      expect(mp4Videos.every(video => video.format === 'mp4')).toBe(true);
-    });
-
-    it('should find videos by format (case insensitive)', async () => {
-      const aviVideos = await repository.findByFormat('avi');
-
-      expect(aviVideos).toHaveLength(1);
-      expect(aviVideos[0].format).toBe('avi');
     });
 
     it('should get all unique tags', async () => {
@@ -265,52 +246,11 @@ describe('JsonVideoRepository', () => {
       const rawData = JSON.parse(fileContent);
 
       // Should store date as ISO string
-      expect(typeof rawData[0].addedAt).toBe('string');
-      expect(rawData[0].addedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/);
+      expect(typeof rawData[0].createdAt).toBe('string');
+      expect(rawData[0].createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/);
 
       // But when loaded, should be Date object
-      expect(video.addedAt).toBeInstanceOf(Date);
-    });
-  });
-
-  describe('scheduleOriginalCleanup', () => {
-    it('should schedule cleanup for existing video', async () => {
-      const video = await repository.create(createSampleVideo());
-      const cleanupAt = new Date('2025-02-01T00:00:00Z');
-
-      const updatedVideo = await repository.scheduleOriginalCleanup(video.id, cleanupAt);
-
-      expect(updatedVideo).toBeDefined();
-      expect(updatedVideo!.originalCleanupAt).toEqual(cleanupAt);
-    });
-
-    it('should return null for non-existent video', async () => {
-      const cleanupAt = new Date();
-
-      const result = await repository.scheduleOriginalCleanup('non-existent-id', cleanupAt);
-
-      expect(result).toBeNull();
-    });
-
-    it('should handle originalCleanupAt Date transformation', async () => {
-      const cleanupAt = new Date('2025-02-15T08:30:00Z');
-      const video = await repository.create(createSampleVideo());
-
-      // Update video with cleanup schedule
-      const updatedVideo = await repository.scheduleOriginalCleanup(video.id, cleanupAt);
-
-      // Read raw file content
-      const fileContent = await fs.readFile(testFilePath, 'utf-8');
-      const rawData = JSON.parse(fileContent);
-      const savedVideo = rawData.find((v: any) => v.id === video.id);
-
-      // Should store date as ISO string
-      expect(typeof savedVideo.originalCleanupAt).toBe('string');
-      expect(savedVideo.originalCleanupAt).toBe(cleanupAt.toISOString());
-
-      // But when loaded, should be Date object
-      expect(updatedVideo!.originalCleanupAt).toBeInstanceOf(Date);
-      expect(updatedVideo!.originalCleanupAt).toEqual(cleanupAt);
+      expect(video.createdAt).toBeInstanceOf(Date);
     });
   });
 });
@@ -346,7 +286,6 @@ describe('JsonPendingVideoRepository', () => {
     filename: 'test-video.mp4',
     size: 1024000,
     type: 'video/mp4',
-    format: 'mp4',
     ...overrides,
   });
 
