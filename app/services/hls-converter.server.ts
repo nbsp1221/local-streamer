@@ -6,6 +6,7 @@ import type { EncodingOptions } from '~/modules/video/add-video/add-video.types'
 import type { VideoAnalysisRepository } from '~/modules/video/analysis/repositories/video-analysis-repository.types';
 import type { VideoAnalysis, VideoAnalysisService } from '~/modules/video/analysis/video-analysis.types';
 import { config, ffmpeg } from '~/configs';
+import { executeFFmpegCommand } from '~/lib/ffmpeg-process-manager';
 import { FFprobeAnalysisService } from '~/modules/video/analysis/ffprobe-analysis.service';
 import {
   DEFAULT_ENCODING_OPTIONS,
@@ -219,39 +220,26 @@ export class HLSConverter {
         ffmpegArgs.push('-movflags', '+faststart', outputPath);
 
         console.log(`⚙️  Encoding Settings: ${codec} ${qualityParam}=${qualityValue} preset=${preset}`);
-        console.log(`🔧 FFmpeg transcoding command: ${config.ffmpeg.ffmpegPath} ${ffmpegArgs.join(' ')}`);
 
-        const ffmpegProcess = spawn(config.ffmpeg.ffmpegPath, ffmpegArgs);
-
-        let stderrOutput = '';
-
-        ffmpegProcess.stdout?.on('data', (data) => {
-          console.log(`FFmpeg stdout: ${data}`);
-        });
-
-        ffmpegProcess.stderr?.on('data', (data) => {
-          stderrOutput += data.toString();
-          // Only log important progress information
-          const output = data.toString();
-          if (output.includes('frame=') || output.includes('time=')) {
-            console.log(`FFmpeg progress: ${output.trim()}`);
-          }
-        });
-
-        ffmpegProcess.on('close', (code) => {
-          if (code === 0) {
-            console.log(`✅ FFmpeg transcoding completed`);
-            resolve();
-          }
-          else {
-            console.error(`❌ FFmpeg transcoding exited with code ${code}`);
-            console.error(`FFmpeg stderr: ${stderrOutput}`);
-            reject(new Error(`FFmpeg transcoding failed with code ${code}`));
-          }
-        });
-
-        ffmpegProcess.on('error', (error) => {
-          console.error(`❌ FFmpeg transcoding process error:`, error);
+        // UPDATED: Use VideoProcessingQueue for concurrency control
+        executeFFmpegCommand({
+          command: config.ffmpeg.ffmpegPath,
+          args: ffmpegArgs,
+          onStdout: (data) => {
+            console.log(`FFmpeg stdout: ${data.toString()}`);
+          },
+          onStderr: (data) => {
+            // Only log important progress information
+            const output = data.toString();
+            if (output.includes('frame=') || output.includes('time=')) {
+              console.log(`FFmpeg progress: ${output.trim()}`);
+            }
+          },
+        }).then(() => {
+          console.log(`✅ FFmpeg transcoding completed`);
+          resolve();
+        }).catch((error) => {
+          console.error(`❌ FFmpeg transcoding failed: ${error.message}`);
           reject(error);
         });
       }
@@ -314,38 +302,21 @@ export class HLSConverter {
           segmentDuration,
         ];
 
-        console.log(`🔧 Shaka Packager command: ${config.ffmpeg.shakaPackagerPath} ${packagerArgs.join(' ')}`);
-
-        const packagerProcess = spawn(config.ffmpeg.shakaPackagerPath, packagerArgs);
-
-        let stderrOutput = '';
-        let stdoutOutput = '';
-
-        packagerProcess.stdout?.on('data', (data) => {
-          stdoutOutput += data.toString();
-          console.log(`Shaka Packager stdout: ${data}`);
-        });
-
-        packagerProcess.stderr?.on('data', (data) => {
-          stderrOutput += data.toString();
-          console.log(`Shaka Packager stderr: ${data}`);
-        });
-
-        packagerProcess.on('close', (code) => {
-          if (code === 0) {
-            console.log(`✅ Shaka Packager completed successfully`);
-            resolve();
-          }
-          else {
-            console.error(`❌ Shaka Packager exited with code ${code}`);
-            console.error(`Shaka Packager stderr: ${stderrOutput}`);
-            console.error(`Shaka Packager stdout: ${stdoutOutput}`);
-            reject(new Error(`Shaka Packager failed with code ${code}`));
-          }
-        });
-
-        packagerProcess.on('error', (error) => {
-          console.error(`❌ Shaka Packager process error:`, error);
+        // UPDATED: Use VideoProcessingQueue for Shaka Packager concurrency control
+        executeFFmpegCommand({
+          command: config.ffmpeg.shakaPackagerPath,
+          args: packagerArgs,
+          onStdout: (data) => {
+            console.log(`Shaka Packager stdout: ${data.toString()}`);
+          },
+          onStderr: (data) => {
+            console.log(`Shaka Packager stderr: ${data.toString()}`);
+          },
+        }).then(() => {
+          console.log(`✅ Shaka Packager completed successfully`);
+          resolve();
+        }).catch((error) => {
+          console.error(`❌ Shaka Packager failed: ${error.message}`);
           reject(error);
         });
       }
@@ -501,6 +472,7 @@ export class HLSConverter {
 
   /**
    * Execute Pass 1: Video analysis for optimal bitrate distribution
+   * UPDATED: Now uses VideoProcessingQueue for concurrency control
    */
   private async executePass1(
     inputPath: string,
@@ -508,66 +480,59 @@ export class HLSConverter {
     preset: string,
     logFile: string,
   ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const pass1Args = [
-        '-y',
-        '-i',
-        inputPath,
-        '-c:v',
-        'hevc_nvenc',
-        '-preset',
-        preset,
-        '-tune',
-        'uhq',
-        '-b:v',
-        `${targetVideoBitrate}k`,
-        '-maxrate',
-        `${targetVideoBitrate}k`,
-        '-bufsize',
-        `${targetVideoBitrate * 2}k`,
-        '-rc',
-        'vbr',
-        '-pass',
-        '1',
-        '-passlogfile',
-        logFile,
-        '-an', // No audio in pass 1
-        '-f',
-        'null',
-        '/dev/null',
-      ];
+    const pass1Args = [
+      '-y',
+      '-i',
+      inputPath,
+      '-c:v',
+      'hevc_nvenc',
+      '-preset',
+      preset,
+      '-tune',
+      'uhq',
+      '-b:v',
+      `${targetVideoBitrate}k`,
+      '-maxrate',
+      `${targetVideoBitrate}k`,
+      '-bufsize',
+      `${targetVideoBitrate * 2}k`,
+      '-rc',
+      'vbr',
+      '-pass',
+      '1',
+      '-passlogfile',
+      logFile,
+      '-an', // No audio in pass 1
+      '-f',
+      'null',
+      '/dev/null',
+    ];
 
-      console.log(`🔧 Pass 1 command: ${config.ffmpeg.ffmpegPath} ${pass1Args.join(' ')}`);
-
-      const ffmpegProcess = spawn(config.ffmpeg.ffmpegPath, pass1Args);
-      let stderrOutput = '';
-
-      ffmpegProcess.stderr?.on('data', (data) => {
-        stderrOutput += data.toString();
+    try {
+      await executeFFmpegCommand({
+        command: config.ffmpeg.ffmpegPath,
+        args: pass1Args,
+        onStderr: (data) => {
+          // Pass 1 stderr output (progress info) - no need to store, just pass through
+          const output = data.toString();
+          if (output.includes('frame=') || output.includes('time=')) {
+            console.log(`Pass 1 progress: ${output.trim()}`);
+          }
+        },
       });
 
-      ffmpegProcess.on('close', (code) => {
-        if (code === 0) {
-          console.log(`✅ Pass 1 analysis completed`);
-          resolve();
-        }
-        else {
-          console.error(`❌ Pass 1 failed with code ${code}`);
-          console.error(`Pass 1 stderr: ${stderrOutput}`);
-          reject(new Error(`Pass 1 failed with code ${code}`));
-        }
-      });
-
-      ffmpegProcess.on('error', (error) => {
-        console.error(`❌ Pass 1 process error:`, error);
-        reject(error);
-      });
-    });
+      console.log(`✅ Pass 1 analysis completed`);
+    }
+    catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Pass 1 failed';
+      console.error(`❌ Pass 1 failed: ${errorMessage}`);
+      throw new Error(`Pass 1 failed: ${errorMessage}`);
+    }
   }
 
   /**
    * Execute Pass 2: High-quality encoding to intermediate MP4
-   * Modified for two-step workflow (no HLS flags)
+   * UPDATED: Now uses VideoProcessingQueue for concurrency control
    */
   private async executePass2(
     inputPath: string,
@@ -577,77 +542,65 @@ export class HLSConverter {
     preset: string,
     logFile: string,
   ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const pass2Args = [
-        '-y',
-        '-i',
-        inputPath,
+    const pass2Args = [
+      '-y',
+      '-i',
+      inputPath,
 
-        // Video encoding with Pass 1 analysis data
-        '-c:v',
-        'hevc_nvenc',
-        '-preset',
-        preset,
-        '-tune',
-        'uhq',
-        '-b:v',
-        `${targetVideoBitrate}k`,
-        '-maxrate',
-        `${targetVideoBitrate}k`,
-        '-bufsize',
-        `${targetVideoBitrate * 2}k`,
-        '-rc',
-        'vbr',
-        '-pass',
-        '2',
-        '-passlogfile',
-        logFile,
-      ];
+      // Video encoding with Pass 1 analysis data
+      '-c:v',
+      'hevc_nvenc',
+      '-preset',
+      preset,
+      '-tune',
+      'uhq',
+      '-b:v',
+      `${targetVideoBitrate}k`,
+      '-maxrate',
+      `${targetVideoBitrate}k`,
+      '-bufsize',
+      `${targetVideoBitrate * 2}k`,
+      '-rc',
+      'vbr',
+      '-pass',
+      '2',
+      '-passlogfile',
+      logFile,
+    ];
 
-      // Add audio settings
-      if (audioSettings.codec === 'copy') {
-        pass2Args.push('-c:a', 'copy');
-      }
-      else {
-        pass2Args.push(
-          '-c:a', audioSettings.codec, '-b:a', audioSettings.bitrate, '-ac', '2', '-ar', '44100',
-        );
-      }
+    // Add audio settings
+    if (audioSettings.codec === 'copy') {
+      pass2Args.push('-c:a', 'copy');
+    }
+    else {
+      pass2Args.push(
+        '-c:a', audioSettings.codec, '-b:a', audioSettings.bitrate, '-ac', '2', '-ar', '44100',
+      );
+    }
 
-      // MP4 optimization for intermediate file
-      pass2Args.push('-movflags', '+faststart', outputPath);
+    // MP4 optimization for intermediate file
+    pass2Args.push('-movflags', '+faststart', outputPath);
 
-      console.log(`🔧 Pass 2 command: ${config.ffmpeg.ffmpegPath} ${pass2Args.join(' ')}`);
-
-      const ffmpegProcess = spawn(config.ffmpeg.ffmpegPath, pass2Args);
-      let stderrOutput = '';
-
-      ffmpegProcess.stderr?.on('data', (data) => {
-        stderrOutput += data.toString();
-        // Show encoding progress
-        const output = data.toString();
-        if (output.includes('frame=') || output.includes('time=')) {
-          console.log(`FFmpeg progress: ${output.trim()}`);
-        }
+    try {
+      await executeFFmpegCommand({
+        command: config.ffmpeg.ffmpegPath,
+        args: pass2Args,
+        onStderr: (data) => {
+          // Show encoding progress
+          const output = data.toString();
+          if (output.includes('frame=') || output.includes('time=')) {
+            console.log(`FFmpeg progress: ${output.trim()}`);
+          }
+        },
       });
 
-      ffmpegProcess.on('close', (code) => {
-        if (code === 0) {
-          console.log(`✅ Pass 2 MP4 encoding completed`);
-          resolve();
-        }
-        else {
-          console.error(`❌ Pass 2 failed with code ${code}`);
-          console.error(`Pass 2 stderr: ${stderrOutput}`);
-          reject(new Error(`Pass 2 failed with code ${code}`));
-        }
-      });
-
-      ffmpegProcess.on('error', (error) => {
-        console.error(`❌ Pass 2 process error:`, error);
-        reject(error);
-      });
-    });
+      console.log(`✅ Pass 2 MP4 encoding completed`);
+    }
+    catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Pass 2 failed';
+      console.error(`❌ Pass 2 failed: ${errorMessage}`);
+      throw new Error(`Pass 2 failed: ${errorMessage}`);
+    }
   }
 
   /**
