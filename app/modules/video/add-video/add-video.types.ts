@@ -1,5 +1,5 @@
 import { type VideoRepository } from '~/repositories/interfaces/VideoRepository';
-import { type VideoTranscoder } from '../ports/VideoTranscoder';
+import { type VideoTranscoder } from '../transcoding';
 
 export interface EncodingOptions {
   /** Encoder type selection - settings are automatically optimized */

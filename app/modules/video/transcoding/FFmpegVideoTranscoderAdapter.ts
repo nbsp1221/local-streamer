@@ -12,8 +12,8 @@ import { HLSConverter } from '~/services/hls-converter.server';
 import type { EncodingOptions } from '../add-video/add-video.types';
 import type { VideoAnalysisRepository } from '../analysis/repositories/video-analysis-repository.types';
 import type { VideoAnalysisService } from '../analysis/video-analysis.types';
-import type { TranscodeRequest, TranscodeResult, VideoMetadata, VideoTranscoder } from '../ports/VideoTranscoder';
 import { FFprobeAnalysisService } from '../analysis/ffprobe-analysis.service';
+import type { TranscodeRequest, TranscodeResult, VideoMetadata, VideoTranscoder } from './VideoTranscoder';
 
 /**
  * FFmpeg-based implementation of the VideoTranscoder port.

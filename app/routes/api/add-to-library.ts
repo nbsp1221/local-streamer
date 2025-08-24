@@ -1,6 +1,6 @@
 import type { AddVideoRequest } from '~/modules/video/add-video/add-video.types';
-import { FFmpegVideoTranscoderAdapter } from '~/modules/video/adapters/FFmpegVideoTranscoderAdapter';
 import { AddVideoUseCase } from '~/modules/video/add-video/add-video.usecase';
+import { FFmpegVideoTranscoderAdapter } from '~/modules/video/transcoding';
 import { getVideoRepository } from '~/repositories';
 import * as fileManager from '~/services/file-manager.server';
 import { requireAuth } from '~/utils/auth.server';
