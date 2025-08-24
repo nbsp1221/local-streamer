@@ -1,8 +1,8 @@
 import type { AddVideoRequest } from '~/modules/video/add-video/add-video.types';
+import { FFmpegVideoTranscoderAdapter } from '~/modules/video/adapters/FFmpegVideoTranscoderAdapter';
 import { AddVideoUseCase } from '~/modules/video/add-video/add-video.usecase';
 import { getVideoRepository } from '~/repositories';
 import * as fileManager from '~/services/file-manager.server';
-import { HLSConverter } from '~/services/hls-converter.server';
 import { requireAuth } from '~/utils/auth.server';
 import type { Route } from './+types/add-to-library';
 
@@ -18,7 +18,7 @@ export async function action({ request }: Route.ActionArgs) {
     const useCase = new AddVideoUseCase({
       videoRepository: getVideoRepository(),
       fileManager,
-      hlsConverter: new HLSConverter(),
+      videoTranscoder: new FFmpegVideoTranscoderAdapter(),
       logger: console, // Using console as logger for now
     });
 

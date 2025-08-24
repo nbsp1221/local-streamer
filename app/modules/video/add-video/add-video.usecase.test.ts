@@ -8,7 +8,7 @@ describe('AddVideoUseCase', () => {
   let mockDependencies: AddVideoDependencies;
   let mockVideoRepository: any;
   let mockFileManager: any;
-  let mockHlsConverter: any;
+  let mockVideoTranscoder: any;
   let mockLogger: any;
 
   beforeEach(() => {
@@ -27,8 +27,9 @@ describe('AddVideoUseCase', () => {
     };
 
     // Create mock HLS converter
-    mockHlsConverter = {
-      convertVideo: vi.fn(),
+    mockVideoTranscoder = {
+      transcode: vi.fn(),
+      extractMetadata: vi.fn(),
     };
 
     // Create mock logger
@@ -41,7 +42,7 @@ describe('AddVideoUseCase', () => {
     mockDependencies = {
       videoRepository: mockVideoRepository,
       fileManager: mockFileManager,
-      hlsConverter: mockHlsConverter,
+      videoTranscoder: mockVideoTranscoder,
       logger: mockLogger,
     };
 
@@ -68,7 +69,7 @@ describe('AddVideoUseCase', () => {
       mockFileManager.moveTempThumbnailToLibrary.mockResolvedValue(false);
       mockVideoRepository.create.mockResolvedValue(undefined);
       mockVideoRepository.updateHLSStatus.mockResolvedValue({});
-      mockHlsConverter.convertVideo.mockResolvedValue(undefined);
+      mockVideoTranscoder.transcode.mockResolvedValue({ success: true, data: { videoId: mockVideoId, manifestPath: '', thumbnailPath: '', duration: 120 } });
 
       // Act
       const result = await useCase.execute(request);
@@ -85,7 +86,12 @@ describe('AddVideoUseCase', () => {
       expect(mockFileManager.moveToLibrary).toHaveBeenCalledWith('test-video.mp4');
       expect(mockFileManager.getVideoInfo).toHaveBeenCalled();
       expect(mockVideoRepository.create).toHaveBeenCalled();
-      expect(mockHlsConverter.convertVideo).toHaveBeenCalledWith(mockVideoId, expect.any(String), undefined);
+      expect(mockVideoTranscoder.transcode).toHaveBeenCalledWith({
+        videoId: mockVideoId,
+        sourcePath: expect.any(String),
+        quality: 'high',
+        useGpu: false,
+      });
       // Video conversion success is tracked through the convertVideo call
     });
   });
@@ -172,7 +178,7 @@ describe('AddVideoUseCase', () => {
       mockVideoRepository.updateHLSStatus.mockResolvedValue({});
 
       // Video conversion fails
-      mockHlsConverter.convertVideo.mockRejectedValue(new Error('FFmpeg failed'));
+      mockVideoTranscoder.transcode.mockResolvedValue({ success: false, error: { message: 'FFmpeg failed', code: 'TRANSCODING_ENGINE_FAILURE', statusCode: 500 } });
 
       // Act
       const result = await useCase.execute(request);
@@ -288,7 +294,7 @@ describe('AddVideoUseCase', () => {
       mockFileManager.moveTempThumbnailToLibrary.mockResolvedValue(false);
       mockVideoRepository.create.mockResolvedValue(undefined);
       mockVideoRepository.updateHLSStatus.mockResolvedValue({});
-      mockHlsConverter.convertVideo.mockResolvedValue(undefined);
+      mockVideoTranscoder.transcode.mockResolvedValue({ success: true, data: { videoId: mockVideoId, manifestPath: '', thumbnailPath: '', duration: 120 } });
 
       // Act
       const result = await useCase.execute(request);
