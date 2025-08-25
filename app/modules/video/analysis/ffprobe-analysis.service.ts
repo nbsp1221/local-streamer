@@ -21,6 +21,9 @@ export class FFprobeAnalysisService implements VideoAnalysisService {
       audioCodec: metadata.audioCodec,
       videoCodec: metadata.videoCodec,
       fileSize: metadata.fileSize,
+      width: metadata.width,
+      height: metadata.height,
+      frameRate: metadata.frameRate,
     };
   }
 

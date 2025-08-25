@@ -25,6 +25,9 @@ describe('FFprobeAnalysisService', () => {
         audioCodec: 'aac',
         videoCodec: 'h264',
         fileSize: 50000000,
+        width: 1920,
+        height: 1080,
+        frameRate: 30,
       };
 
       (mockRepository.getVideoMetadata as any).mockResolvedValue(mockMetadata);
@@ -38,6 +41,9 @@ describe('FFprobeAnalysisService', () => {
         audioCodec: 'aac',
         videoCodec: 'h264',
         fileSize: 50000000,
+        width: 1920,
+        height: 1080,
+        frameRate: 30,
       });
 
       expect(mockRepository.getVideoMetadata).toHaveBeenCalledWith('/test/video.mp4');
@@ -60,6 +66,9 @@ describe('FFprobeAnalysisService', () => {
         audioCodec: 'unknown',
         videoCodec: 'unknown',
         fileSize: 10000000,
+        width: 1280,
+        height: 720,
+        frameRate: 25,
       };
 
       (mockRepository.getVideoMetadata as any).mockResolvedValue(mockMetadata);
@@ -73,6 +82,9 @@ describe('FFprobeAnalysisService', () => {
         audioCodec: 'unknown',
         videoCodec: 'unknown',
         fileSize: 10000000,
+        width: 1280,
+        height: 720,
+        frameRate: 25,
       });
 
       expect(mockRepository.getVideoMetadata).toHaveBeenCalledWith('/test/audio-only.mp3');
@@ -96,6 +108,9 @@ describe('FFprobeAnalysisService', () => {
         audioCodec: 'aac',
         videoCodec: 'h264',
         fileSize: 50000000,
+        width: 1920,
+        height: 1080,
+        frameRate: 30,
       };
 
       const result = service.calculateOptimalBitrates(analysis, 'cpu-h265');
@@ -113,6 +128,9 @@ describe('FFprobeAnalysisService', () => {
         audioCodec: 'mp3',
         videoCodec: 'h264',
         fileSize: 60000000,
+        width: 1920,
+        height: 1080,
+        frameRate: 30,
       };
 
       const result = service.calculateOptimalBitrates(analysis, 'cpu-h265');
@@ -130,6 +148,9 @@ describe('FFprobeAnalysisService', () => {
         audioCodec: 'aac',
         videoCodec: 'h264',
         fileSize: 80000000,
+        width: 1920,
+        height: 1080,
+        frameRate: 30,
       };
 
       const result = service.calculateOptimalBitrates(analysis, 'cpu-h265');
@@ -147,6 +168,9 @@ describe('FFprobeAnalysisService', () => {
         audioCodec: 'aac',
         videoCodec: 'h264',
         fileSize: 5000000,
+        width: 1920,
+        height: 1080,
+        frameRate: 30,
       };
 
       const result = service.calculateOptimalBitrates(analysis, 'cpu-h265');
@@ -162,6 +186,9 @@ describe('FFprobeAnalysisService', () => {
         audioCodec: 'unknown',
         videoCodec: 'h264',
         fileSize: 1000000,
+        width: 1920,
+        height: 1080,
+        frameRate: 30,
       };
 
       const result = service.calculateOptimalBitrates(analysis, 'cpu-h265');
