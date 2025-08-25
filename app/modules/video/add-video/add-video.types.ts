@@ -1,5 +1,5 @@
 import { type VideoRepository } from '~/repositories/interfaces/VideoRepository';
-import { type HLSConverter } from '~/services/hls-converter.server';
+import { type VideoTranscoder } from '../transcoding';
 
 export interface EncodingOptions {
   /** Encoder type selection - settings are automatically optimized */
@@ -23,7 +23,7 @@ export interface AddVideoResponse {
 export interface AddVideoDependencies {
   videoRepository: VideoRepository;
   fileManager: typeof import('~/services/file-manager.server');
-  hlsConverter: HLSConverter;
+  videoTranscoder: VideoTranscoder;
   logger?: {
     info: (message: string, data?: any) => void;
     error: (message: string, error?: any) => void;

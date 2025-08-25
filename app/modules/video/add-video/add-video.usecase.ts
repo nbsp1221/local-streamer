@@ -50,8 +50,8 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
       // 7. Save to database
       await this.saveVideo(video);
 
-      // 8. Generate HLS version
-      const hlsResult = await this.generateHLS(videoId, videoPath, request.encodingOptions);
+      // 8. Generate video processing (HLS/DASH)
+      const transcodeResult = await this.processVideo(videoId, videoPath, request.encodingOptions);
 
       // 9. Encrypt thumbnail after HLS generation (when AES key is available)
       // Always attempt encryption since thumbnails are generated during HLS conversion
@@ -60,10 +60,10 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
       // 10. Return success response
       return Result.ok({
         videoId,
-        message: hlsResult.success
+        message: transcodeResult.success
           ? 'Video added to library successfully with video conversion'
           : 'Video added to library but video conversion failed',
-        hlsEnabled: hlsResult.success,
+        hlsEnabled: transcodeResult.success,
       });
     }
     catch (error) {
@@ -159,20 +159,53 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
     this.deps.logger?.info(`Video added to library: ${video.title} (${video.id})`);
   }
 
-  private async generateHLS(videoId: string, videoPath: string, encodingOptions?: EncodingOptions): Promise<Result<void>> {
-    this.deps.logger?.info(`Starting video conversion for video: ${videoId}`);
+  private async processVideo(videoId: string, videoPath: string, encodingOptions?: EncodingOptions): Promise<Result<void>> {
+    this.deps.logger?.info(`Starting video processing for video: ${videoId}`);
 
     try {
-      await this.deps.hlsConverter.convertVideo(videoId, videoPath, encodingOptions);
-      this.deps.logger?.info(`Video conversion completed successfully for ${videoId}`);
+      // Map encoding options to business quality levels
+      const { quality, useGpu } = this.mapEncodingOptionsToQuality(encodingOptions);
 
-      return Result.ok(undefined);
+      // Use VideoTranscoder with business-focused API
+      const transcodeResult = await this.deps.videoTranscoder.transcode({
+        videoId,
+        sourcePath: videoPath,
+        quality,
+        useGpu,
+      });
+
+      if (transcodeResult.success) {
+        this.deps.logger?.info(`Video processing completed successfully for ${videoId}`);
+        return Result.ok(undefined);
+      }
+      else {
+        this.deps.logger?.error(`Video processing failed for ${videoId}:`, transcodeResult.error);
+        return Result.fail(transcodeResult.error);
+      }
     }
     catch (error) {
-      this.deps.logger?.error(`Video conversion failed for ${videoId}:`, error);
+      this.deps.logger?.error(`Video processing failed for ${videoId}:`, error);
 
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return Result.fail(new InternalError(`Video conversion failed: ${errorMessage}`));
+      return Result.fail(new InternalError(`Video processing failed: ${errorMessage}`));
     }
+  }
+
+  /**
+   * Maps technical encoding options to business quality levels.
+   * This preserves backwards compatibility during Phase 2.
+   */
+  private mapEncodingOptionsToQuality(encodingOptions?: EncodingOptions): { quality: 'high' | 'medium' | 'fast'; useGpu: boolean } {
+    // Default to high quality for backwards compatibility
+    if (!encodingOptions) {
+      return { quality: 'high', useGpu: false };
+    }
+
+    // Map encoder types to business quality (Phase 2: simple mapping)
+    const useGpu = encodingOptions.encoder === 'gpu-h265';
+
+    // For Phase 2, all current encoding options map to 'high' quality
+    // This maintains current behavior while introducing the new interface
+    return { quality: 'high', useGpu };
   }
 }
