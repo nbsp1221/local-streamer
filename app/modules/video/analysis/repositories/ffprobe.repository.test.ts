@@ -79,6 +79,9 @@ describe('FFprobeRepository', () => {
         audioCodec: 'aac',
         videoCodec: 'h264',
         fileSize: 50000000,
+        width: 0, // Default when not in mock data
+        height: 0, // Default when not in mock data
+        frameRate: 0, // Default when not in mock data
       });
 
       expect(mockSpawn).toHaveBeenCalledWith('/usr/bin/ffprobe', [
@@ -205,6 +208,9 @@ describe('FFprobeRepository', () => {
         audioCodec: 'unknown', // Default value
         videoCodec: 'unknown', // Default value
         fileSize: 10000000,
+        width: 0, // Default when stream missing
+        height: 0, // Default when stream missing
+        frameRate: 0, // Default when stream missing
       });
     });
 
@@ -250,6 +256,9 @@ describe('FFprobeRepository', () => {
         audioCodec: 'unknown', // Default when stream missing
         videoCodec: 'h264',
         fileSize: 0, // Default when missing
+        width: 0, // Default when dimensions missing
+        height: 0, // Default when dimensions missing
+        frameRate: 0, // Default when frame rate missing
       });
     });
 
@@ -302,6 +311,9 @@ describe('FFprobeRepository', () => {
         audioCodec: 'mp3',
         videoCodec: 'h265',
         fileSize: 30000000,
+        width: 0, // Default when dimensions not in test data
+        height: 0, // Default when dimensions not in test data
+        frameRate: 0, // Default when frame rate not in test data
       });
     });
   });

@@ -2,7 +2,7 @@ import { spawn } from 'child_process';
 import { createHash, randomBytes } from 'crypto';
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import type { EncodingOptions } from '~/modules/video/add-video/add-video.types';
+import type { EncodingOptions, EnhancedEncodingOptions } from '~/modules/video/add-video/add-video.types';
 import type { VideoAnalysisRepository } from '~/modules/video/analysis/repositories/video-analysis-repository.types';
 import type { VideoAnalysis, VideoAnalysisService } from '~/modules/video/analysis/video-analysis.types';
 import { config, ffmpeg } from '~/configs';
@@ -42,7 +42,13 @@ export class HLSConverter {
    * Convert MP4 to HLS with AES-128 encryption
    * New structure: stores HLS files directly in video UUID folder
    */
-  async convertVideo(videoId: string, inputPath: string, encodingOptions?: EncodingOptions): Promise<void> {
+  async convertVideo(videoId: string, inputPath: string, encodingOptions?: EncodingOptions): Promise<void>;
+  /**
+   * Convert MP4 to HLS with enhanced encoding options (Phase 3)
+   * Provides direct FFmpeg parameter control
+   */
+  async convertVideo(videoId: string, inputPath: string, enhancedOptions: EnhancedEncodingOptions): Promise<void>;
+  async convertVideo(videoId: string, inputPath: string, options?: EncodingOptions | EnhancedEncodingOptions): Promise<void> {
     console.log(`🎬 Starting video conversion for video: ${videoId}`);
 
     const videoDir = join(config.paths.videos, videoId);
@@ -59,8 +65,17 @@ export class HLSConverter {
 
       // 3. Execute video conversion with encoding options
       const playlistPath = join(videoDir, 'playlist.m3u8');
-      const options = encodingOptions || DEFAULT_ENCODING_OPTIONS;
-      await this.executeVideoConversion(inputPath, keyInfoFile, playlistPath, videoId, options, videoAnalysis);
+
+      // Check if enhanced options are provided (Phase 3)
+      if (options && 'codec' in options) {
+        // Enhanced options path
+        await this.executeVideoConversionEnhanced(inputPath, keyInfoFile, playlistPath, videoId, options, videoAnalysis);
+      }
+      else {
+        // Legacy options path
+        const legacyOptions = options || DEFAULT_ENCODING_OPTIONS;
+        await this.executeVideoConversion(inputPath, keyInfoFile, playlistPath, videoId, legacyOptions, videoAnalysis);
+      }
 
       // 4. Generate thumbnail after video conversion
       await this.generateVideoThumbnail(videoId, inputPath);
@@ -97,6 +112,18 @@ export class HLSConverter {
     await this.executeTwoStepConversion(inputPath, keyInfoFile, playlistPath, videoId, encodingOptions, videoAnalysis);
   }
 
+  private async executeVideoConversionEnhanced(
+    inputPath: string,
+    keyInfoFile: string,
+    playlistPath: string,
+    videoId: string,
+    enhancedOptions: EnhancedEncodingOptions,
+    videoAnalysis: VideoAnalysis,
+  ): Promise<void> {
+    console.log(`🎯 Using enhanced two-step workflow: FFmpeg → Shaka Packager with ${enhancedOptions.codec}`);
+    await this.executeTwoStepConversionEnhanced(inputPath, keyInfoFile, playlistPath, videoId, enhancedOptions, videoAnalysis);
+  }
+
   /**
    * Two-step conversion process for HEVC content
    * Step 1: FFmpeg transcoding to intermediate MP4
@@ -126,6 +153,49 @@ export class HLSConverter {
     }
     catch (error) {
       console.error(`❌ Two-step conversion failed for ${videoId}:`, error);
+      throw error;
+    }
+    finally {
+      // Cleanup intermediate file
+      try {
+        await fs.unlink(intermediatePath);
+        console.log(`🧹 Cleaned up intermediate file: ${intermediatePath}`);
+      }
+      catch {
+        // Ignore cleanup errors for non-existent files
+      }
+    }
+  }
+
+  /**
+   * Enhanced two-step conversion process (Phase 3)
+   * Step 1: FFmpeg transcoding with enhanced options to intermediate MP4
+   * Step 2: Shaka Packager for encrypted fMP4 DASH
+   */
+  private async executeTwoStepConversionEnhanced(
+    inputPath: string,
+    keyInfoFile: string,
+    playlistPath: string,
+    videoId: string,
+    enhancedOptions: EnhancedEncodingOptions,
+    videoAnalysis: VideoAnalysis,
+  ): Promise<void> {
+    const videoDir = join(config.paths.videos, videoId);
+    const intermediatePath = join(videoDir, 'intermediate.mp4');
+
+    try {
+      // Step 1: FFmpeg transcoding with enhanced options
+      console.log(`📹 Step 1: Enhanced FFmpeg transcoding to intermediate MP4...`);
+      await this.executeFFmpegTranscodingEnhanced(inputPath, intermediatePath, enhancedOptions, videoAnalysis, videoId);
+
+      // Step 2: Shaka Packager for encrypted fMP4 DASH (reuse existing logic)
+      console.log(`📦 Step 2: Shaka Packager encryption and DASH packaging...`);
+      await this.executeShakaPackager(intermediatePath, videoDir, videoId, keyInfoFile);
+
+      console.log(`✅ Enhanced two-step conversion completed for ${videoId}`);
+    }
+    catch (error) {
+      console.error(`❌ Enhanced two-step conversion failed for ${videoId}:`, error);
       throw error;
     }
     finally {
@@ -246,6 +316,86 @@ export class HLSConverter {
       catch (error) {
         console.error(`❌ FFmpeg transcoding validation error:`, error);
         reject(error instanceof Error ? error : new Error('FFmpeg transcoding validation failed'));
+      }
+    });
+  }
+
+  /**
+   * Enhanced FFmpeg transcoding to intermediate MP4 (Phase 3)
+   * Uses direct FFmpeg parameter control from quality-mapping.ts
+   */
+  private async executeFFmpegTranscodingEnhanced(
+    inputPath: string,
+    outputPath: string,
+    enhancedOptions: EnhancedEncodingOptions,
+    videoAnalysis: VideoAnalysis,
+    videoId: string,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        console.log(`🎯 Enhanced FFmpeg parameters - Codec: ${enhancedOptions.codec}, Preset: ${enhancedOptions.preset}, ${enhancedOptions.qualityParam}: ${enhancedOptions.qualityValue}`);
+        console.log(`🎯 Target video bitrate: ${enhancedOptions.targetVideoBitrate}k, Audio: ${enhancedOptions.audioSettings.codec} ${enhancedOptions.audioSettings.bitrate}`);
+
+        // Build FFmpeg command using enhanced options directly
+        const ffmpegArgs = [
+          '-i',
+          inputPath,
+
+          // Video encoding with enhanced parameters
+          '-c:v',
+          enhancedOptions.codec,
+          '-preset',
+          enhancedOptions.preset,
+        ];
+
+        // Add quality parameter (crf for CPU, cq for GPU)
+        ffmpegArgs.push(`-${enhancedOptions.qualityParam}`, enhancedOptions.qualityValue.toString());
+
+        // Add bitrate constraints
+        ffmpegArgs.push('-maxrate', `${enhancedOptions.targetVideoBitrate}k`);
+        ffmpegArgs.push('-bufsize', `${enhancedOptions.targetVideoBitrate * 2}k`);
+
+        // Add additional optimization flags
+        ffmpegArgs.push(...enhancedOptions.additionalFlags);
+
+        // Audio encoding (reuse existing logic)
+        if (enhancedOptions.audioSettings.codec === 'copy') {
+          ffmpegArgs.push('-c:a', 'copy');
+        }
+        else {
+          ffmpegArgs.push('-c:a', enhancedOptions.audioSettings.codec);
+          if (enhancedOptions.audioSettings.bitrate) {
+            ffmpegArgs.push('-b:a', enhancedOptions.audioSettings.bitrate);
+          }
+        }
+
+        // Output format and optimizations
+        ffmpegArgs.push('-f', 'mp4', '-movflags', '+faststart', '-y', outputPath);
+
+        console.log(`🎬 Executing enhanced FFmpeg command for ${videoId}:`);
+        console.log(`ffmpeg ${ffmpegArgs.join(' ')}`);
+
+        // Execute FFmpeg with progress tracking
+        executeFFmpegCommand({
+          command: config.ffmpeg.ffmpegPath,
+          args: ffmpegArgs,
+          onProgress: (data: Buffer) => {
+            const output = data.toString();
+            if (output.includes('time=')) {
+              console.log(`📊 Enhanced FFmpeg progress: ${output.trim()}`);
+            }
+          },
+        }).then(() => {
+          console.log(`✅ Enhanced FFmpeg transcoding completed for ${videoId}`);
+          resolve();
+        }).catch((error: any) => {
+          console.error(`❌ Enhanced FFmpeg transcoding failed for ${videoId}:`, error);
+          reject(error);
+        });
+      }
+      catch (error) {
+        console.error(`❌ Enhanced FFmpeg setup failed for ${videoId}:`, error);
+        reject(error);
       }
     });
   }

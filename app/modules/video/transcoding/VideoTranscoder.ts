@@ -53,11 +53,24 @@ export interface TranscodeResult {
 }
 
 /**
- * Technical metadata extracted from a video file.
+ * Enhanced technical metadata extracted from a video file.
+ * Phase 3: Expanded to include resolution, framerate, and format details.
  */
 export interface VideoMetadata {
+  // Basic metadata (Phase 2)
   duration: number; // in seconds
   bitrate: number; // in kbps
   videoCodec: string;
   audioCodec: string;
+
+  // Enhanced metadata (Phase 3)
+  width: number; // video width in pixels
+  height: number; // video height in pixels
+  frameRate: number; // frames per second
+  fileSize: number; // file size in bytes
+
+  // Business-friendly format information
+  resolution: string; // e.g., "1920x1080", "1280x720"
+  formatDescription: string; // e.g., "Full HD H.264", "4K HEVC"
+  recommendedQuality: 'high' | 'medium' | 'fast'; // encoding recommendation
 }

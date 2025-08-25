@@ -9,11 +9,12 @@ import {
 } from '~/lib/errors';
 import { Result } from '~/lib/result';
 import { HLSConverter } from '~/services/hls-converter.server';
-import type { EncodingOptions } from '../add-video/add-video.types';
+import type { EncodingOptions, EnhancedEncodingOptions } from '../add-video/add-video.types';
 import type { VideoAnalysisRepository } from '../analysis/repositories/video-analysis-repository.types';
 import type { VideoAnalysisService } from '../analysis/video-analysis.types';
 import { FFprobeAnalysisService } from '../analysis/ffprobe-analysis.service';
 import type { TranscodeRequest, TranscodeResult, VideoMetadata, VideoTranscoder } from './VideoTranscoder';
+import { getCodecForEncoder, getQualityParamName, getQualitySettings } from './quality-mapping';
 
 /**
  * FFmpeg-based implementation of the VideoTranscoder port.
@@ -56,8 +57,8 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
         return Result.fail(new ResourceNotFoundError(`Source file: ${request.sourcePath}`));
       }
 
-      // Map business quality to technical encoding options
-      const encodingOptions = this.mapQualityToEncodingOptions(request.quality, request.useGpu);
+      // Map business quality to enhanced encoding options (Phase 3)
+      const enhancedOptions = await this.createEnhancedEncodingOptions(request.quality, request.useGpu, request.sourcePath);
 
       // Extract video metadata before processing
       const metadataResult = await this.extractMetadata(request.sourcePath);
@@ -66,7 +67,7 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
       }
 
       // Execute the existing HLSConverter (wrapped for error handling)
-      await this.executeHLSConversion(request.videoId, request.sourcePath, encodingOptions);
+      await this.executeHLSConversion(request.videoId, request.sourcePath, enhancedOptions);
 
       // Build result with processed file paths
       const result = await this.buildTranscodeResult(request.videoId, metadataResult.data);
@@ -86,10 +87,22 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
       const analysis = await this.analysisService.analyze(filePath);
 
       const metadata: VideoMetadata = {
+        // Basic metadata
         duration: analysis.duration,
         bitrate: analysis.bitrate,
         videoCodec: analysis.videoCodec || 'unknown',
         audioCodec: analysis.audioCodec || 'unknown',
+
+        // Enhanced metadata
+        width: analysis.width,
+        height: analysis.height,
+        frameRate: analysis.frameRate,
+        fileSize: analysis.fileSize,
+
+        // Business-friendly format information
+        resolution: this.formatResolution(analysis.width, analysis.height),
+        formatDescription: this.createFormatDescription(analysis.videoCodec, analysis.width, analysis.height),
+        recommendedQuality: this.recommendQuality(analysis.width, analysis.height, analysis.bitrate),
       };
 
       return Result.ok(metadata) as Result<VideoMetadata, VideoProcessingError>;
@@ -103,19 +116,35 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
   }
 
   /**
-   * Maps business quality levels to technical encoding options.
-   * Phase 2: Simple mapping, will be enhanced in Phase 3.
+   * Creates enhanced encoding options using quality-mapping.ts strategy (Phase 3).
+   * This replaces the Phase 2 stub and provides direct FFmpeg parameter control.
    */
-  private mapQualityToEncodingOptions(quality: 'high' | 'medium' | 'fast', useGpu: boolean): EncodingOptions {
-    // For Phase 2, map to existing encoding options
-    // Phase 3 will use the quality-mapping.ts strategy for full parameter control
+  private async createEnhancedEncodingOptions(
+    quality: 'high' | 'medium' | 'fast',
+    useGpu: boolean,
+    sourcePath: string,
+  ): Promise<EnhancedEncodingOptions> {
+    // Extract video analysis for bitrate calculation
+    const analysis = await this.analysisService.analyze(sourcePath);
 
-    if (useGpu) {
-      return { encoder: 'gpu-h265' };
-    }
-    else {
-      return { encoder: 'cpu-h265' };
-    }
+    // Get quality settings from quality-mapping.ts
+    const qualitySettings = getQualitySettings(quality, useGpu);
+    const codec = getCodecForEncoder(useGpu);
+    const qualityParam = getQualityParamName(useGpu);
+
+    // Calculate optimal bitrates using existing logic
+    const legacyEncoder = useGpu ? 'gpu-h265' : 'cpu-h265';
+    const bitrateCalc = this.analysisService.calculateOptimalBitrates(analysis, legacyEncoder);
+
+    return {
+      codec,
+      preset: qualitySettings.preset,
+      qualityParam,
+      qualityValue: qualitySettings.qualityValue,
+      additionalFlags: qualitySettings.additionalFlags,
+      targetVideoBitrate: bitrateCalc.targetVideoBitrate,
+      audioSettings: bitrateCalc.audioSettings,
+    };
   }
 
   /**
@@ -133,15 +162,16 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
   }
 
   /**
-   * Executes the existing HLSConverter with error wrapping.
+   * Executes the existing HLSConverter with enhanced options (Phase 3).
    */
   private async executeHLSConversion(
     videoId: string,
     sourcePath: string,
-    encodingOptions: EncodingOptions,
+    enhancedOptions: EnhancedEncodingOptions,
   ): Promise<void> {
     try {
-      await this.hlsConverter.convertVideo(videoId, sourcePath, encodingOptions);
+      // Phase 3: Use enhanced options directly with HLSConverter
+      await this.hlsConverter.convertVideo(videoId, sourcePath, enhancedOptions);
     }
     catch (error) {
       // Re-throw with more context for the outer error handler
@@ -191,5 +221,89 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
     }
 
     return Result.fail(new TranscodingEngineError('Unknown transcoding error'));
+  }
+
+  /**
+   * Format resolution as a readable string.
+   */
+  private formatResolution(width: number, height: number): string {
+    if (width === 0 || height === 0) {
+      return 'unknown';
+    }
+    return `${width}x${height}`;
+  }
+
+  /**
+   * Create a business-friendly format description.
+   */
+  private createFormatDescription(videoCodec: string, width: number, height: number): string {
+    // Determine resolution category
+    let resolutionLabel = '';
+    if (height >= 2160) {
+      resolutionLabel = '4K';
+    }
+    else if (height >= 1440) {
+      resolutionLabel = '2K';
+    }
+    else if (height >= 1080) {
+      resolutionLabel = 'Full HD';
+    }
+    else if (height >= 720) {
+      resolutionLabel = 'HD';
+    }
+    else if (height >= 480) {
+      resolutionLabel = 'SD';
+    }
+    else {
+      resolutionLabel = 'Low Res';
+    }
+
+    // Format codec name
+    let codecLabel = '';
+    switch (videoCodec.toLowerCase()) {
+      case 'h264':
+      case 'avc':
+        codecLabel = 'H.264';
+        break;
+      case 'h265':
+      case 'hevc':
+        codecLabel = 'H.265';
+        break;
+      case 'vp9':
+        codecLabel = 'VP9';
+        break;
+      case 'av1':
+        codecLabel = 'AV1';
+        break;
+      default:
+        codecLabel = videoCodec.toUpperCase();
+    }
+
+    return `${resolutionLabel} ${codecLabel}`;
+  }
+
+  /**
+   * Recommend encoding quality based on video characteristics.
+   */
+  private recommendQuality(width: number, height: number, bitrate: number): 'high' | 'medium' | 'fast' {
+    const pixelCount = width * height;
+
+    // High quality recommendation for:
+    // - 4K+ content regardless of bitrate
+    // - High bitrate content (>8000 kbps)
+    // - High resolution with decent bitrate
+    if (height >= 2160 || bitrate > 8000 || (pixelCount > 2073600 && bitrate > 4000)) {
+      return 'high';
+    }
+
+    // Fast quality recommendation for:
+    // - Very low resolution (<720p)
+    // - Low bitrate content (<2000 kbps)
+    if (height < 720 || bitrate < 2000) {
+      return 'fast';
+    }
+
+    // Medium quality for everything else
+    return 'medium';
   }
 }
