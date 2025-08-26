@@ -49,6 +49,12 @@ export class FFprobeRepository implements VideoAnalysisRepository {
           const audioCodec = audioStream?.codec_name || 'unknown';
           const audioBitrate = audioStream?.bit_rate ? parseInt(audioStream.bit_rate, 10) / 1000 : 128; // Default to 128kbps
 
+          // Extract enhanced video metadata
+          const width = videoStream?.width || 0;
+          const height = videoStream?.height || 0;
+          const frameRateStr = videoStream?.r_frame_rate || '0/1';
+          const frameRate = this.parseFrameRate(frameRateStr);
+
           resolve({
             duration,
             bitrate: totalBitrate,
@@ -56,6 +62,9 @@ export class FFprobeRepository implements VideoAnalysisRepository {
             audioCodec,
             videoCodec,
             fileSize,
+            width,
+            height,
+            frameRate,
           });
         }
         catch (error) {
@@ -67,5 +76,18 @@ export class FFprobeRepository implements VideoAnalysisRepository {
         reject(new Error(`ffprobe process error: ${error}`));
       });
     });
+  }
+
+  private parseFrameRate(frameRateStr: string): number {
+    try {
+      const [numerator, denominator] = frameRateStr.split('/').map(n => parseInt(n, 10));
+      if (denominator && denominator > 0) {
+        return Math.round((numerator / denominator) * 100) / 100; // Round to 2 decimal places
+      }
+      return 0;
+    }
+    catch {
+      return 0;
+    }
   }
 }
