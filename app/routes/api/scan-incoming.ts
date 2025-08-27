@@ -1,32 +1,45 @@
-import { ensureIncomingDirectory, scanIncomingFiles } from '~/services/file-manager.server';
+import type { ScanIncomingDependencies } from '~/modules/video/scan-incoming/scan-incoming.types';
+import { DomainError } from '~/lib/errors';
+import { ScanIncomingUseCase } from '~/modules/video/scan-incoming/scan-incoming.usecase';
+import * as fileManager from '~/services/file-manager.server';
 import { requireAuth } from '~/utils/auth.server';
 import type { Route } from './+types/scan-incoming';
+
+// Create dependencies for the UseCase
+function createDependencies(): ScanIncomingDependencies {
+  return {
+    fileManager: {
+      ensureIncomingDirectory: fileManager.ensureIncomingDirectory,
+      scanIncomingFiles: fileManager.scanIncomingFiles,
+    },
+    logger: console,
+  };
+}
 
 export async function loader({ request }: Route.LoaderArgs) {
   // Authentication check
   await requireAuth(request);
 
-  try {
-    // Ensure incoming directory exists
-    await ensureIncomingDirectory();
+  // Create UseCase with dependencies
+  const useCase = new ScanIncomingUseCase(createDependencies());
 
-    // Scan files
-    const files = await scanIncomingFiles();
+  // Execute UseCase
+  const result = await useCase.execute({});
 
+  // Return response based on result
+  if (result.success) {
     return Response.json({
       success: true,
-      files,
-      count: files.length,
+      ...result.data,
     });
   }
-  catch (error) {
-    console.error('Failed to scan incoming files:', error);
-
+  else {
+    const statusCode = result.error instanceof DomainError ? result.error.statusCode : 500;
     return Response.json({
       success: false,
-      error: 'Failed to scan incoming files',
+      error: result.error.message,
       files: [],
       count: 0,
-    }, { status: 500 });
+    }, { status: statusCode });
   }
 }
