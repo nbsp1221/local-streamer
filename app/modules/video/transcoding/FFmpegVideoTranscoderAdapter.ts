@@ -8,23 +8,22 @@ import {
   VideoProcessingError,
 } from '~/lib/errors';
 import { Result } from '~/lib/result';
-import { HLSConverter } from '~/services/hls-converter.server';
 import type { EncodingOptions, EnhancedEncodingOptions } from '../add-video/add-video.types';
 import type { VideoAnalysisRepository } from '../analysis/repositories/video-analysis-repository.types';
 import type { VideoAnalysisService } from '../analysis/video-analysis.types';
+import type { OrchestrationRequest, OrchestrationResult } from '../processing/types/transcoding-orchestrator.types';
 import { FFprobeAnalysisService } from '../analysis/ffprobe-analysis.service';
+import { transcodingOrchestratorService } from '../processing/services/TranscodingOrchestratorService';
 import type { TranscodeRequest, TranscodeResult, VideoMetadata, VideoTranscoder } from './VideoTranscoder';
 import { getCodecForEncoder, getQualityParamName, getQualitySettings } from './quality-mapping';
 
 /**
  * FFmpeg-based implementation of the VideoTranscoder port.
- * This adapter wraps the existing HLSConverter and provides a business-focused API.
+ * This adapter uses the new modular transcoding orchestrator services.
  *
- * Phase 2 Implementation: This is a stub that wraps existing functionality
- * while providing the new interface. Full implementation will come in Phase 3.
+ * Phase 3 Implementation: Now uses distributed services instead of monolithic HLSConverter.
  */
 export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
-  private hlsConverter: HLSConverter;
   private analysisService: VideoAnalysisService;
 
   constructor(
@@ -41,13 +40,11 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
     else {
       this.analysisService = new FFprobeAnalysisService();
     }
-
-    this.hlsConverter = new HLSConverter(this.analysisService);
   }
 
   /**
    * Transcodes a video using business quality levels.
-   * Maps business requests to technical HLSConverter calls.
+   * Maps business requests to orchestrated transcoding services.
    */
   async transcode(request: TranscodeRequest): Promise<Result<TranscodeResult, VideoProcessingError>> {
     try {
@@ -57,7 +54,7 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
         return Result.fail(new ResourceNotFoundError(`Source file: ${request.sourcePath}`));
       }
 
-      // Map business quality to enhanced encoding options (Phase 3)
+      // Map business quality to enhanced encoding options
       const enhancedOptions = await this.createEnhancedEncodingOptions(request.quality, request.useGpu, request.sourcePath);
 
       // Extract video metadata before processing
@@ -66,11 +63,11 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
         return Result.fail(metadataResult.error);
       }
 
-      // Execute the existing HLSConverter (wrapped for error handling)
-      await this.executeHLSConversion(request.videoId, request.sourcePath, enhancedOptions);
+      // Execute orchestrated transcoding workflow
+      const orchestrationResult = await this.executeOrchestration(request, enhancedOptions, metadataResult.data);
 
-      // Build result with processed file paths
-      const result = await this.buildTranscodeResult(request.videoId, metadataResult.data);
+      // Build result from orchestration output
+      const result = await this.buildTranscodeResultFromOrchestration(orchestrationResult, metadataResult.data);
 
       return Result.ok(result) as Result<TranscodeResult, VideoProcessingError>;
     }
@@ -162,36 +159,46 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
   }
 
   /**
-   * Executes the existing HLSConverter with enhanced options (Phase 3).
+   * Executes the orchestrated transcoding workflow (Phase 3).
    */
-  private async executeHLSConversion(
-    videoId: string,
-    sourcePath: string,
+  private async executeOrchestration(
+    request: TranscodeRequest,
     enhancedOptions: EnhancedEncodingOptions,
-  ): Promise<void> {
-    try {
-      // Phase 3: Use enhanced options directly with HLSConverter
-      await this.hlsConverter.convertVideo(videoId, sourcePath, enhancedOptions);
-    }
-    catch (error) {
-      // Re-throw with more context for the outer error handler
-      if (error instanceof Error) {
-        throw new Error(`HLS conversion failed: ${error.message}`);
-      }
-      throw new Error('HLS conversion failed with unknown error');
-    }
+    metadata: VideoMetadata,
+  ): Promise<OrchestrationResult> {
+    const orchestrationRequest: OrchestrationRequest = {
+      videoId: request.videoId,
+      inputPath: request.sourcePath,
+      encodingOptions: enhancedOptions,
+      videoAnalysis: {
+        duration: metadata.duration,
+        bitrate: metadata.bitrate,
+        audioBitrate: 128000, // Default audio bitrate
+        width: metadata.width,
+        height: metadata.height,
+        frameRate: metadata.frameRate,
+        fileSize: metadata.fileSize,
+        videoCodec: metadata.videoCodec,
+        audioCodec: metadata.audioCodec,
+      },
+      generateThumbnail: true,
+      cleanupOriginal: false,
+    };
+
+    return transcodingOrchestratorService.execute(orchestrationRequest);
   }
 
   /**
-   * Builds the TranscodeResult from processed files.
+   * Builds the TranscodeResult from orchestration result.
    */
-  private async buildTranscodeResult(videoId: string, metadata: VideoMetadata): Promise<TranscodeResult> {
-    const videoDir = join(config.paths.videos, videoId);
-
+  private async buildTranscodeResultFromOrchestration(
+    orchestrationResult: OrchestrationResult,
+    metadata: VideoMetadata,
+  ): Promise<TranscodeResult> {
     return {
-      videoId,
-      manifestPath: join(videoDir, 'manifest.mpd'), // Updated for DASH format
-      thumbnailPath: join(videoDir, 'thumbnail.jpg'),
+      videoId: orchestrationResult.videoId,
+      manifestPath: orchestrationResult.manifestPath,
+      thumbnailPath: orchestrationResult.thumbnailPath || join(config.paths.videos, orchestrationResult.videoId, 'thumbnail.jpg'),
       duration: metadata.duration,
     };
   }
