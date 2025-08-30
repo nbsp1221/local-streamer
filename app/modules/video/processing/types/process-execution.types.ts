@@ -21,6 +21,8 @@ export interface ProcessExecutionOptions {
   onProgress?: (progress: ProcessProgress) => void;
   /** Label for logging purposes */
   label?: string;
+  /** Video duration in seconds for progress calculation (FFmpeg only) */
+  videoDurationSec?: number;
 }
 
 export interface ProcessProgress {

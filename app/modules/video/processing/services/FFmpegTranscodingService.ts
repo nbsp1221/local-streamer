@@ -3,7 +3,6 @@ import path from 'path';
 import type { EncodingOptions, EnhancedEncodingOptions } from '~/modules/video/add-video/add-video.types';
 import type { VideoAnalysis } from '~/modules/video/analysis/video-analysis.types';
 import { config, ffmpeg } from '~/configs';
-import { executeFFmpegCommand } from '~/lib/ffmpeg-process-manager';
 import {
   getAdditionalFlags,
   getCodecName,
@@ -19,6 +18,7 @@ import type {
   TranscodingRequest,
   TranscodingResult,
 } from '../types/ffmpeg-transcoding.types';
+import type { ProcessProgress } from '../types/process-execution.types';
 import { processExecutionService } from './ProcessExecutionService';
 
 /**
@@ -67,14 +67,16 @@ export class FFmpegTranscodingServiceImpl implements FFmpegTranscodingService {
     const commandOptions = this.buildLegacyCommandOptions(inputPath, outputPath, options, videoAnalysis);
     const args = this.buildFFmpegArgs(commandOptions);
 
-    // Execute FFmpeg
-    await executeFFmpegCommand({
+    // Execute FFmpeg with enhanced progress tracking
+    await processExecutionService.executeWithStreaming({
       command: 'ffmpeg',
       args,
-      onProgress: (data) => {
-        // Parse and log progress
-        this.logFFmpegProgress(data.toString());
+      videoDurationSec: videoAnalysis?.duration,
+      onProgress: (progress) => {
+        // Enhanced progress logging with percentage and ETA
+        this.logEnhancedProgress(progress);
       },
+      label: `transcoding-${videoId}`,
     });
 
     const duration = Date.now() - startTime;
@@ -114,12 +116,14 @@ export class FFmpegTranscodingServiceImpl implements FFmpegTranscodingService {
     const args = this.buildFFmpegArgs(commandOptions);
 
     // Execute FFmpeg
-    await executeFFmpegCommand({
+    await processExecutionService.executeWithStreaming({
       command: 'ffmpeg',
       args,
-      onProgress: (data) => {
-        this.logFFmpegProgress(data.toString());
+      videoDurationSec: videoAnalysis?.duration,
+      onProgress: (progress) => {
+        this.logEnhancedProgress(progress);
       },
+      label: `enhanced-transcoding-${videoId}`,
     });
 
     const duration = Date.now() - startTime;
@@ -215,12 +219,14 @@ export class FFmpegTranscodingServiceImpl implements FFmpegTranscodingService {
 
     const args = this.buildFFmpegArgs(commandOptions);
 
-    await executeFFmpegCommand({
+    await processExecutionService.executeWithStreaming({
       args,
       command: 'ffmpeg',
-      onProgress: (data) => {
-        this.logFFmpegProgress(data.toString(), 'Pass 1');
+      videoDurationSec: videoAnalysis?.duration,
+      onProgress: (progress) => {
+        this.logEnhancedProgress(progress, 'Pass 1/2');
       },
+      label: `2pass-1-${videoId}`,
     });
   }
 
@@ -254,12 +260,14 @@ export class FFmpegTranscodingServiceImpl implements FFmpegTranscodingService {
 
     const args = this.buildFFmpegArgs(commandOptions);
 
-    await executeFFmpegCommand({
+    await processExecutionService.executeWithStreaming({
       args,
       command: 'ffmpeg',
-      onProgress: (data) => {
-        this.logFFmpegProgress(data.toString(), 'Pass 2');
+      videoDurationSec: videoAnalysis?.duration,
+      onProgress: (progress) => {
+        this.logEnhancedProgress(progress, 'Pass 2/2');
       },
+      label: `2pass-2-${videoId}`,
     });
   }
 
@@ -474,23 +482,44 @@ export class FFmpegTranscodingServiceImpl implements FFmpegTranscodingService {
   }
 
   /**
-   * Log FFmpeg progress
+   * Log enhanced FFmpeg progress with user-friendly formatting
    */
-  private logFFmpegProgress(line: string, passLabel?: string) {
+  private logEnhancedProgress(progress: ProcessProgress, passLabel?: string) {
+    // Only log if we have meaningful progress information
+    if (!progress.percentage && !progress.frame && !progress.speed) {
+      return;
+    }
+
     const prefix = passLabel ? `[${passLabel}]` : '';
+    const parts = [];
 
-    // Parse frame, fps, and speed from FFmpeg output
-    const frameMatch = line.match(/frame=\s*(\d+)/);
-    const fpsMatch = line.match(/fps=\s*([\d.]+)/);
-    const speedMatch = line.match(/speed=\s*([\d.]+)x/);
+    // Primary progress information
+    if (progress.percentage !== undefined) {
+      parts.push(`${progress.percentage.toFixed(1)}%`);
+    }
 
-    if (frameMatch || fpsMatch || speedMatch) {
-      const parts = [];
-      if (frameMatch) parts.push(`Frame: ${frameMatch[1]}`);
-      if (fpsMatch) parts.push(`FPS: ${fpsMatch[1]}`);
-      if (speedMatch) parts.push(`Speed: ${speedMatch[1]}x`);
+    // Time information
+    if (progress.eta) {
+      parts.push(`ETA: ${progress.eta}`);
+    }
 
-      console.log(`📊 [FFmpegTranscoding] ${prefix} ${parts.join(' | ')}`);
+    // Speed information
+    if (progress.speed) {
+      parts.push(`Speed: ${progress.speed}`);
+    }
+
+    // Frame information (less prominent)
+    if (progress.frame && !progress.percentage) {
+      parts.push(`Frame: ${progress.frame}`);
+    }
+
+    if (parts.length > 0) {
+      // Use different emoji based on progress
+      const emoji = progress.percentage && progress.percentage >= 90
+        ? '🏁'
+        : progress.percentage && progress.percentage >= 50 ? '⚡' : '🎬';
+
+      console.log(`${emoji} [Video Processing] ${prefix} ${parts.join(' | ')}`);
     }
   }
 }

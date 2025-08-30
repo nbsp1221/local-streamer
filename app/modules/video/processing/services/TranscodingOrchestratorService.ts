@@ -80,18 +80,21 @@ export class TranscodingOrchestratorServiceImpl implements TranscodingOrchestrat
 
       // Phase 4: Transcoding
       const transcodingStart = Date.now();
-      console.log(`🎯 [TranscodingOrchestrator] Phase 4: Transcoding`);
+      console.log(`🎯 [TranscodingOrchestrator] Phase 4: Transcoding (${videoAnalysis.duration}s video)`);
+      console.log(`⚡ [TranscodingOrchestrator] Starting video encoding - progress will be displayed below...`);
       const transcodingResult = await this.executeTranscoding(request, workspace);
       statistics.phaseDurations.transcoding = Date.now() - transcodingStart;
       statistics.usedGpu = transcodingResult.usedGpu;
       statistics.codec = transcodingResult.codec;
+      console.log(`✅ [TranscodingOrchestrator] Transcoding completed in ${(statistics.phaseDurations.transcoding / 1000).toFixed(1)}s`);
 
       // Phase 5: Packaging
       const packagingStart = Date.now();
-      console.log(`📦 [TranscodingOrchestrator] Phase 5: Packaging`);
+      console.log(`📦 [TranscodingOrchestrator] Phase 5: DASH Packaging with AES-128 encryption`);
       const packagingResult = await this.executePackaging(videoId, workspace, encryptionConfig);
       statistics.phaseDurations.packaging = Date.now() - packagingStart;
       statistics.segmentCount = packagingResult.segmentCount;
+      console.log(`✅ [TranscodingOrchestrator] Packaging completed - ${packagingResult.segmentCount} segments created`);
 
       // Phase 6: Thumbnail Generation
       let thumbnailPath: string | undefined;

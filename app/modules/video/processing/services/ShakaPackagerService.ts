@@ -2,7 +2,6 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { config } from '~/configs';
 import { getShakaPackagerPath } from '~/configs/ffmpeg';
-import { executeFFmpegCommand } from '~/lib/ffmpeg-process-manager';
 import type {
   EncryptionConfig,
   PackagingError,
@@ -238,18 +237,18 @@ export class ShakaPackagerServiceImpl implements ShakaPackagerService {
 
     console.log(`🚀 [ShakaPackager] Executing: ${packagerPath} ${args.join(' ')}`);
 
-    // Use executeFFmpegCommand for consistency with existing queue management
-    await executeFFmpegCommand({
+    // Use processExecutionService for consistency with other services
+    await processExecutionService.executeWithStreaming({
       command: packagerPath,
       args,
-      onProgress: (data) => {
+      onProgress: (progress) => {
         // Shaka Packager doesn't provide detailed progress like FFmpeg
-        // But we can still log output for debugging
-        const line = data.toString();
-        if (line.trim()) {
-          console.log(`📦 [ShakaPackager] ${line}`);
+        // But we can still log basic information when available
+        if (progress.raw && progress.raw.trim()) {
+          console.log(`📦 [ShakaPackager] ${progress.raw.trim()}`);
         }
       },
+      label: `packaging-${videoId}`,
     });
   }
 

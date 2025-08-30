@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { HLSConverter } from '~/services/hls-converter.server';
+import { getManifestUseCase } from '~/modules/video/manifest/get-manifest.usecase';
 import { validateVideoRequest } from '~/services/hls-jwt.server';
 
 /**
@@ -21,23 +21,34 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   try {
-    const hlsConverter = new HLSConverter();
+    // Use the new GetManifestUseCase
+    const result = await getManifestUseCase.execute({ videoId });
 
-    // Check if video exists
-    const isAvailable = await hlsConverter.isVideoAvailable(videoId);
-    if (!isAvailable) {
-      throw new Response('Video not available', { status: 404 });
+    if (!result.success) {
+      const error = result.error;
+      console.error(`GetManifest UseCase failed for ${videoId}:`, error);
+
+      // Map error types to HTTP status codes
+      if (error.name === 'NotFoundError') {
+        throw new Response(error.message, { status: 404 });
+      }
+      if (error.name === 'ValidationError') {
+        throw new Response(error.message, { status: 400 });
+      }
+      if (error.name === 'UnauthorizedError') {
+        throw new Response(error.message, { status: 401 });
+      }
+
+      // Default to 500 for internal errors
+      throw new Response('Failed to load DASH manifest', { status: 500 });
     }
 
-    // Get DASH manifest content
-    const manifest = await hlsConverter.getDashManifest(videoId);
+    const { manifestContent, headers } = result.data;
 
     console.log(`📽️ DASH manifest served: ${videoId}/manifest.mpd`);
 
-    return new Response(manifest, {
-      headers: {
-        'Content-Type': 'application/dash+xml',
-      },
+    return new Response(manifestContent, {
+      headers,
     });
   }
   catch (error) {

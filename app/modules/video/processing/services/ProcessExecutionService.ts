@@ -140,6 +140,7 @@ export class ProcessExecutionServiceImpl implements ProcessExecutionService {
       captureStderr,
       onProgress,
       label,
+      videoDurationSec,
     } = options;
 
     return new Promise((resolve, reject) => {
@@ -208,7 +209,7 @@ export class ProcessExecutionServiceImpl implements ProcessExecutionService {
 
           // FFmpeg sends progress to stderr
           if (onProgress && command.includes('ffmpeg')) {
-            const progress = this.parseFFmpegProgress(dataStr);
+            const progress = this.parseFFmpegProgress(dataStr, videoDurationSec);
             if (progress) {
               onProgress(progress);
             }
@@ -317,9 +318,9 @@ export class ProcessExecutionServiceImpl implements ProcessExecutionService {
   }
 
   /**
-   * Parse FFmpeg-specific progress output
+   * Parse FFmpeg-specific progress output with enhanced progress calculation
    */
-  private parseFFmpegProgress(output: string): ProcessProgress | null {
+  private parseFFmpegProgress(output: string, totalDurationSec?: number): ProcessProgress | null {
     // FFmpeg progress format: frame=  123 fps= 45.6 q=28.0 size=    1024kB time=00:00:05.12 bitrate= 1638.4kbits/s speed=2.34x
     const frameMatch = output.match(/frame=\s*(\d+)/);
     const fpsMatch = output.match(/fps=\s*([\d.]+)/);
@@ -327,14 +328,65 @@ export class ProcessExecutionServiceImpl implements ProcessExecutionService {
     const speedMatch = output.match(/speed=\s*([\d.]+)x/);
 
     if (frameMatch || timeMatch || speedMatch) {
-      return {
+      const result: ProcessProgress = {
         frame: frameMatch ? parseInt(frameMatch[1]) : undefined,
         speed: speedMatch ? `${speedMatch[1]}x` : undefined,
         raw: output.trim(),
       };
+
+      // Enhanced progress calculation with total duration
+      if (timeMatch && totalDurationSec && totalDurationSec > 0) {
+        const currentTimeSec = this.parseTimeToSeconds(timeMatch[1]);
+        const percentage = Math.min(100, Math.max(0, (currentTimeSec / totalDurationSec) * 100));
+        const speed = speedMatch ? parseFloat(speedMatch[1]) : 1.0;
+
+        result.percentage = percentage;
+
+        // Calculate ETA based on remaining time and current speed
+        if (speed > 0 && percentage < 100) {
+          const remainingTimeSec = totalDurationSec - currentTimeSec;
+          const etaSeconds = remainingTimeSec / speed;
+          result.eta = this.formatDuration(etaSeconds);
+        }
+      }
+
+      return result;
     }
 
     return null;
+  }
+
+  /**
+   * Parse FFmpeg time format (HH:MM:SS.MS) to total seconds
+   */
+  private parseTimeToSeconds(timeStr: string): number {
+    const match = timeStr.match(/(\d{2}):(\d{2}):(\d{2})\.(\d{2})/);
+    if (!match) return 0;
+
+    const hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const seconds = parseInt(match[3], 10);
+    const milliseconds = parseInt(match[4], 10);
+
+    return hours * 3600 + minutes * 60 + seconds + milliseconds / 100;
+  }
+
+  /**
+   * Format seconds to readable duration (MM:SS or HH:MM:SS)
+   */
+  private formatDuration(totalSeconds: number): string {
+    if (totalSeconds <= 0) return '00:00';
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    else {
+      return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
   }
 }
 
