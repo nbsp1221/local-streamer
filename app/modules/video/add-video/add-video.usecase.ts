@@ -129,14 +129,14 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
   private createVideoEntity(props: {
     id: string;
     title: string;
-    tags: string[];
+    tags?: string[];
     description?: string;
     duration: number;
   }): Video {
     return {
       id: props.id,
       title: props.title.trim(),
-      tags: props.tags.filter(tag => tag.trim().length > 0).map(tag => tag.trim()),
+      tags: (props.tags || []).filter(tag => tag.trim().length > 0).map(tag => tag.trim()),
       thumbnailUrl: `/api/thumbnail/${props.id}`,
       videoUrl: `/videos/${props.id}/manifest.mpd`, // DASH manifest
       duration: props.duration,
