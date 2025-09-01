@@ -84,6 +84,7 @@ temp/
 # Data and media files (will be mounted as volumes)
 data/
 incoming/
+storage/
 
 # Keep essential files for build process
 !package.json

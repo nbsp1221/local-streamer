@@ -13,9 +13,9 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - STORAGE_DIR=./storage
     volumes:
-      - ./data:/app/data
-      - ./incoming:/app/incoming
+      - ./storage:/app/storage
     networks:
       - local-streamer-network
     healthcheck:

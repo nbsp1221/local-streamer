@@ -9,7 +9,7 @@ import type { Route } from './+types/scan-incoming';
 function createDependencies(): ScanIncomingDependencies {
   return {
     fileManager: {
-      ensureIncomingDirectory: fileManager.ensureIncomingDirectory,
+      ensureUploadsDirectory: fileManager.ensureUploadsDirectory,
       scanIncomingFiles: fileManager.scanIncomingFiles,
     },
     logger: console,

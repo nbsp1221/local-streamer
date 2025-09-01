@@ -7,7 +7,7 @@ import type { PendingVideo } from '~/types/video';
 import { config, ffmpeg } from '~/configs';
 import { generateSmartThumbnail } from './thumbnail-generator.server';
 
-const INCOMING_DIR = config.paths.incoming;
+const UPLOADS_DIR = config.paths.uploads;
 const THUMBNAILS_DIR = config.paths.thumbnails;
 const VIDEOS_DIR = config.paths.videos;
 
@@ -15,24 +15,24 @@ const VIDEOS_DIR = config.paths.videos;
 const SUPPORTED_FORMATS = config.constants.supportedVideoFormats;
 
 /**
- * Scan video files in the incoming folder and return list
+ * Scan video files in the uploads folder and return list
  */
 export async function scanIncomingFiles(): Promise<PendingVideo[]> {
   try {
-    // Create incoming directory if it doesn't exist
-    if (!existsSync(INCOMING_DIR)) {
-      await fs.mkdir(INCOMING_DIR, { recursive: true });
+    // Create uploads directory if it doesn't exist
+    if (!existsSync(UPLOADS_DIR)) {
+      await fs.mkdir(UPLOADS_DIR, { recursive: true });
       return [];
     }
 
     // Ensure thumbnails directory exists
     await ensureThumbnailsDirectory();
 
-    const files = await fs.readdir(INCOMING_DIR);
+    const files = await fs.readdir(UPLOADS_DIR);
     const pendingVideos: PendingVideo[] = [];
 
     for (const filename of files) {
-      const filePath = path.join(INCOMING_DIR, filename);
+      const filePath = path.join(UPLOADS_DIR, filename);
       const stat = statSync(filePath);
 
       // Check if it's a file (exclude directories)
@@ -84,13 +84,13 @@ export async function scanIncomingFiles(): Promise<PendingVideo[]> {
     return pendingVideos.sort((a, b) => a.filename.localeCompare(b.filename));
   }
   catch (error) {
-    console.error('Failed to scan incoming files:', error);
+    console.error('Failed to scan uploads files:', error);
     return [];
   }
 }
 
 /**
- * Move file from incoming to videos directory and rename with UUID
+ * Move file from uploads to videos directory and rename with UUID
  */
 export async function moveToLibrary(filename: string): Promise<string> {
   // Validate filename to prevent path traversal attacks
@@ -112,7 +112,7 @@ export async function moveToLibrary(filename: string): Promise<string> {
     throw new Error('Invalid filename: cannot start with . or -');
   }
 
-  const sourcePath = path.join(INCOMING_DIR, filename);
+  const sourcePath = path.join(UPLOADS_DIR, filename);
 
   // Check if source file exists
   if (!existsSync(sourcePath)) {
@@ -314,12 +314,12 @@ function getMimeType(ext: string): string {
 }
 
 /**
- * Check if incoming directory exists and create if not
+ * Check if uploads directory exists and create if not
  */
-export async function ensureIncomingDirectory(): Promise<void> {
-  if (!existsSync(INCOMING_DIR)) {
-    await fs.mkdir(INCOMING_DIR, { recursive: true });
-    console.log('Incoming directory created:', INCOMING_DIR);
+export async function ensureUploadsDirectory(): Promise<void> {
+  if (!existsSync(UPLOADS_DIR)) {
+    await fs.mkdir(UPLOADS_DIR, { recursive: true });
+    console.log('Uploads directory created:', UPLOADS_DIR);
   }
 }
 

@@ -53,7 +53,7 @@ Local Streamer is a personal media server application built with React Router v7
 
 ### Product Requirements
 The PRD.md outlines a comprehensive video streaming platform with:
-- File management system with incoming/ folder and data/videos/ library
+- File management system with uploads/ folder and data/videos/ library
 - UUID-based file identification with HLS streaming and AES-128 encryption
 - JWT token-based authentication for secure video access
 - YouTube-inspired UI/UX for library browsing and video playback

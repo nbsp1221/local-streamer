@@ -55,8 +55,9 @@ docker-compose up -d
 
 ### Volumes
 
-- `./data` - Application data and JSON files
-- `./incoming` - Video upload staging area
+- `./storage` - Unified storage directory containing all application data
+  - `storage/data/` - Application data and JSON files
+  - `storage/uploads/` - Video upload staging area
 
 ### Commands
 
