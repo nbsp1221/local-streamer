@@ -6,7 +6,7 @@ import { ScanIncomingUseCase } from './scan-incoming.usecase';
 
 // Mock dependencies
 const mockFileManager = {
-  ensureIncomingDirectory: vi.fn(),
+  ensureUploadsDirectory: vi.fn(),
   scanIncomingFiles: vi.fn(),
 };
 
@@ -33,7 +33,7 @@ describe('ScanIncomingUseCase', () => {
   it('should successfully scan and return empty array when no files found', async () => {
     // Arrange
     const useCase = new ScanIncomingUseCase(deps);
-    mockFileManager.ensureIncomingDirectory.mockResolvedValue(undefined);
+    mockFileManager.ensureUploadsDirectory.mockResolvedValue(undefined);
     mockFileManager.scanIncomingFiles.mockResolvedValue([]);
 
     // Act
@@ -45,11 +45,11 @@ describe('ScanIncomingUseCase', () => {
       expect(result.data.files).toEqual([]);
       expect(result.data.count).toBe(0);
     }
-    expect(mockFileManager.ensureIncomingDirectory).toHaveBeenCalledOnce();
+    expect(mockFileManager.ensureUploadsDirectory).toHaveBeenCalledOnce();
     expect(mockFileManager.scanIncomingFiles).toHaveBeenCalledOnce();
-    expect(mockLogger.info).toHaveBeenCalledWith('Starting to scan incoming directory for video files');
-    expect(mockLogger.info).toHaveBeenCalledWith('Incoming directory verified');
-    expect(mockLogger.info).toHaveBeenCalledWith('No video files found in incoming directory');
+    expect(mockLogger.info).toHaveBeenCalledWith('Starting to scan uploads directory for video files');
+    expect(mockLogger.info).toHaveBeenCalledWith('Uploads directory verified');
+    expect(mockLogger.info).toHaveBeenCalledWith('No video files found in uploads directory');
   });
 
   it('should successfully scan and return files when found', async () => {
@@ -72,7 +72,7 @@ describe('ScanIncomingUseCase', () => {
       },
     ];
 
-    mockFileManager.ensureIncomingDirectory.mockResolvedValue(undefined);
+    mockFileManager.ensureUploadsDirectory.mockResolvedValue(undefined);
     mockFileManager.scanIncomingFiles.mockResolvedValue(mockFiles);
 
     // Act
@@ -84,12 +84,12 @@ describe('ScanIncomingUseCase', () => {
       expect(result.data.files).toEqual(mockFiles);
       expect(result.data.count).toBe(2);
     }
-    expect(mockFileManager.ensureIncomingDirectory).toHaveBeenCalledOnce();
+    expect(mockFileManager.ensureUploadsDirectory).toHaveBeenCalledOnce();
     expect(mockFileManager.scanIncomingFiles).toHaveBeenCalledOnce();
-    expect(mockLogger.info).toHaveBeenCalledWith('Starting to scan incoming directory for video files');
-    expect(mockLogger.info).toHaveBeenCalledWith('Incoming directory verified');
+    expect(mockLogger.info).toHaveBeenCalledWith('Starting to scan uploads directory for video files');
+    expect(mockLogger.info).toHaveBeenCalledWith('Uploads directory verified');
     expect(mockLogger.info).toHaveBeenCalledWith(
-      'Found 2 video file(s) in incoming directory',
+      'Found 2 video file(s) in uploads directory',
       expect.objectContaining({
         count: 2,
         files: expect.arrayContaining([
@@ -112,7 +112,7 @@ describe('ScanIncomingUseCase', () => {
     // Arrange
     const useCase = new ScanIncomingUseCase(deps);
     const error = new Error('Permission denied');
-    mockFileManager.ensureIncomingDirectory.mockRejectedValue(error);
+    mockFileManager.ensureUploadsDirectory.mockRejectedValue(error);
 
     // Act
     const result = await useCase.execute({});
@@ -121,18 +121,18 @@ describe('ScanIncomingUseCase', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toBeInstanceOf(InternalError);
-      expect(result.error.message).toBe('Failed to scan incoming files');
+      expect(result.error.message).toBe('Failed to scan uploads files');
     }
-    expect(mockFileManager.ensureIncomingDirectory).toHaveBeenCalledOnce();
+    expect(mockFileManager.ensureUploadsDirectory).toHaveBeenCalledOnce();
     expect(mockFileManager.scanIncomingFiles).not.toHaveBeenCalled();
-    expect(mockLogger.error).toHaveBeenCalledWith('Failed to scan incoming files', error);
+    expect(mockLogger.error).toHaveBeenCalledWith('Failed to scan uploads files', error);
   });
 
   it('should handle error when scanning files fails', async () => {
     // Arrange
     const useCase = new ScanIncomingUseCase(deps);
     const error = new Error('Read error');
-    mockFileManager.ensureIncomingDirectory.mockResolvedValue(undefined);
+    mockFileManager.ensureUploadsDirectory.mockResolvedValue(undefined);
     mockFileManager.scanIncomingFiles.mockRejectedValue(error);
 
     // Act
@@ -142,11 +142,11 @@ describe('ScanIncomingUseCase', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toBeInstanceOf(InternalError);
-      expect(result.error.message).toBe('Failed to scan incoming files');
+      expect(result.error.message).toBe('Failed to scan uploads files');
     }
-    expect(mockFileManager.ensureIncomingDirectory).toHaveBeenCalledOnce();
+    expect(mockFileManager.ensureUploadsDirectory).toHaveBeenCalledOnce();
     expect(mockFileManager.scanIncomingFiles).toHaveBeenCalledOnce();
-    expect(mockLogger.error).toHaveBeenCalledWith('Failed to scan incoming files', error);
+    expect(mockLogger.error).toHaveBeenCalledWith('Failed to scan uploads files', error);
   });
 
   it('should handle single file scan correctly', async () => {
@@ -161,7 +161,7 @@ describe('ScanIncomingUseCase', () => {
       },
     ];
 
-    mockFileManager.ensureIncomingDirectory.mockResolvedValue(undefined);
+    mockFileManager.ensureUploadsDirectory.mockResolvedValue(undefined);
     mockFileManager.scanIncomingFiles.mockResolvedValue(mockFiles);
 
     // Act
@@ -175,7 +175,7 @@ describe('ScanIncomingUseCase', () => {
       expect(result.data.files[0]).toEqual(mockFiles[0]);
     }
     expect(mockLogger.info).toHaveBeenCalledWith(
-      'Found 1 video file(s) in incoming directory',
+      'Found 1 video file(s) in uploads directory',
       expect.any(Object),
     );
   });

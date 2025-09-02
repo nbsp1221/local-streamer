@@ -8,24 +8,10 @@ export async function getVideos(): Promise<Video[]> {
   return videoRepository.findAll();
 }
 
-// Save video list (legacy function - now handled internally by repository)
-export async function saveVideos(videos: Video[]): Promise<void> {
-  // This function is now handled internally by the repository
-  // Kept for backward compatibility but should be avoided
-  console.warn('saveVideos is deprecated. Use repository methods directly.');
-}
-
 // Get pending videos list
 export async function getPendingVideos(): Promise<PendingVideo[]> {
   const pendingVideoRepository = getPendingVideoRepository();
   return pendingVideoRepository.findAll();
-}
-
-// Save pending videos list (legacy function - now handled internally by repository)
-export async function savePendingVideos(pendingVideos: PendingVideo[]): Promise<void> {
-  // This function is now handled internally by the repository
-  // Kept for backward compatibility but should be avoided
-  console.warn('savePendingVideos is deprecated. Use repository methods directly.');
 }
 
 // Add new video

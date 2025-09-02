@@ -6,9 +6,7 @@
 /build/
 
 # User data
-/data/
-/incoming/*
-!/incoming/.gitkeep
+/storage/
 .env
 
 # FFmpeg binaries

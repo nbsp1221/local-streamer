@@ -3,6 +3,7 @@ import path from 'path';
 import type { EncodingOptions, EnhancedEncodingOptions } from '~/modules/video/add-video/add-video.types';
 import type { VideoAnalysis } from '~/modules/video/analysis/video-analysis.types';
 import { config, ffmpeg } from '~/configs';
+import { getFFmpegPath } from '~/configs/ffmpeg';
 import {
   getAdditionalFlags,
   getCodecName,
@@ -69,7 +70,7 @@ export class FFmpegTranscodingServiceImpl implements FFmpegTranscodingService {
 
     // Execute FFmpeg with enhanced progress tracking
     await processExecutionService.executeWithStreaming({
-      command: 'ffmpeg',
+      command: getFFmpegPath(),
       args,
       videoDurationSec: videoAnalysis?.duration,
       onProgress: (progress) => {
@@ -117,7 +118,7 @@ export class FFmpegTranscodingServiceImpl implements FFmpegTranscodingService {
 
     // Execute FFmpeg
     await processExecutionService.executeWithStreaming({
-      command: 'ffmpeg',
+      command: getFFmpegPath(),
       args,
       videoDurationSec: videoAnalysis?.duration,
       onProgress: (progress) => {
@@ -221,7 +222,7 @@ export class FFmpegTranscodingServiceImpl implements FFmpegTranscodingService {
 
     await processExecutionService.executeWithStreaming({
       args,
-      command: 'ffmpeg',
+      command: getFFmpegPath(),
       videoDurationSec: videoAnalysis?.duration,
       onProgress: (progress) => {
         this.logEnhancedProgress(progress, 'Pass 1/2');
@@ -262,7 +263,7 @@ export class FFmpegTranscodingServiceImpl implements FFmpegTranscodingService {
 
     await processExecutionService.executeWithStreaming({
       args,
-      command: 'ffmpeg',
+      command: getFFmpegPath(),
       videoDurationSec: videoAnalysis?.duration,
       onProgress: (progress) => {
         this.logEnhancedProgress(progress, 'Pass 2/2');
@@ -424,7 +425,7 @@ export class FFmpegTranscodingServiceImpl implements FFmpegTranscodingService {
    */
   async getVersion(): Promise<string> {
     const result = await processExecutionService.execute({
-      command: 'ffmpeg',
+      command: getFFmpegPath(),
       args: ['-version'],
       captureStdout: true,
     });

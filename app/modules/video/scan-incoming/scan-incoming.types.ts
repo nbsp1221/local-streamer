@@ -22,7 +22,7 @@ export interface ScanIncomingResponse {
  */
 export interface ScanIncomingDependencies {
   fileManager: {
-    ensureIncomingDirectory: () => Promise<void>;
+    ensureUploadsDirectory: () => Promise<void>;
     scanIncomingFiles: () => Promise<PendingVideo[]>;
   };
   logger: {

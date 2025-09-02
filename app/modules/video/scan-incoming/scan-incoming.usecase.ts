@@ -17,11 +17,11 @@ export class ScanIncomingUseCase extends UseCase<ScanIncomingRequest, ScanIncomi
 
     try {
       // 1. Log the start of scanning operation
-      logger.info('Starting to scan incoming directory for video files');
+      logger.info('Starting to scan uploads directory for video files');
 
-      // 2. Ensure incoming directory exists
-      await fileManager.ensureIncomingDirectory();
-      logger.info('Incoming directory verified');
+      // 2. Ensure uploads directory exists
+      await fileManager.ensureUploadsDirectory();
+      logger.info('Uploads directory verified');
 
       // 3. Scan for video files
       const files = await fileManager.scanIncomingFiles();
@@ -29,10 +29,10 @@ export class ScanIncomingUseCase extends UseCase<ScanIncomingRequest, ScanIncomi
 
       // 4. Log the results
       if (fileCount === 0) {
-        logger.info('No video files found in incoming directory');
+        logger.info('No video files found in uploads directory');
       }
       else {
-        logger.info(`Found ${fileCount} video file(s) in incoming directory`, {
+        logger.info(`Found ${fileCount} video file(s) in uploads directory`, {
           count: fileCount,
           files: files.map(f => ({
             filename: f.filename,
@@ -50,10 +50,10 @@ export class ScanIncomingUseCase extends UseCase<ScanIncomingRequest, ScanIncomi
     }
     catch (error) {
       // 6. Handle and log any errors
-      logger.error('Failed to scan incoming files', error);
+      logger.error('Failed to scan uploads files', error);
 
       return Result.fail(
-        new InternalError('Failed to scan incoming files'),
+        new InternalError('Failed to scan uploads files'),
       );
     }
   }

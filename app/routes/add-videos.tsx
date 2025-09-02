@@ -57,7 +57,7 @@ export default function AddVideos() {
     encodingOptions: EncodingOptions;
   }>>({});
 
-  // Scan incoming folder
+  // Scan uploads folder
   const scanFiles = async () => {
     setLoading(true);
     setError(null);
@@ -221,7 +221,7 @@ export default function AddVideos() {
           <div className="space-y-2">
             <h1 className="text-3xl font-bold">Add Videos</h1>
             <p className="text-muted-foreground">
-              Add video files from the incoming folder to your library
+              Add video files from the uploads folder to your library
             </p>
           </div>
         </div>
@@ -250,7 +250,7 @@ export default function AddVideos() {
               <FileVideo className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No videos to add</h3>
               <p className="text-muted-foreground mb-4">
-                Place video files in the incoming folder and click the refresh button.
+                Place video files in the uploads folder and click the refresh button.
               </p>
               <div className="text-sm text-muted-foreground">
                 <p>Supported formats: MP4, AVI, MKV, MOV, WebM, M4V, FLV, WMV</p>
