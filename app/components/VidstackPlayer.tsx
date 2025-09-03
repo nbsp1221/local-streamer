@@ -2,7 +2,6 @@ import {
   type MediaErrorDetail,
   type MediaPlayerInstance,
   type MediaProviderAdapter,
-  type MediaProviderChangeEvent,
   isDASHProvider,
   MediaPlayer,
   MediaProvider,
@@ -34,8 +33,21 @@ interface VideoTokenResponse {
   error?: string;
 }
 
+interface ClearKeyResponse {
+  keys: Array<{
+    kid: string;
+    k: string;
+  }>;
+}
+
+interface DRMConfig {
+  keyId: string;
+  key: string;
+}
+
 export function VidstackPlayer({ video }: VidstackPlayerProps) {
   const [videoToken, setVideoToken] = useState<string | null>(null);
+  const [drmConfig, setDrmConfig] = useState<DRMConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,49 +55,78 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
   const retryCountRef = useRef(0);
   const tokenRefreshTimer = useRef<NodeJS.Timeout>(null);
 
-  const fetchVideoToken = useCallback(async () => {
+  const fetchVideoData = useCallback(async () => {
     if (!video.videoUrl.startsWith('http')) {
       try {
-        const response = await fetch(`/videos/${video.id}/token`);
-        const data = await response.json() as VideoTokenResponse;
+        setError(null);
+        console.log(`🔄 [Vidstack] Fetching video data for ${video.title}`);
 
-        if (!data.success || !data.token) {
-          console.warn(`[Vidstack] Failed to get video token: ${data.error}`);
-          setError(`Failed to get video token: ${data.error}`);
+        // Step 1: Fetch video token
+        const tokenResponse = await fetch(`/videos/${video.id}/token`);
+        const tokenData = await tokenResponse.json() as VideoTokenResponse;
+
+        if (!tokenData.success || !tokenData.token) {
+          console.warn(`[Vidstack] Failed to get video token: ${tokenData.error}`);
+          setError(`Failed to get video token: ${tokenData.error}`);
           return;
         }
 
-        setVideoToken(data.token);
         console.log(`🔑 [Vidstack] Video token acquired for ${video.title}`);
+
+        // Step 2: Fetch Clear Key data using the token
+        const clearKeyResponse = await fetch(`/videos/${video.id}/clearkey?token=${tokenData.token}`);
+        const clearKeyData = await clearKeyResponse.json() as ClearKeyResponse;
+
+        if (!clearKeyData.keys || clearKeyData.keys.length === 0) {
+          console.error('❌ [Vidstack] Invalid Clear Key DRM configuration:', clearKeyData);
+          setError('Failed to get DRM configuration');
+          return;
+        }
+
+        const clearkey = clearKeyData.keys[0];
+        const keyId = clearkey.kid;
+        const key = clearkey.k;
+
+        if (!keyId || !key) {
+          console.error('❌ [Vidstack] Missing key or k in JWK key data:', clearKeyData);
+          setError('Invalid DRM key data');
+          return;
+        }
+
+        // Step 3: Set both token and DRM config atomically
+        setVideoToken(tokenData.token);
+        setDrmConfig({ keyId, key });
+        console.log(`✅ [Vidstack] Video data ready for ${video.title}`);
 
         // Set up token refresh
         if (tokenRefreshTimer.current) {
           clearTimeout(tokenRefreshTimer.current);
         }
         tokenRefreshTimer.current = setTimeout(() => {
-          fetchVideoToken();
+          fetchVideoData();
         }, TOKEN_REFRESH_INTERVAL);
       }
       catch (error) {
-        console.error('[Vidstack] Failed to fetch video token:', error);
-        setError(`Failed to fetch video token: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
+        console.error('[Vidstack] Failed to fetch video data:', error);
+        setError(`Failed to fetch video data: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
       }
     }
     else {
       setVideoToken('external');
+      setDrmConfig(null); // External videos don't need DRM
     }
   }, [video.id, video.title, video.videoUrl]);
 
-  // Fetch video token for streaming
+  // Fetch video data (token + DRM config) for streaming
   useEffect(() => {
-    fetchVideoToken();
+    fetchVideoData();
 
     return () => {
       if (tokenRefreshTimer.current) {
         clearTimeout(tokenRefreshTimer.current);
       }
     };
-  }, [fetchVideoToken]);
+  }, [fetchVideoData]);
 
   // Configure dash.js v5 Network Interceptors for token authentication
   const configureTokenAuthentication = async (dashInstance: any) => {
@@ -113,34 +154,18 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
     }
   };
 
-  // Configure Clear Key DRM with proper format
-  const configureClearKeyDRM = async (dashInstance: any) => {
-    if (!videoToken || videoToken === 'external') {
+  // Configure Clear Key DRM synchronously with pre-fetched data
+  const configureClearKeyDRM = (dashInstance: any) => {
+    if (!drmConfig || videoToken === 'external') {
+      console.log('ℹ️ [Vidstack] Skipping DRM configuration (external video or no DRM config)');
       return;
     }
 
     try {
-      const response = await fetch(`/videos/${video.id}/clearkey?token=${videoToken}`);
-      const data = await response.json();
-
-      if (!data.keys || data.keys.length === 0) {
-        console.error('❌ [Vidstack] Invalid Clear Key DRM configuration:', data);
-        return;
-      }
-
-      const clearkey = data.keys[0];
-      const keyId = clearkey.kid;
-      const key = clearkey.k;
-
-      if (!keyId || !key) {
-        console.error('❌ [Vidstack] Missing key or k in JWK key data:', data);
-        return;
-      }
-
       dashInstance.setProtectionData({
         'org.w3.clearkey': {
           clearkeys: {
-            [keyId]: key,
+            [drmConfig.keyId]: drmConfig.key,
           },
         },
       });
@@ -149,6 +174,7 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
     }
     catch (error) {
       console.error('❌ [Vidstack] Failed to configure Clear Key DRM:', error);
+      setError('Failed to configure DRM');
     }
   };
 
@@ -164,16 +190,19 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
     retryCountRef.current = 0;
     setIsLoading(true);
     setError(null);
+    console.log(`📺 [Vidstack] Load start for ${video.title}`);
   };
 
   const handleCanPlay = () => {
     setIsLoading(false);
     setError(null);
+    console.log(`✅ [Vidstack] Can play ${video.title}`);
   };
 
   const handleLoaded = () => {
     setIsLoading(false);
     setError(null);
+    console.log(`🎬 [Vidstack] Fully loaded ${video.title}`);
   };
 
   const handleProviderChange = async (detail: MediaProviderAdapter | null) => {
@@ -186,14 +215,15 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
       // Use the official onInstance method to configure dash.js v5
       detail.onInstance(async (dashInstance: any) => {
         await configureTokenAuthentication(dashInstance);
-        await configureClearKeyDRM(dashInstance);
+        configureClearKeyDRM(dashInstance); // Now synchronous
       });
     }
   };
 
+  // Only set videoSrc when both token and DRM config are ready (for local videos)
   const videoSrc = video.videoUrl.startsWith('http')
     ? video.videoUrl
-    : (videoToken ? `${video.videoUrl}?token=${videoToken}` : null);
+    : (videoToken && (drmConfig || videoToken === 'external') ? `${video.videoUrl}?token=${videoToken}` : null);
 
   if (error) {
     return (
