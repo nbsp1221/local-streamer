@@ -5,7 +5,7 @@ import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { VidstackPlayer } from '~/components/VidstackPlayer';
 import { useVideoLibrary } from '~/hooks/useVideoLibrary';
-import { getVideos } from '~/services/video-store.server';
+import { getVideoRepository } from '~/repositories';
 import { requireAuth } from '~/utils/auth.server';
 import type { Route } from './+types/player.$id';
 
@@ -13,7 +13,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   // Server-side authentication check
   await requireAuth(request);
 
-  const videos = await getVideos();
+  const videos = await getVideoRepository().findAll();
   return { videos };
 }
 

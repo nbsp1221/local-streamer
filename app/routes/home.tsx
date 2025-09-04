@@ -6,7 +6,7 @@ import { TagFilter } from '~/components/TagFilter';
 import { VideoGrid } from '~/components/VideoGrid';
 import { VideoModal } from '~/components/VideoModal';
 import { useVideoLibrary } from '~/hooks/useVideoLibrary';
-import { getPendingVideos, getVideos } from '~/services/video-store.server';
+import { getPendingVideoRepository, getVideoRepository } from '~/repositories';
 import { requireAuth } from '~/utils/auth.server';
 import type { Route } from './+types/home';
 
@@ -15,8 +15,8 @@ export async function loader({ request }: Route.LoaderArgs) {
   await requireAuth(request);
 
   const [videos, pendingVideos] = await Promise.all([
-    getVideos(),
-    getPendingVideos(),
+    getVideoRepository().findAll(),
+    getPendingVideoRepository().findAll(),
   ]);
 
   return {
