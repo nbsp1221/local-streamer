@@ -2,18 +2,12 @@ import jwt from 'jsonwebtoken';
 import { config } from '~/configs';
 
 // JWT configuration
-const JWT_SECRET = (() => {
-  const secret = process.env.HLS_JWT_SECRET;
-  if (!secret) {
-    throw new Error('HLS_JWT_SECRET environment variable is required for video streaming');
-  }
-  return secret;
-})();
+const JWT_SECRET = config.security.video.auth.secret;
 const JWT_ISSUER = 'local-streamer';
-const JWT_AUDIENCE = 'hls-streaming';
-const JWT_EXPIRY = '15m'; // 15 minutes expiry for HLS tokens
+const JWT_AUDIENCE = 'video-streaming';
+const JWT_EXPIRY = '15m'; // 15 minutes expiry for video tokens
 
-export interface HLSTokenPayload {
+export interface VideoTokenPayload {
   videoId: string;
   userId: string;
   ip?: string;
@@ -24,9 +18,9 @@ export interface HLSTokenPayload {
   aud?: string;
 }
 
-export interface HLSTokenValidation {
+export interface VideoTokenValidation {
   valid: boolean;
-  payload?: HLSTokenPayload;
+  payload?: VideoTokenPayload;
   error?: string;
 }
 
@@ -39,7 +33,7 @@ export function generateVideoToken(
   ip?: string,
   userAgent?: string,
 ): string {
-  const payload: HLSTokenPayload = {
+  const payload: VideoTokenPayload = {
     videoId,
     userId,
     ip,
@@ -52,25 +46,25 @@ export function generateVideoToken(
     audience: JWT_AUDIENCE,
   });
 
-  console.log(`🔑 Generated HLS token for video ${videoId}, user ${userId}`);
+  console.log(`🔑 Generated video token for video ${videoId}, user ${userId}`);
   return token;
 }
 
 /**
- * Validate HLS access token
+ * Validate video access token
  */
-export function validateHLSToken(
+export function validateVideoToken(
   token: string,
   expectedVideoId?: string,
   ip?: string,
   userAgent?: string,
-): HLSTokenValidation {
+): VideoTokenValidation {
   try {
     // Verify token signature and expiry
     const decoded = jwt.verify(token, JWT_SECRET, {
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,
-    }) as HLSTokenPayload;
+    }) as VideoTokenPayload;
 
     // Check video ID if specified
     if (expectedVideoId && decoded.videoId !== expectedVideoId) {
@@ -82,7 +76,7 @@ export function validateHLSToken(
 
     // Optional: Strict IP validation (can be disabled for flexibility)
     if (decoded.ip && ip && decoded.ip !== ip) {
-      console.warn(`HLS token IP mismatch: expected ${decoded.ip}, got ${ip}`);
+      console.warn(`Video token IP mismatch: expected ${decoded.ip}, got ${ip}`);
       // Uncomment for strict validation:
       // return {
       //   valid: false,
@@ -92,7 +86,7 @@ export function validateHLSToken(
 
     // Optional: User-Agent validation (can be disabled for flexibility)
     if (decoded.userAgent && userAgent && decoded.userAgent !== userAgent) {
-      console.warn(`HLS token User-Agent mismatch`);
+      console.warn(`Video token User-Agent mismatch`);
       // Uncomment for strict validation:
       // return {
       //   valid: false,
@@ -125,8 +119,8 @@ export function validateHLSToken(
 /**
  * Extract token from request (query parameter or Authorization header)
  */
-export function extractHLSToken(request: Request): string | null {
-  // 1. Check query parameter (preferred for HLS)
+export function extractVideoToken(request: Request): string | null {
+  // 1. Check query parameter (preferred for video streaming)
   const url = new URL(request.url);
   const queryToken = url.searchParams.get('token');
   if (queryToken) {
@@ -148,8 +142,8 @@ export function extractHLSToken(request: Request): string | null {
 export async function validateVideoRequest(
   request: Request,
   expectedVideoId?: string,
-): Promise<HLSTokenValidation> {
-  const token = extractHLSToken(request);
+): Promise<VideoTokenValidation> {
+  const token = extractVideoToken(request);
 
   if (!token) {
     return {
@@ -162,18 +156,7 @@ export async function validateVideoRequest(
   const ip = getClientIP(request);
   const userAgent = request.headers.get('User-Agent') || undefined;
 
-  return validateHLSToken(token, expectedVideoId, ip, userAgent);
-}
-
-/**
- * Generate HLS URLs with embedded token
- */
-export function generateHLSUrls(videoId: string, token: string) {
-  return {
-    playlist: `/api/hls/${videoId}/playlist.m3u8?token=${token}`,
-    key: `/api/hls-key/${videoId}?token=${token}`,
-    segment: (segmentName: string) => `/api/hls/${videoId}/segment/${segmentName}?token=${token}`,
-  };
+  return validateVideoToken(token, expectedVideoId, ip, userAgent);
 }
 
 /**
@@ -204,7 +187,7 @@ function getClientIP(request: Request): string | undefined {
  */
 export function shouldRefreshToken(token: string): boolean {
   try {
-    const decoded = jwt.decode(token) as HLSTokenPayload;
+    const decoded = jwt.decode(token) as VideoTokenPayload;
     if (!decoded || !decoded.exp) {
       return true;
     }

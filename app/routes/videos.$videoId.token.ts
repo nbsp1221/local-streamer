@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs } from 'react-router';
-import { generateVideoToken } from '~/services/hls-jwt.server';
+import { generateVideoToken } from '~/services/video-jwt.server';
 
 /**
  * Generate JWT token for video streaming access

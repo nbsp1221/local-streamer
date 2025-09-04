@@ -4,7 +4,7 @@ import type { ClearKeyRequest } from '~/modules/video/clear-key/clear-key.types'
 import { DomainError } from '~/lib/errors';
 import { ClearKeyUseCase } from '~/modules/video/clear-key/clear-key.usecase';
 import { AESKeyManager } from '~/services/aes-key-manager.server';
-import { validateVideoRequest } from '~/services/hls-jwt.server';
+import { validateVideoRequest } from '~/services/video-jwt.server';
 
 /**
  * Convert hex string to base64url

@@ -1,6 +1,6 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { getManifestUseCase } from '~/modules/video/manifest/get-manifest.usecase';
-import { validateVideoRequest } from '~/services/hls-jwt.server';
+import { validateVideoRequest } from '~/services/video-jwt.server';
 
 /**
  * Handle DASH manifest (manifest.mpd)

@@ -12,12 +12,15 @@ export class AESKeyManager {
     // Use test defaults in test environment
     const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
 
-    this.masterSeed = process.env.HLS_MASTER_ENCRYPTION_SEED || (isTest ? 'test-master-seed-for-unit-tests-only' : '');
-    this.saltPrefix = process.env.KEY_SALT_PREFIX || (isTest ? 'test-salt' : '');
-    this.rounds = parseInt(process.env.KEY_DERIVATION_ROUNDS!) || 100000;
-
-    if (!this.masterSeed) {
-      throw new Error('HLS_MASTER_ENCRYPTION_SEED environment variable is required');
+    if (isTest) {
+      this.masterSeed = 'test-master-seed-for-unit-tests-only';
+      this.saltPrefix = 'test-salt';
+      this.rounds = 100000;
+    }
+    else {
+      this.masterSeed = config.security.video.masterSeed;
+      this.saltPrefix = config.security.video.keyDerivation.saltPrefix;
+      this.rounds = config.security.video.keyDerivation.rounds;
     }
   }
 
@@ -66,13 +69,13 @@ export class AESKeyManager {
   }
 
   /**
-   * Create FFmpeg keyinfo file for HLS encryption
+   * Create FFmpeg keyinfo file for video encryption
    */
   async createKeyInfoFile(videoId: string): Promise<string> {
     const videoDir = join(config.paths.videos, videoId);
     const keyInfoPath = join(videoDir, 'keyinfo.txt');
 
-    const keyUrl = `/api/hls-key/${videoId}`;
+    const keyUrl = `/api/video-key/${videoId}`;
     const keyPath = join(videoDir, 'key.bin');
 
     const keyInfo = `${keyUrl}\n${keyPath}\n`;

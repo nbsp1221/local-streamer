@@ -1,7 +1,7 @@
 import { InternalError, NotFoundError, UnauthorizedError, ValidationError } from '~/lib/errors';
 import { Result } from '~/lib/result';
 import { UseCase } from '~/lib/usecase.base';
-import { validateVideoRequest } from '~/services/hls-jwt.server';
+import { validateVideoRequest } from '~/services/video-jwt.server';
 import type {
   GetManifestRequest,
   GetManifestResult,

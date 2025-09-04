@@ -17,32 +17,28 @@ export const security = {
   video: {
     // Master encryption seed for key derivation (required for video encryption)
     get masterSeed() {
-      const seed = process.env.HLS_MASTER_ENCRYPTION_SEED;
+      const seed = process.env.VIDEO_MASTER_ENCRYPTION_SEED;
       if (!seed) {
-        throw new Error('HLS_MASTER_ENCRYPTION_SEED environment variable is required for video encryption');
+        throw new Error('VIDEO_MASTER_ENCRYPTION_SEED environment variable is required for video encryption');
       }
       return seed;
     },
 
     // Key derivation settings
     keyDerivation: {
-      get algorithm() {
-        return process.env.KEY_DERIVATION_ALGORITHM || 'PBKDF2-SHA256';
-      },
-      get rounds() {
-        return parseInt(process.env.KEY_DERIVATION_ROUNDS!) || 100000;
-      },
+      algorithm: 'PBKDF2-SHA256',
+      rounds: 100000,
       get saltPrefix() {
-        return process.env.KEY_SALT_PREFIX || 'local-streamer-hls-v1';
+        return process.env.KEY_SALT_PREFIX || 'local-streamer-video-v1';
       },
     },
 
     // Authentication settings for video streaming
     auth: {
       get secret() {
-        const secret = process.env.HLS_JWT_SECRET;
+        const secret = process.env.VIDEO_JWT_SECRET;
         if (!secret) {
-          throw new Error('HLS_JWT_SECRET environment variable is required for video streaming authentication');
+          throw new Error('VIDEO_JWT_SECRET environment variable is required for video streaming authentication');
         }
         return secret;
       },
@@ -57,9 +53,7 @@ export const security = {
 
     // Streaming settings
     streaming: {
-      get segmentDuration() {
-        return parseInt(process.env.HLS_SEGMENT_DURATION!) || 10;
-      },
+      segmentDuration: 10, // seconds
       playlistType: 'vod' as const,
       deleteSegments: true,
     },

@@ -6,7 +6,7 @@ import type { MediaSegmentRequest } from '~/modules/video/media-segment/media-se
 import { config } from '~/configs';
 import { DomainError } from '~/lib/errors';
 import { MediaSegmentUseCase } from '~/modules/video/media-segment/media-segment.usecase';
-import { validateVideoRequest } from '~/services/hls-jwt.server';
+import { validateVideoRequest } from '~/services/video-jwt.server';
 import {
   getDashContentType,
   getDashSegmentHeaders,

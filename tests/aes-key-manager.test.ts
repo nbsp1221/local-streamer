@@ -218,20 +218,28 @@ describe('AESKeyManager', () => {
   });
 
   describe('constructor validation', () => {
-    it('should throw error if HLS_MASTER_ENCRYPTION_SEED is missing in non-test environment', () => {
-      delete process.env.HLS_MASTER_ENCRYPTION_SEED;
+    it('should throw error if VIDEO_MASTER_ENCRYPTION_SEED is missing in non-test environment', () => {
+      // Store original values
+      const originalVideoSeed = process.env.VIDEO_MASTER_ENCRYPTION_SEED;
+      const originalHlsSeed = process.env.HLS_MASTER_ENCRYPTION_SEED;
       const originalNodeEnv = process.env.NODE_ENV;
       const originalVitest = process.env.VITEST;
+
+      // Delete both old and new environment variables
+      delete process.env.VIDEO_MASTER_ENCRYPTION_SEED;
+      delete process.env.HLS_MASTER_ENCRYPTION_SEED;
 
       // Simulate non-test environment
       delete process.env.NODE_ENV;
       delete process.env.VITEST;
 
       try {
-        expect(() => new AESKeyManager()).toThrow('HLS_MASTER_ENCRYPTION_SEED environment variable is required');
+        expect(() => new AESKeyManager()).toThrow('VIDEO_MASTER_ENCRYPTION_SEED environment variable is required for video encryption');
       }
       finally {
         // Restore environment variables
+        if (originalVideoSeed) process.env.VIDEO_MASTER_ENCRYPTION_SEED = originalVideoSeed;
+        if (originalHlsSeed) process.env.HLS_MASTER_ENCRYPTION_SEED = originalHlsSeed;
         if (originalNodeEnv) process.env.NODE_ENV = originalNodeEnv;
         if (originalVitest) process.env.VITEST = originalVitest;
       }
