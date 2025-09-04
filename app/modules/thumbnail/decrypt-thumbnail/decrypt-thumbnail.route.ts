@@ -1,4 +1,4 @@
-import { AESKeyManager } from '~/services/aes-key-manager.server';
+import { Pbkdf2KeyManagerAdapter } from '~/modules/video/security/adapters/pbkdf2-key-manager.adapter';
 import { requireAuth } from '~/utils/auth.server';
 import { ThumbnailEncryptionService } from '../shared/thumbnail-encryption.service';
 import { DecryptThumbnailUseCase } from './decrypt-thumbnail.usecase';
@@ -12,9 +12,9 @@ interface RouteParams {
  * Create dependencies for the DecryptThumbnailUseCase
  */
 function createDependencies() {
-  const aesKeyManager = new AESKeyManager();
+  const keyManager = new Pbkdf2KeyManagerAdapter();
   const thumbnailEncryptionService = new ThumbnailEncryptionService({
-    aesKeyManager,
+    keyManager,
     logger: console,
   });
 

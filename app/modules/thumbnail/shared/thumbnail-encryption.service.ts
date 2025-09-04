@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
-import type { AESKeyManager } from '~/services/aes-key-manager.server';
+import type { KeyManagementPort } from '~/modules/video/security/ports/key-management.port';
 import { config } from '~/configs';
 import { ThumbnailCryptoUtils } from './thumbnail-crypto.utils';
 import {
@@ -12,7 +12,7 @@ import {
 } from './thumbnail-encryption.types';
 
 export interface ThumbnailEncryptionServiceDependencies {
-  aesKeyManager: AESKeyManager;
+  keyManager: KeyManagementPort;
   logger?: Console;
 }
 
@@ -38,7 +38,7 @@ export class ThumbnailEncryptionService {
       const originalSize = originalData.length;
 
       // Get the AES key for this video
-      const key = await this.deps.aesKeyManager.getVideoKey(videoId);
+      const key = await this.deps.keyManager.retrieveKey(videoId);
 
       // Encrypt with IV header
       const encryptionResult = ThumbnailCryptoUtils.encryptWithIVHeader(originalData, key);
@@ -105,7 +105,7 @@ export class ThumbnailEncryptionService {
       }
 
       // Get the AES key for this video
-      const key = await this.deps.aesKeyManager.getVideoKey(videoId);
+      const key = await this.deps.keyManager.retrieveKey(videoId);
 
       // Decrypt the thumbnail
       const decryptionResult = ThumbnailCryptoUtils.decryptWithIVHeader(encryptedData, key);

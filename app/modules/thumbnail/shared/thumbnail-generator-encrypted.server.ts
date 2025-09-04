@@ -1,6 +1,6 @@
 import { join } from 'path';
 import { config } from '~/configs';
-import { AESKeyManager } from '~/services/aes-key-manager.server';
+import { Pbkdf2KeyManagerAdapter } from '~/modules/video/security/adapters/pbkdf2-key-manager.adapter';
 import { type ThumbnailResult, generateSmartThumbnail, generateThumbnail } from '~/services/thumbnail-generator.server';
 import { EncryptThumbnailUseCase } from '../encrypt-thumbnail/encrypt-thumbnail.usecase';
 import { ThumbnailEncryptionService } from './thumbnail-encryption.service';
@@ -26,14 +26,14 @@ export interface EncryptedThumbnailResult {
  * This replaces the existing thumbnail generation workflow for new videos
  */
 export class EncryptedThumbnailGenerator {
-  private aesKeyManager: AESKeyManager;
+  private keyManager: Pbkdf2KeyManagerAdapter;
   private thumbnailEncryptionService: ThumbnailEncryptionService;
   private encryptThumbnailUseCase: EncryptThumbnailUseCase;
 
   constructor() {
-    this.aesKeyManager = new AESKeyManager();
+    this.keyManager = new Pbkdf2KeyManagerAdapter();
     this.thumbnailEncryptionService = new ThumbnailEncryptionService({
-      aesKeyManager: this.aesKeyManager,
+      keyManager: this.keyManager,
       logger: console,
     });
     this.encryptThumbnailUseCase = new EncryptThumbnailUseCase({
@@ -53,7 +53,7 @@ export class EncryptedThumbnailGenerator {
       console.log(`🔒 Starting encrypted thumbnail generation for video: ${videoId}`);
 
       // 1. Ensure the video has an AES key (should exist from video encryption)
-      const hasKey = await this.aesKeyManager.hasVideoKey(videoId);
+      const hasKey = await this.keyManager.keyExists(videoId);
       if (!hasKey) {
         return {
           success: false,

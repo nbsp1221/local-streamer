@@ -1,8 +1,8 @@
 import { join } from 'path';
-import { config } from '~/configs';
+import type { KeyManagementPort } from '~/modules/video/security/ports/key-management.port';
 import { Result } from '~/lib/result';
+import { Pbkdf2KeyManagerAdapter } from '~/modules/video/security/adapters/pbkdf2-key-manager.adapter';
 import { workspaceManagerService } from '~/modules/video/storage/services/WorkspaceManagerService';
-import { AESKeyManager } from '~/services/aes-key-manager.server';
 import type {
   ManifestAvailabilityResult,
   ManifestContentResult,
@@ -12,16 +12,21 @@ import type {
 } from './manifest.types';
 import { ManifestError } from './manifest.types';
 
+export interface VideoManifestServiceDependencies {
+  keyManager: KeyManagementPort;
+}
+
 /**
  * Video manifest service implementation
  * Provides read-only access to processed video manifests and segments
  * Uses WorkspaceManagerService for all file operations
+ * Now uses dependency injection for clean architecture
  */
 export class VideoManifestServiceImpl implements VideoManifestService {
-  private keyManager: AESKeyManager;
+  private keyManager: KeyManagementPort;
 
-  constructor() {
-    this.keyManager = new AESKeyManager();
+  constructor(private readonly deps: VideoManifestServiceDependencies) {
+    this.keyManager = deps.keyManager;
   }
 
   /**
@@ -49,7 +54,7 @@ export class VideoManifestServiceImpl implements VideoManifestService {
       }
 
       // Check if encryption key exists
-      const hasKey = await this.keyManager.hasVideoKey(videoId);
+      const hasKey = await this.keyManager.keyExists(videoId);
       if (!hasKey) {
         console.log(`❌ [VideoManifest] Encryption key not found for video: ${videoId}`);
         return { available: false, reason: 'key_not_found' };
@@ -229,5 +234,8 @@ export class VideoManifestServiceImpl implements VideoManifestService {
   }
 }
 
-// Export singleton instance
-export const videoManifestService = new VideoManifestServiceImpl();
+// Export singleton instance with dependencies
+const keyManager = new Pbkdf2KeyManagerAdapter();
+export const videoManifestService = new VideoManifestServiceImpl({
+  keyManager,
+});
