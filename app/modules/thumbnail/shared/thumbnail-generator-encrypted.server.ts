@@ -1,8 +1,9 @@
 import { join } from 'path';
 import { config } from '~/configs';
 import { Pbkdf2KeyManagerAdapter } from '~/modules/video/security/adapters/pbkdf2-key-manager.adapter';
-import { type ThumbnailResult, generateSmartThumbnail, generateThumbnail } from '~/services/thumbnail-generator.server';
+import type { ThumbnailGenerationPort } from '../application/ports/thumbnail-generation.port';
 import { EncryptThumbnailUseCase } from '../encrypt-thumbnail/encrypt-thumbnail.usecase';
+import { FFmpegThumbnailAdapter } from '../infrastructure/adapters/ffmpeg-thumbnail.adapter';
 import { ThumbnailEncryptionService } from './thumbnail-encryption.service';
 import { ENCRYPTED_THUMBNAIL_EXTENSION } from './thumbnail-encryption.types';
 
@@ -29,6 +30,7 @@ export class EncryptedThumbnailGenerator {
   private keyManager: Pbkdf2KeyManagerAdapter;
   private thumbnailEncryptionService: ThumbnailEncryptionService;
   private encryptThumbnailUseCase: EncryptThumbnailUseCase;
+  private thumbnailGenerator: ThumbnailGenerationPort;
 
   constructor() {
     this.keyManager = new Pbkdf2KeyManagerAdapter();
@@ -40,6 +42,7 @@ export class EncryptedThumbnailGenerator {
       thumbnailEncryptionService: this.thumbnailEncryptionService,
       logger: console,
     });
+    this.thumbnailGenerator = new FFmpegThumbnailAdapter();
   }
 
   /**
@@ -64,22 +67,18 @@ export class EncryptedThumbnailGenerator {
       // 2. Generate temporary plaintext thumbnail
       const tempThumbnailPath = join(config.paths.videos, videoId, 'thumbnail_temp.jpg');
 
-      let thumbnailResult: ThumbnailResult;
-      if (useSmart) {
-        thumbnailResult = await generateSmartThumbnail(inputPath, tempThumbnailPath);
-      }
-      else {
-        thumbnailResult = await generateThumbnail({
-          inputPath,
-          outputPath: tempThumbnailPath,
-          timestamp,
-        });
-      }
+      const thumbnailResult = await this.thumbnailGenerator.generateThumbnail({
+        videoId,
+        inputPath,
+        outputPath: tempThumbnailPath,
+        timestamp,
+        useSmartScan: useSmart,
+      });
 
       if (!thumbnailResult.success) {
         return {
           success: false,
-          error: `Thumbnail generation failed: ${thumbnailResult.error}`,
+          error: `Thumbnail generation failed: ${thumbnailResult.error.message}`,
         };
       }
 

@@ -12,6 +12,7 @@ import type { EncodingOptions, EnhancedEncodingOptions } from '../add-video/add-
 import type { VideoAnalysisRepository } from '../analysis/repositories/video-analysis-repository.types';
 import type { VideoAnalysisService } from '../analysis/video-analysis.types';
 import type { OrchestrationRequest, OrchestrationResult } from '../processing/types/transcoding-orchestrator.types';
+import { FFmpegThumbnailAdapter } from '../../thumbnail/infrastructure/adapters/ffmpeg-thumbnail.adapter';
 import { FFprobeAnalysisService } from '../analysis/ffprobe-analysis.service';
 import { TranscodingOrchestratorServiceImpl } from '../processing/services/TranscodingOrchestratorService';
 import { Pbkdf2KeyManagerAdapter } from '../security/adapters/pbkdf2-key-manager.adapter';
@@ -43,10 +44,12 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
       this.analysisService = new FFprobeAnalysisService();
     }
 
-    // Create transcoding orchestrator service with key management dependency
+    // Create transcoding orchestrator service with dependencies
     const keyManager = new Pbkdf2KeyManagerAdapter();
+    const thumbnailGenerator = new FFmpegThumbnailAdapter();
     this.transcodingOrchestratorService = new TranscodingOrchestratorServiceImpl({
       keyManager,
+      thumbnailGenerator,
     });
   }
 

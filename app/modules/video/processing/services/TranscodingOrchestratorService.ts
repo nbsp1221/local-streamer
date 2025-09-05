@@ -1,8 +1,8 @@
 import crypto from 'crypto';
 import { join } from 'path';
+import type { ThumbnailGenerationPort } from '~/modules/thumbnail/application/ports/thumbnail-generation.port';
 import type { KeyManagementPort } from '~/modules/video/security/ports/key-management.port';
 import { config } from '~/configs';
-import { generateSmartThumbnail } from '~/services/thumbnail-generator.server';
 import type { TranscodingRequest } from '../types/ffmpeg-transcoding.types';
 import type { EncryptionConfig, PackagingRequest } from '../types/shaka-packager.types';
 import type {
@@ -22,6 +22,7 @@ import { shakaPackagerService } from './ShakaPackagerService';
 
 export interface TranscodingOrchestratorServiceDependencies {
   keyManager: KeyManagementPort;
+  thumbnailGenerator: ThumbnailGenerationPort;
 }
 
 /**
@@ -31,10 +32,12 @@ export interface TranscodingOrchestratorServiceDependencies {
  */
 export class TranscodingOrchestratorServiceImpl implements TranscodingOrchestratorService {
   private keyManager: KeyManagementPort;
+  private thumbnailGenerator: ThumbnailGenerationPort;
   private processingStats: Map<string, ProcessingStatistics> = new Map();
 
   constructor(private readonly deps: TranscodingOrchestratorServiceDependencies) {
     this.keyManager = deps.keyManager;
+    this.thumbnailGenerator = deps.thumbnailGenerator;
   }
 
   /**
@@ -322,7 +325,16 @@ export class TranscodingOrchestratorServiceImpl implements TranscodingOrchestrat
     const videoDir = join(config.paths.videos, videoId);
     const thumbnailPath = join(videoDir, 'thumbnail.jpg');
 
-    await generateSmartThumbnail(inputPath, thumbnailPath);
+    const result = await this.thumbnailGenerator.generateThumbnail({
+      videoId,
+      inputPath,
+      outputPath: thumbnailPath,
+      useSmartScan: true,
+    });
+
+    if (!result.success) {
+      throw new Error(`Thumbnail generation failed: ${result.error.message}`);
+    }
 
     console.log(`🖼️ [TranscodingOrchestrator] Thumbnail generated: ${thumbnailPath}`);
     return thumbnailPath;
