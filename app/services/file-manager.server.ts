@@ -5,7 +5,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import type { PendingVideo } from '~/types/video';
 import { config, ffmpeg } from '~/configs';
-import { generateSmartThumbnail } from './thumbnail-generator.server';
+import { FFmpegThumbnailAdapter } from '~/modules/thumbnail/infrastructure/adapters/ffmpeg-thumbnail.adapter';
 
 const UPLOADS_DIR = config.paths.uploads;
 const THUMBNAILS_DIR = config.paths.thumbnails;
@@ -52,13 +52,19 @@ export async function scanIncomingFiles(): Promise<PendingVideo[]> {
       if (!existsSync(thumbnailPath)) {
         console.log(`🎬 Generating preview thumbnail for: ${filename}`);
         try {
-          const result = await generateSmartThumbnail(filePath, thumbnailPath);
+          const thumbnailGenerator = new FFmpegThumbnailAdapter();
+          const result = await thumbnailGenerator.generateThumbnail({
+            videoId: filename, // Use filename as temp ID for preview
+            inputPath: filePath,
+            outputPath: thumbnailPath,
+            useSmartScan: true,
+          });
           if (result.success) {
             thumbnailUrl = getThumbnailPreviewUrl(filename);
             console.log(`✅ Preview thumbnail generated: ${filename}`);
           }
           else {
-            console.log(`⚠️ Failed to generate preview thumbnail: ${filename}`, result.error);
+            console.log(`⚠️ Failed to generate preview thumbnail: ${filename}`, result.error.message);
           }
         }
         catch (error) {
