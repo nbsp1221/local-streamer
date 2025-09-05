@@ -13,7 +13,8 @@ import type { VideoAnalysisRepository } from '../analysis/repositories/video-ana
 import type { VideoAnalysisService } from '../analysis/video-analysis.types';
 import type { OrchestrationRequest, OrchestrationResult } from '../processing/types/transcoding-orchestrator.types';
 import { FFprobeAnalysisService } from '../analysis/ffprobe-analysis.service';
-import { transcodingOrchestratorService } from '../processing/services/TranscodingOrchestratorService';
+import { TranscodingOrchestratorServiceImpl } from '../processing/services/TranscodingOrchestratorService';
+import { Pbkdf2KeyManagerAdapter } from '../security/adapters/pbkdf2-key-manager.adapter';
 import type { TranscodeRequest, TranscodeResult, VideoMetadata, VideoTranscoder } from './VideoTranscoder';
 import { getCodecForEncoder, getQualityParamName, getQualitySettings } from './quality-mapping';
 
@@ -25,6 +26,7 @@ import { getCodecForEncoder, getQualityParamName, getQualitySettings } from './q
  */
 export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
   private analysisService: VideoAnalysisService;
+  private transcodingOrchestratorService: TranscodingOrchestratorServiceImpl;
 
   constructor(
     analysisService?: VideoAnalysisService,
@@ -40,6 +42,12 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
     else {
       this.analysisService = new FFprobeAnalysisService();
     }
+
+    // Create transcoding orchestrator service with key management dependency
+    const keyManager = new Pbkdf2KeyManagerAdapter();
+    this.transcodingOrchestratorService = new TranscodingOrchestratorServiceImpl({
+      keyManager,
+    });
   }
 
   /**
@@ -185,7 +193,7 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
       cleanupOriginal: false,
     };
 
-    return transcodingOrchestratorService.execute(orchestrationRequest);
+    return this.transcodingOrchestratorService.execute(orchestrationRequest);
   }
 
   /**

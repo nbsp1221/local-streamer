@@ -3,7 +3,7 @@ import { type ActionFunctionArgs, type LoaderFunctionArgs } from 'react-router';
 import type { ClearKeyRequest } from '~/modules/video/clear-key/clear-key.types';
 import { DomainError } from '~/lib/errors';
 import { ClearKeyUseCase } from '~/modules/video/clear-key/clear-key.usecase';
-import { AESKeyManager } from '~/services/aes-key-manager.server';
+import { Pbkdf2KeyManagerAdapter } from '~/modules/video/security/adapters/pbkdf2-key-manager.adapter';
 import { validateVideoRequest } from '~/services/video-jwt.server';
 
 /**
@@ -27,15 +27,15 @@ function generateKeyId(videoId: string): string {
  * Create ClearKeyUseCase with dependencies
  */
 function createClearKeyUseCase() {
-  const keyManager = new AESKeyManager();
+  const keyManager = new Pbkdf2KeyManagerAdapter();
 
   return new ClearKeyUseCase({
     jwtValidator: {
       validateVideoRequest,
     },
     keyManager: {
-      hasVideoKey: keyManager.hasVideoKey.bind(keyManager),
-      getVideoKey: keyManager.getVideoKey.bind(keyManager),
+      hasVideoKey: keyManager.keyExists.bind(keyManager),
+      getVideoKey: keyManager.retrieveKey.bind(keyManager),
     },
     keyUtils: {
       generateKeyId,

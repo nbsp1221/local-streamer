@@ -1,10 +1,7 @@
 import crypto from 'crypto';
-import { promises as fs } from 'fs';
 import { join } from 'path';
-import type { EncodingOptions, EnhancedEncodingOptions } from '~/modules/video/add-video/add-video.types';
-import type { VideoAnalysis } from '~/modules/video/analysis/video-analysis.types';
+import type { KeyManagementPort } from '~/modules/video/security/ports/key-management.port';
 import { config } from '~/configs';
-import { AESKeyManager } from '~/services/aes-key-manager.server';
 import { generateSmartThumbnail } from '~/services/thumbnail-generator.server';
 import type { TranscodingRequest } from '../types/ffmpeg-transcoding.types';
 import type { EncryptionConfig, PackagingRequest } from '../types/shaka-packager.types';
@@ -23,23 +20,28 @@ import { ffmpegTranscodingService } from './FFmpegTranscodingService';
 import { processExecutionService } from './ProcessExecutionService';
 import { shakaPackagerService } from './ShakaPackagerService';
 
+export interface TranscodingOrchestratorServiceDependencies {
+  keyManager: KeyManagementPort;
+}
+
 /**
  * Service that orchestrates the complete video transcoding workflow
  * Coordinates validation, transcoding, packaging, and cleanup
+ * Now uses dependency injection for clean architecture
  */
 export class TranscodingOrchestratorServiceImpl implements TranscodingOrchestratorService {
-  private keyManager: AESKeyManager;
+  private keyManager: KeyManagementPort;
   private processingStats: Map<string, ProcessingStatistics> = new Map();
 
-  constructor() {
-    this.keyManager = new AESKeyManager();
+  constructor(private readonly deps: TranscodingOrchestratorServiceDependencies) {
+    this.keyManager = deps.keyManager;
   }
 
   /**
    * Execute the complete video transcoding and packaging workflow
    */
   async execute(request: OrchestrationRequest): Promise<OrchestrationResult> {
-    const { videoId, inputPath, encodingOptions, videoAnalysis } = request;
+    const { videoId, inputPath, videoAnalysis } = request;
     const startTime = Date.now();
 
     console.log(`🎬 [TranscodingOrchestrator] Starting orchestration for video: ${videoId}`);
@@ -148,7 +150,6 @@ export class TranscodingOrchestratorServiceImpl implements TranscodingOrchestrat
 
       // Attempt cleanup on error
       try {
-        const workspace = await workspaceManagerService.getWorkspace(videoId);
         await workspaceManagerService.cleanupWorkspace(videoId);
       }
       catch (cleanupError) {
@@ -266,8 +267,8 @@ export class TranscodingOrchestratorServiceImpl implements TranscodingOrchestrat
    */
   private async generateEncryptionKeys(videoId: string): Promise<EncryptionConfig> {
     // Generate and store AES key
-    const key = this.keyManager.generateVideoKey(videoId);
-    await this.keyManager.storeVideoKey(videoId, key);
+    const result = await this.keyManager.generateAndStoreKey(videoId);
+    const key = result.key;
 
     // Generate key ID
     const keyId = this.generateKeyId(videoId);
@@ -416,6 +417,3 @@ export class TranscodingOrchestratorServiceImpl implements TranscodingOrchestrat
     return error;
   }
 }
-
-// Export singleton instance
-export const transcodingOrchestratorService = new TranscodingOrchestratorServiceImpl();
