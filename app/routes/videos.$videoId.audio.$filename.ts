@@ -6,7 +6,7 @@ import type { MediaSegmentRequest } from '~/modules/video/media-segment/media-se
 import { config } from '~/configs';
 import { DomainError } from '~/lib/errors';
 import { MediaSegmentUseCase } from '~/modules/video/media-segment/media-segment.usecase';
-import { validateVideoRequest } from '~/services/video-jwt.server';
+import { JwtValidatorAdapter } from '~/modules/video/security/validate-token/jwt-validator.adapter';
 import {
   getDashContentType,
   getDashSegmentHeaders,
@@ -18,9 +18,11 @@ import {
  * Create MediaSegmentUseCase with dependencies for audio segments
  */
 function createMediaSegmentUseCase() {
+  const jwtValidator = new JwtValidatorAdapter();
+
   return new MediaSegmentUseCase({
     jwtValidator: {
-      validateVideoRequest,
+      validateVideoRequest: jwtValidator.validateVideoRequest.bind(jwtValidator),
     },
     fileSystem: {
       stat: async (path: string) => {

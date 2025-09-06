@@ -1,6 +1,66 @@
+import jwt from 'jsonwebtoken';
 import { type LoaderFunctionArgs } from 'react-router';
+import { config } from '~/configs';
 import { getManifestUseCase } from '~/modules/video/manifest/get-manifest.usecase';
-import { validateVideoRequest } from '~/services/video-jwt.server';
+import { ExtractVideoTokenUseCase } from '~/modules/video/security/validate-token/extract-video-token.usecase';
+import { IpExtractorAdapter } from '~/modules/video/security/validate-token/ip-extractor.adapter';
+import { ValidateVideoTokenUseCase } from '~/modules/video/security/validate-token/validate-token.usecase';
+import { ValidateVideoRequestUseCase } from '~/modules/video/security/validate-token/validate-video-request.usecase';
+
+/**
+ * Create ValidateVideoRequestUseCase with dependencies
+ */
+function createValidateVideoRequestUseCase() {
+  const ipExtractor = new IpExtractorAdapter();
+  const extractTokenUseCase = new ExtractVideoTokenUseCase();
+  const validateTokenUseCase = new ValidateVideoTokenUseCase({
+    jwt: {
+      verify: jwt.verify,
+      TokenExpiredError: jwt.TokenExpiredError,
+      JsonWebTokenError: jwt.JsonWebTokenError,
+    },
+    config: {
+      jwtSecret: config.security.video.auth.secret,
+      jwtIssuer: 'local-streamer',
+      jwtAudience: 'video-streaming',
+    },
+    logger: console,
+  });
+
+  return new ValidateVideoRequestUseCase({
+    tokenExtractor: {
+      extractVideoToken: (request: Request) => {
+        const result = extractTokenUseCase.execute({ request });
+        return result.success ? result.data.token : null;
+      },
+    },
+    tokenValidator: {
+      validateVideoToken: async (token: string, expectedVideoId?: string, ip?: string, userAgent?: string) => {
+        const result = await validateTokenUseCase.execute({
+          token,
+          expectedVideoId,
+          ipAddress: ip,
+          userAgent,
+        });
+
+        if (result.success) {
+          return {
+            valid: true,
+            payload: result.data.payload,
+          };
+        }
+
+        return {
+          valid: false,
+          error: result.error.message,
+        };
+      },
+    },
+    ipExtractor: {
+      getClientIP: ipExtractor.getClientIP.bind(ipExtractor),
+    },
+  });
+}
 
 /**
  * Handle DASH manifest (manifest.mpd)
@@ -13,11 +73,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response('Video ID required', { status: 400 });
   }
 
-  // Validate JWT token
-  const validation = await validateVideoRequest(request, videoId);
-  if (!validation.valid) {
-    console.warn(`DASH manifest access denied for ${videoId}: ${validation.error}`);
-    throw new Response(validation.error || 'Unauthorized', { status: 401 });
+  // Validate JWT token using UseCase
+  const validateRequestUseCase = createValidateVideoRequestUseCase();
+  const validation = await validateRequestUseCase.execute({
+    request,
+    expectedVideoId: videoId,
+  });
+
+  if (!validation.success) {
+    console.warn(`DASH manifest access denied for ${videoId}: ${validation.error.message}`);
+    throw new Response(validation.error.message, { status: 401 });
   }
 
   try {
