@@ -1,7 +1,7 @@
 import { InternalError, NotFoundError, UnauthorizedError, ValidationError } from '~/lib/errors';
 import { Result } from '~/lib/result';
 import { UseCase } from '~/lib/usecase.base';
-import { validateVideoRequest } from '~/services/video-jwt.server';
+import { JwtValidatorAdapter } from '~/modules/video/security/validate-token/jwt-validator.adapter';
 import type {
   GetManifestRequest,
   GetManifestResult,
@@ -11,7 +11,7 @@ import { videoManifestService } from './VideoManifestService';
 
 export interface GetManifestDependencies {
   manifestService: typeof videoManifestService;
-  jwtValidator?: typeof validateVideoRequest;
+  jwtValidator?: JwtValidatorAdapter;
   logger?: {
     info: (message: string, meta?: any) => void;
     warn: (message: string, meta?: any) => void;
@@ -168,7 +168,7 @@ export class GetManifestUseCase extends UseCase<GetManifestRequest, GetManifestR
 // Create default dependencies
 const createDefaultDependencies = (): GetManifestDependencies => ({
   manifestService: videoManifestService,
-  jwtValidator: validateVideoRequest,
+  jwtValidator: new JwtValidatorAdapter(),
   logger: {
     info: (message: string, meta?: any) => console.log(`ℹ️ [GetManifest] ${message}`, meta || ''),
     warn: (message: string, meta?: any) => console.warn(`⚠️ [GetManifest] ${message}`, meta || ''),

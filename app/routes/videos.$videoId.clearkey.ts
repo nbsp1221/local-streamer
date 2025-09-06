@@ -4,7 +4,7 @@ import type { ClearKeyRequest } from '~/modules/video/clear-key/clear-key.types'
 import { DomainError } from '~/lib/errors';
 import { ClearKeyUseCase } from '~/modules/video/clear-key/clear-key.usecase';
 import { Pbkdf2KeyManagerAdapter } from '~/modules/video/security/adapters/pbkdf2-key-manager.adapter';
-import { validateVideoRequest } from '~/services/video-jwt.server';
+import { JwtValidatorAdapter } from '~/modules/video/security/validate-token/jwt-validator.adapter';
 
 /**
  * Convert hex string to base64url
@@ -28,10 +28,11 @@ function generateKeyId(videoId: string): string {
  */
 function createClearKeyUseCase() {
   const keyManager = new Pbkdf2KeyManagerAdapter();
+  const jwtValidator = new JwtValidatorAdapter();
 
   return new ClearKeyUseCase({
     jwtValidator: {
-      validateVideoRequest,
+      validateVideoRequest: jwtValidator.validateVideoRequest.bind(jwtValidator),
     },
     keyManager: {
       hasVideoKey: keyManager.keyExists.bind(keyManager),
