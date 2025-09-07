@@ -1,4 +1,4 @@
-import { BookOpen, Camera, Clapperboard, Film, Home, Menu, Monitor, Settings, Upload, Zap } from 'lucide-react';
+import { BookOpen, Camera, Clapperboard, Film, Home, Monitor, Settings, Upload, Zap } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 import {
   Sidebar,
@@ -8,7 +8,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from '~/components/ui/sidebar';
 
@@ -93,16 +92,9 @@ export function AppSidebar() {
 
   return (
     <Sidebar className="border-r" collapsible={isMobile ? 'offcanvas' : 'none'}>
-      {/* Header: Logo always visible, hamburger only on mobile */}
+      {/* Header: Logo */}
       <SidebarHeader className="px-4 py-4 border-b border-sidebar-border">
         <div className="flex items-center gap-4">
-          {/* Hamburger menu - only on mobile */}
-          {isMobile && (
-            <SidebarTrigger className="h-10 w-10 rounded-full hover:bg-sidebar-accent transition-colors flex items-center justify-center">
-              <Menu className="h-5 w-5" />
-            </SidebarTrigger>
-          )}
-
           {/* Logo - always visible */}
           <Link to="/" className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">

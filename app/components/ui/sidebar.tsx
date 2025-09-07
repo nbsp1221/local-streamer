@@ -63,10 +63,20 @@ const SidebarProvider = React.forwardRef<
 
   const [openMobile, setOpenMobile] = React.useState(false)
 
-  // This is for a11y
-  const isMobile = React.useMemo(() => {
-    if (typeof window === 'undefined') return false
-    return window.innerWidth < 768
+  // This is for a11y - responsive mobile detection
+  const [isMobile, setIsMobile] = React.useState(false)
+  
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    // Check initially
+    checkMobile()
+    
+    // Add resize listener
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
   const toggleSidebar = React.useCallback(() => {
@@ -118,7 +128,7 @@ const Sidebar = React.forwardRef<
     collapsible?: 'offcanvas' | 'icon' | 'none'
   }
 >(({ variant = 'sidebar', collapsible = 'offcanvas', className, children, ...props }, ref) => {
-  const { isMobile, state, open, setOpen, openMobile, setOpenMobile } = useSidebar()
+  const { isMobile, state, setOpen, openMobile, setOpenMobile } = useSidebar()
 
   if (collapsible === 'none') {
     return (
@@ -144,7 +154,7 @@ const Sidebar = React.forwardRef<
         <div
           data-mobile="true"
           className={cn(
-            'fixed inset-y-0 left-0 z-50 w-[--sidebar-width-mobile] transform border-r border-sidebar-border bg-sidebar transition-transform duration-200 ease-in-out',
+            'fixed inset-y-0 left-0 z-50 w-[--sidebar-width-mobile] border-r border-sidebar-border bg-sidebar transition-transform duration-200 ease-in-out',
             openMobile ? 'translate-x-0' : '-translate-x-full',
             className
           )}

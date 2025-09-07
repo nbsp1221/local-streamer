@@ -1,6 +1,6 @@
 import { AppHeader } from '~/components/AppHeader';
 import { AppSidebar } from '~/components/AppSidebar';
-import { SidebarProvider, useSidebar } from '~/components/ui/sidebar';
+import { SidebarProvider } from '~/components/ui/sidebar';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -10,28 +10,6 @@ interface AppLayoutProps {
 }
 
 function LayoutContent({ children, searchQuery, onSearchChange, pendingCount }: AppLayoutProps) {
-  const { isMobile } = useSidebar();
-
-  if (isMobile) {
-    // Mobile: NavBar on top, sidebar overlay
-    return (
-      <div className="min-h-screen w-full">
-        <AppHeader
-          searchQuery={searchQuery}
-          onSearchChange={onSearchChange}
-          pendingCount={pendingCount}
-        />
-        <div className="flex h-[calc(100vh-4rem)]">
-          <AppSidebar />
-          <main className="flex-1 overflow-y-auto">
-            {children}
-          </main>
-        </div>
-      </div>
-    );
-  }
-
-  // Desktop: Sidebar first (full height), then NavBar + Main beside it
   return (
     <div className="flex min-h-screen w-full">
       <AppSidebar />
