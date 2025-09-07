@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLoaderData } from 'react-router';
 import type { PendingVideo, Video } from '~/types/video';
-import { NavBar } from '~/components/NavBar';
+import { AppLayout } from '~/components/AppLayout';
 import { TagFilter } from '~/components/TagFilter';
 import { VideoGrid } from '~/components/VideoGrid';
 import { VideoModal } from '~/components/VideoModal';
@@ -89,16 +89,13 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation bar */}
-      <NavBar
-        searchQuery={searchFilters.query}
-        onSearchChange={updateSearchQuery}
-        pendingCount={pendingVideos.length}
-      />
-
+    <AppLayout
+      searchQuery={searchFilters.query}
+      onSearchChange={updateSearchQuery}
+      pendingCount={pendingVideos.length}
+    >
       {/* Main content */}
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold mb-2">My Library</h1>
           <p className="text-muted-foreground">
@@ -131,7 +128,7 @@ export default function Home() {
           onDelete={deleteVideo}
           onUpdate={handleUpdateVideo}
         />
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

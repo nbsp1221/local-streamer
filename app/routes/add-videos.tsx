@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import type { EncodingOptions } from '~/modules/video/add-video/add-video.types';
 import type { PendingVideo } from '~/types/video';
+import { AppLayout } from '~/components/AppLayout';
 import { EncodingOptionsComponent } from '~/components/EncodingOptions';
-import { NavBar } from '~/components/NavBar';
 import { Alert, AlertDescription } from '~/components/ui/alert';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
@@ -192,15 +192,9 @@ export default function AddVideos() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Global Navigation */}
-      <NavBar
-        searchQuery=""
-        onSearchChange={() => {}}
-      />
-
+    <AppLayout>
       {/* Main Content */}
-      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
@@ -377,7 +371,7 @@ export default function AddVideos() {
             </>
           )}
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
