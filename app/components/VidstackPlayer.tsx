@@ -227,7 +227,7 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
 
   if (error) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-gray-900 text-white">
+      <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground">
         <div className="text-center">
           <div className="text-xl mb-2">⚠️ Playback Error</div>
           <div className="text-sm text-gray-400">{error}</div>
@@ -237,9 +237,9 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
   }
 
   return (
-    <div className="w-full h-full relative bg-black">
+    <div className="w-full h-full relative bg-background">
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-900 text-white z-10">
+        <div className="absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground z-10">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4" />
             <div className="text-sm text-gray-400">Loading {video.title}...</div>
