@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '~/components/ui/dialog';
+import { formatDuration } from '~/lib/utils';
 import { EditVideoForm } from './EditVideoForm';
 
 interface VideoModalProps {
@@ -30,12 +31,6 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
   const [isEditMode, setIsEditMode] = useState(false);
 
   if (!video) return null;
-
-  const formatDuration = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
 
   const handleTagClick = (tag: string, e: React.MouseEvent) => {
     e.preventDefault();

@@ -7,7 +7,7 @@ describe('DeleteVideoUseCase', () => {
   let useCase: DeleteVideoUseCase;
   let mockDependencies: DeleteVideoDependencies;
   let mockVideoRepository: any;
-  let mockFileManager: any;
+  let mockWorkspaceManager: any;
   let mockLogger: any;
 
   beforeEach(() => {
@@ -17,9 +17,9 @@ describe('DeleteVideoUseCase', () => {
       delete: vi.fn(),
     };
 
-    // Create mock file manager
-    mockFileManager = {
-      deleteVideoFiles: vi.fn(),
+    // Create mock workspace manager
+    mockWorkspaceManager = {
+      cleanupWorkspace: vi.fn(),
     };
 
     // Create mock logger
@@ -31,7 +31,7 @@ describe('DeleteVideoUseCase', () => {
     // Setup dependencies
     mockDependencies = {
       videoRepository: mockVideoRepository,
-      fileManager: mockFileManager,
+      workspaceManager: mockWorkspaceManager,
       logger: mockLogger,
     };
 
@@ -57,7 +57,7 @@ describe('DeleteVideoUseCase', () => {
 
       mockVideoRepository.findById.mockResolvedValue(mockVideo);
       mockVideoRepository.delete.mockResolvedValue(undefined);
-      mockFileManager.deleteVideoFiles.mockResolvedValue(undefined);
+      mockWorkspaceManager.cleanupWorkspace.mockResolvedValue(undefined);
 
       // Act
       const result = await useCase.execute(request);
@@ -72,7 +72,7 @@ describe('DeleteVideoUseCase', () => {
 
       expect(mockVideoRepository.findById).toHaveBeenCalledWith('video-123');
       expect(mockVideoRepository.delete).toHaveBeenCalledWith('video-123');
-      expect(mockFileManager.deleteVideoFiles).toHaveBeenCalledWith('video-123');
+      expect(mockWorkspaceManager.cleanupWorkspace).toHaveBeenCalledWith('video-123');
       expect(mockLogger.info).toHaveBeenCalledWith(
         'Video metadata deleted: Test Video (video-123)',
       );
@@ -97,7 +97,7 @@ describe('DeleteVideoUseCase', () => {
 
       mockVideoRepository.findById.mockResolvedValue(mockVideo);
       mockVideoRepository.delete.mockResolvedValue(undefined);
-      mockFileManager.deleteVideoFiles.mockRejectedValue(new Error('File system error'));
+      mockWorkspaceManager.cleanupWorkspace.mockRejectedValue(new Error('File system error'));
 
       // Act
       const result = await useCase.execute(request);
@@ -194,7 +194,7 @@ describe('DeleteVideoUseCase', () => {
 
       expect(mockVideoRepository.findById).toHaveBeenCalledWith('nonexistent-video');
       expect(mockVideoRepository.delete).not.toHaveBeenCalled();
-      expect(mockFileManager.deleteVideoFiles).not.toHaveBeenCalled();
+      expect(mockWorkspaceManager.cleanupWorkspace).not.toHaveBeenCalled();
     });
   });
 
@@ -218,7 +218,7 @@ describe('DeleteVideoUseCase', () => {
       }
 
       expect(mockVideoRepository.delete).not.toHaveBeenCalled();
-      expect(mockFileManager.deleteVideoFiles).not.toHaveBeenCalled();
+      expect(mockWorkspaceManager.cleanupWorkspace).not.toHaveBeenCalled();
     });
 
     it('should fail when repository delete fails', async () => {
@@ -252,7 +252,7 @@ describe('DeleteVideoUseCase', () => {
 
       expect(mockVideoRepository.findById).toHaveBeenCalledWith('video-123');
       expect(mockVideoRepository.delete).toHaveBeenCalledWith('video-123');
-      expect(mockFileManager.deleteVideoFiles).not.toHaveBeenCalled();
+      expect(mockWorkspaceManager.cleanupWorkspace).not.toHaveBeenCalled();
     });
   });
 
@@ -261,7 +261,7 @@ describe('DeleteVideoUseCase', () => {
       // Arrange
       const depsWithoutLogger = {
         videoRepository: mockVideoRepository,
-        fileManager: mockFileManager,
+        workspaceManager: mockWorkspaceManager,
         // No logger
       };
 
@@ -283,7 +283,7 @@ describe('DeleteVideoUseCase', () => {
 
       mockVideoRepository.findById.mockResolvedValue(mockVideo);
       mockVideoRepository.delete.mockResolvedValue(undefined);
-      mockFileManager.deleteVideoFiles.mockResolvedValue(undefined);
+      mockWorkspaceManager.cleanupWorkspace.mockResolvedValue(undefined);
 
       // Act
       const result = await useCaseWithoutLogger.execute(request);

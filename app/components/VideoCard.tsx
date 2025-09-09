@@ -4,6 +4,7 @@ import type { Video } from '~/types/video';
 import { AspectRatio } from '~/components/ui/aspect-ratio';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
+import { formatDuration } from '~/lib/utils';
 
 interface VideoCardProps {
   video: Video;
@@ -12,12 +13,6 @@ interface VideoCardProps {
 }
 
 export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
-  const formatDuration = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
   const handleTagClick = (tag: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();

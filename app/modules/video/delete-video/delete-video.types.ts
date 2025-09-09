@@ -1,4 +1,5 @@
 import type { VideoRepository } from '~/repositories/interfaces/VideoRepository';
+import type { WorkspaceManagerService } from '../storage/types/workspace-manager.types';
 
 export interface DeleteVideoRequest {
   videoId: string;
@@ -12,9 +13,7 @@ export interface DeleteVideoResponse {
 
 export interface DeleteVideoDependencies {
   videoRepository: VideoRepository;
-  fileManager: {
-    deleteVideoFiles: (videoId: string) => Promise<void>;
-  };
+  workspaceManager: WorkspaceManagerService;
   logger?: {
     info: (message: string, meta?: any) => void;
     error: (message: string, error?: any) => void;

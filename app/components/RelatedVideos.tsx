@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import type { Video } from '~/types/video';
 import { AspectRatio } from '~/components/ui/aspect-ratio';
 import { Badge } from '~/components/ui/badge';
+import { formatDuration } from '~/lib/utils';
 
 interface RelatedVideosProps {
   videos: Video[];
@@ -15,12 +16,6 @@ interface RelatedVideoItemProps {
 }
 
 function RelatedVideoItem({ video, onTagClick }: RelatedVideoItemProps) {
-  const formatDuration = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
-
   const handleTagClick = (tag: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();

@@ -1,17 +1,14 @@
 import type { ScanIncomingDependencies } from '~/modules/video/scan-incoming/scan-incoming.types';
 import { DomainError } from '~/lib/errors';
+import { FFmpegThumbnailAdapter } from '~/modules/thumbnail/infrastructure/adapters/ffmpeg-thumbnail.adapter';
 import { ScanIncomingUseCase } from '~/modules/video/scan-incoming/scan-incoming.usecase';
-import * as fileManager from '~/services/file-manager.server';
 import { requireAuth } from '~/utils/auth.server';
 import type { Route } from './+types/scan-incoming';
 
 // Create dependencies for the UseCase
 function createDependencies(): ScanIncomingDependencies {
   return {
-    fileManager: {
-      ensureUploadsDirectory: fileManager.ensureUploadsDirectory,
-      scanIncomingFiles: fileManager.scanIncomingFiles,
-    },
+    thumbnailGenerator: new FFmpegThumbnailAdapter(),
     logger: console,
   };
 }

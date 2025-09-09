@@ -16,6 +16,7 @@ export interface PendingVideo {
   type: string; // mime type
   path?: string;
   thumbnailUrl?: string; // Optional thumbnail preview URL
+  createdAt?: Date; // When the file was created/detected
 }
 
 export interface VideoLibrary {
