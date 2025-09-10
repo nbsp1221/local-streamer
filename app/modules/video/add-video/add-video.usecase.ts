@@ -1,4 +1,5 @@
 import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 import { config } from '~/configs';
 import { InternalError, ValidationError } from '~/lib/errors';
 import { Result } from '~/lib/result';
@@ -24,21 +25,43 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
         return validation;
       }
 
-      // 2. Ensure videos directory exists
-      await this.deps.fileManager.ensureVideosDirectory();
+      // 2. Generate UUID for video
+      const videoId = uuidv4();
 
-      // 3. Move file to library (it generates its own UUID)
-      const videoId = await this.deps.fileManager.moveToLibrary(request.filename);
+      // 3. Create workspace for the video
+      const workspace = await this.deps.workspaceManager.createWorkspace({
+        videoId,
+        temporary: false,
+        cleanupOnError: true,
+      });
 
-      // 4. Get video information
-      const ext = path.extname(request.filename); // includes leading dot (e.g., ".mp4")
-      const videoPath = path.join(config.paths.videos, videoId, `video${ext}`);
-      const videoInfo = await this.deps.fileManager.getVideoInfo(videoPath);
+      // 4. Move file from uploads to workspace
+      const sourcePath = path.join(config.paths.uploads, request.filename);
+      const ext = path.extname(request.filename);
+      const targetName = `video${ext}`;
 
-      // 5. Handle thumbnail (move only, encryption happens after HLS)
-      await this.handleThumbnail(request.filename, videoId, request.title);
+      const moveResult = await this.deps.workspaceManager.moveToWorkspace(
+        sourcePath,
+        workspace,
+        targetName,
+      );
 
-      // 6. Create video entity
+      if (!moveResult.success) {
+        throw new Error(`Failed to move file to workspace: ${moveResult.error}`);
+      }
+
+      // 5. Get video information using analysis service
+      const videoAnalysis = await this.deps.videoAnalysis.analyze(moveResult.destination);
+      const videoInfo = {
+        size: videoAnalysis.fileSize,
+        duration: videoAnalysis.duration,
+        mimeType: this.getMimeType(ext),
+      };
+
+      // 6. Handle thumbnail (move only, encryption happens after HLS)
+      await this.handleThumbnail(request.filename, videoId, request.title, workspace);
+
+      // 7. Create video entity
       const video = this.createVideoEntity({
         id: videoId,
         title: request.title,
@@ -51,7 +74,7 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
       await this.saveVideo(video);
 
       // 8. Generate video processing (HLS/DASH)
-      const transcodeResult = await this.processVideo(videoId, videoPath, request.encodingOptions);
+      const transcodeResult = await this.processVideo(videoId, moveResult.destination, request.encodingOptions);
 
       // 9. Encrypt thumbnail after HLS generation (when AES key is available)
       // Always attempt encryption since thumbnails are generated during HLS conversion
@@ -88,15 +111,32 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
     return Result.ok(undefined);
   }
 
-  private async handleThumbnail(filename: string, videoId: string, title: string): Promise<boolean> {
+  private async handleThumbnail(filename: string, videoId: string, title: string, workspace: any): Promise<boolean> {
     // Move temporary thumbnail if available (encryption happens later)
-    const moved = await this.deps.fileManager.moveTempThumbnailToLibrary(filename, videoId);
+    const nameWithoutExt = path.parse(filename).name;
+    const tempThumbnailPath = path.join(config.paths.thumbnails, `${nameWithoutExt}.jpg`);
 
-    if (moved) {
-      this.deps.logger?.info(`Temporary thumbnail moved for: ${title} (${videoId})`);
-      return true;
+    try {
+      // Check if temp thumbnail exists
+      await import('fs').then(fs => fs.promises.access(tempThumbnailPath));
+
+      // Move temp thumbnail to workspace
+      const moveResult = await this.deps.workspaceManager.moveToWorkspace(
+        tempThumbnailPath,
+        workspace,
+        'thumbnail.jpg',
+      );
+
+      if (moveResult.success) {
+        this.deps.logger?.info(`Temporary thumbnail moved for: ${title} (${videoId})`);
+        return true;
+      }
+      else {
+        this.deps.logger?.error(`Failed to move thumbnail: ${moveResult.error}`);
+        return false;
+      }
     }
-    else {
+    catch {
       this.deps.logger?.info(
         `No temporary thumbnail available for: ${title} (${videoId}). ` +
         `Encrypted thumbnail will be generated during video conversion if needed`,
@@ -207,5 +247,22 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
     // For Phase 2, all current encoding options map to 'high' quality
     // This maintains current behavior while introducing the new interface
     return { quality: 'high', useGpu };
+  }
+
+  /**
+   * Get MIME type based on file extension
+   */
+  private getMimeType(ext: string): string {
+    const mimeTypes: Record<string, string> = {
+      '.mp4': 'video/mp4',
+      '.avi': 'video/x-msvideo',
+      '.mkv': 'video/x-matroska',
+      '.mov': 'video/quicktime',
+      '.webm': 'video/webm',
+      '.m4v': 'video/mp4',
+      '.flv': 'video/x-flv',
+      '.wmv': 'video/x-ms-wmv',
+    };
+    return mimeTypes[ext.toLowerCase()] || 'video/mp4';
   }
 }

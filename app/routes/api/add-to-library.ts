@@ -1,8 +1,9 @@
 import type { AddVideoRequest } from '~/modules/video/add-video/add-video.types';
 import { AddVideoUseCase } from '~/modules/video/add-video/add-video.usecase';
+import { FFprobeAnalysisService } from '~/modules/video/analysis/ffprobe-analysis.service';
+import { workspaceManagerService } from '~/modules/video/storage/services/WorkspaceManagerService';
 import { FFmpegVideoTranscoderAdapter } from '~/modules/video/transcoding';
 import { getVideoRepository } from '~/repositories';
-import * as fileManager from '~/services/file-manager.server';
 import { requireAuth } from '~/utils/auth.server';
 import type { Route } from './+types/add-to-library';
 
@@ -17,7 +18,8 @@ export async function action({ request }: Route.ActionArgs) {
     // Create use case with dependencies
     const useCase = new AddVideoUseCase({
       videoRepository: getVideoRepository(),
-      fileManager,
+      workspaceManager: workspaceManagerService,
+      videoAnalysis: new FFprobeAnalysisService(),
       videoTranscoder: new FFmpegVideoTranscoderAdapter(),
       logger: console, // Using console as logger for now
     });

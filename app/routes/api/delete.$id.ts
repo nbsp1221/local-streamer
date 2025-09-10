@@ -1,7 +1,7 @@
 import type { DeleteVideoRequest } from '~/modules/video/delete-video/delete-video.types';
 import { DeleteVideoUseCase } from '~/modules/video/delete-video/delete-video.usecase';
+import { workspaceManagerService } from '~/modules/video/storage/services/WorkspaceManagerService';
 import { getVideoRepository } from '~/repositories';
-import * as fileManager from '~/services/file-manager.server';
 import { requireAuth } from '~/utils/auth.server';
 import type { Route } from './+types/delete.$id';
 
@@ -26,9 +26,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     // Create UseCase with dependencies
     const useCase = new DeleteVideoUseCase({
       videoRepository: getVideoRepository(),
-      fileManager: {
-        deleteVideoFiles: fileManager.deleteVideoFiles,
-      },
+      workspaceManager: workspaceManagerService,
       logger: console,
     });
 

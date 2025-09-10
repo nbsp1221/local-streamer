@@ -1,4 +1,6 @@
 import { type VideoRepository } from '~/repositories/interfaces/VideoRepository';
+import type { VideoAnalysisService } from '../analysis/video-analysis.types';
+import type { WorkspaceManagerService } from '../storage/types/workspace-manager.types';
 import { type VideoTranscoder } from '../transcoding';
 
 export interface EncodingOptions {
@@ -46,7 +48,8 @@ export interface AddVideoResponse {
 
 export interface AddVideoDependencies {
   videoRepository: VideoRepository;
-  fileManager: typeof import('~/services/file-manager.server');
+  workspaceManager: WorkspaceManagerService;
+  videoAnalysis: VideoAnalysisService;
   videoTranscoder: VideoTranscoder;
   logger?: {
     info: (message: string, data?: any) => void;

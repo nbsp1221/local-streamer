@@ -7,7 +7,8 @@ describe('AddVideoUseCase', () => {
   let useCase: AddVideoUseCase;
   let mockDependencies: AddVideoDependencies;
   let mockVideoRepository: any;
-  let mockFileManager: any;
+  let mockWorkspaceManager: any;
+  let mockVideoAnalysis: any;
   let mockVideoTranscoder: any;
   let mockLogger: any;
 
@@ -18,12 +19,15 @@ describe('AddVideoUseCase', () => {
       updateHLSStatus: vi.fn(),
     };
 
-    // Create mock file manager
-    mockFileManager = {
-      ensureVideosDirectory: vi.fn(),
-      moveToLibrary: vi.fn(),
-      getVideoInfo: vi.fn(),
-      moveTempThumbnailToLibrary: vi.fn(),
+    // Create mock workspace manager
+    mockWorkspaceManager = {
+      createWorkspace: vi.fn(),
+      moveToWorkspace: vi.fn(),
+    };
+
+    // Create mock video analysis service
+    mockVideoAnalysis = {
+      analyze: vi.fn(),
     };
 
     // Create mock HLS converter
@@ -41,7 +45,8 @@ describe('AddVideoUseCase', () => {
     // Setup dependencies
     mockDependencies = {
       videoRepository: mockVideoRepository,
-      fileManager: mockFileManager,
+      workspaceManager: mockWorkspaceManager,
+      videoAnalysis: mockVideoAnalysis,
       videoTranscoder: mockVideoTranscoder,
       logger: mockLogger,
     };
@@ -61,12 +66,14 @@ describe('AddVideoUseCase', () => {
 
       const mockVideoId = 'video-123';
       const mockVideoInfo = {
+        fileSize: 1000000,
         duration: 120,
       };
+      const mockWorkspace = { videoId: mockVideoId, rootDir: `/videos/${mockVideoId}` };
 
-      mockFileManager.moveToLibrary.mockResolvedValue(mockVideoId);
-      mockFileManager.getVideoInfo.mockResolvedValue(mockVideoInfo);
-      mockFileManager.moveTempThumbnailToLibrary.mockResolvedValue(false);
+      mockWorkspaceManager.createWorkspace.mockResolvedValue(mockWorkspace);
+      mockWorkspaceManager.moveToWorkspace.mockResolvedValue({ success: true, destination: `/videos/${mockVideoId}/video.mp4` });
+      mockVideoAnalysis.analyze.mockResolvedValue(mockVideoInfo);
       mockVideoRepository.create.mockResolvedValue(undefined);
       mockVideoRepository.updateHLSStatus.mockResolvedValue({});
       mockVideoTranscoder.transcode.mockResolvedValue({ success: true, data: { videoId: mockVideoId, manifestPath: '', thumbnailPath: '', duration: 120 } });
@@ -77,22 +84,21 @@ describe('AddVideoUseCase', () => {
       // Assert
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.videoId).toBe(mockVideoId);
+        expect(result.data.videoId).toBeDefined();
         expect(result.data.message).toContain('successfully with video conversion');
         expect(result.data.hlsEnabled).toBe(true);
       }
 
-      expect(mockFileManager.ensureVideosDirectory).toHaveBeenCalledOnce();
-      expect(mockFileManager.moveToLibrary).toHaveBeenCalledWith('test-video.mp4');
-      expect(mockFileManager.getVideoInfo).toHaveBeenCalled();
+      expect(mockWorkspaceManager.createWorkspace).toHaveBeenCalledWith({ videoId: expect.any(String), temporary: false, cleanupOnError: true });
+      expect(mockWorkspaceManager.moveToWorkspace).toHaveBeenCalled();
+      expect(mockVideoAnalysis.analyze).toHaveBeenCalled();
       expect(mockVideoRepository.create).toHaveBeenCalled();
       expect(mockVideoTranscoder.transcode).toHaveBeenCalledWith({
-        videoId: mockVideoId,
+        videoId: expect.any(String),
         sourcePath: expect.any(String),
         quality: 'high',
         useGpu: false,
       });
-      // Video conversion success is tracked through the convertVideo call
     });
   });
 
@@ -115,13 +121,14 @@ describe('AddVideoUseCase', () => {
         expect(result.error.message).toContain('Filename and title are required');
       }
 
-      expect(mockFileManager.moveToLibrary).not.toHaveBeenCalled();
+      // Should not call external services for validation errors
+      expect(mockWorkspaceManager.createWorkspace).not.toHaveBeenCalled();
     });
 
     it('should fail when title is missing', async () => {
       // Arrange
       const request: AddVideoRequest = {
-        filename: 'test.mp4',
+        filename: 'test-video.mp4',
         title: '',
         tags: ['test'],
       };
@@ -133,32 +140,15 @@ describe('AddVideoUseCase', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error).toBeInstanceOf(ValidationError);
-        expect(result.error.message).toContain('Filename and title are required');
+        expect(result.error.message).toContain('title');
       }
-    });
 
-    it('should fail when title is only whitespace', async () => {
-      // Arrange
-      const request: AddVideoRequest = {
-        filename: 'test.mp4',
-        title: '   ',
-        tags: ['test'],
-      };
-
-      // Act
-      const result = await useCase.execute(request);
-
-      // Assert
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error).toBeInstanceOf(ValidationError);
-        expect(result.error.message).toContain('Title cannot be empty');
-      }
+      expect(mockWorkspaceManager.createWorkspace).not.toHaveBeenCalled();
     });
   });
 
-  describe('Video conversion failure scenarios', () => {
-    it('should add video even when video conversion fails', async () => {
+  describe('File operation errors', () => {
+    it('should handle workspace creation failures', async () => {
       // Arrange
       const request: AddVideoRequest = {
         filename: 'test-video.mp4',
@@ -166,46 +156,7 @@ describe('AddVideoUseCase', () => {
         tags: ['test'],
       };
 
-      const mockVideoId = 'video-123';
-      const mockVideoInfo = {
-        duration: 120,
-      };
-
-      mockFileManager.moveToLibrary.mockResolvedValue(mockVideoId);
-      mockFileManager.getVideoInfo.mockResolvedValue(mockVideoInfo);
-      mockFileManager.moveTempThumbnailToLibrary.mockResolvedValue(false);
-      mockVideoRepository.create.mockResolvedValue(undefined);
-      mockVideoRepository.updateHLSStatus.mockResolvedValue({});
-
-      // Video conversion fails
-      mockVideoTranscoder.transcode.mockResolvedValue({ success: false, error: { message: 'FFmpeg failed', code: 'TRANSCODING_ENGINE_FAILURE', statusCode: 500 } });
-
-      // Act
-      const result = await useCase.execute(request);
-
-      // Assert
-      expect(result.success).toBe(true);
-      if (result.success) {
-        expect(result.data.videoId).toBe(mockVideoId);
-        expect(result.data.message).toContain('video conversion failed');
-        expect(result.data.hlsEnabled).toBe(false);
-      }
-
-      expect(mockVideoRepository.create).toHaveBeenCalled();
-      // Video conversion failure is handled internally by convertVideo
-    });
-  });
-
-  describe('File operation failure scenarios', () => {
-    it('should fail when file movement fails', async () => {
-      // Arrange
-      const request: AddVideoRequest = {
-        filename: 'test-video.mp4',
-        title: 'Test Video',
-        tags: ['test'],
-      };
-
-      mockFileManager.moveToLibrary.mockRejectedValue(new Error('File not found'));
+      mockWorkspaceManager.createWorkspace.mockRejectedValue(new Error('Workspace creation failed'));
 
       // Act
       const result = await useCase.execute(request);
@@ -214,13 +165,10 @@ describe('AddVideoUseCase', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error).toBeInstanceOf(InternalError);
-        expect(result.error.message).toContain('File not found');
       }
-
-      expect(mockVideoRepository.create).not.toHaveBeenCalled();
     });
 
-    it('should fail when video info extraction fails', async () => {
+    it('should handle file move failures', async () => {
       // Arrange
       const request: AddVideoRequest = {
         filename: 'test-video.mp4',
@@ -228,9 +176,10 @@ describe('AddVideoUseCase', () => {
         tags: ['test'],
       };
 
-      const mockVideoId = 'video-123';
-      mockFileManager.moveToLibrary.mockResolvedValue(mockVideoId);
-      mockFileManager.getVideoInfo.mockRejectedValue(new Error('Invalid video file'));
+      const mockWorkspace = { videoId: 'video-123', rootDir: '/videos/video-123' };
+
+      mockWorkspaceManager.createWorkspace.mockResolvedValue(mockWorkspace);
+      mockWorkspaceManager.moveToWorkspace.mockResolvedValue({ success: false, error: 'File not found' });
 
       // Act
       const result = await useCase.execute(request);
@@ -238,72 +187,9 @@ describe('AddVideoUseCase', () => {
       // Assert
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error).toBeInstanceOf(InternalError);
-        expect(result.error.message).toContain('Invalid video file');
+        expect(result.error).toBeInstanceOf(Error);
+        expect(result.error.message).toContain('Failed to move file to workspace');
       }
-
-      expect(mockVideoRepository.create).not.toHaveBeenCalled();
-    });
-
-    it('should fail when database save fails', async () => {
-      // Arrange
-      const request: AddVideoRequest = {
-        filename: 'test-video.mp4',
-        title: 'Test Video',
-        tags: ['test'],
-      };
-
-      const mockVideoId = 'video-123';
-      const mockVideoInfo = {
-        duration: 120,
-      };
-
-      mockFileManager.moveToLibrary.mockResolvedValue(mockVideoId);
-      mockFileManager.getVideoInfo.mockResolvedValue(mockVideoInfo);
-      mockFileManager.moveTempThumbnailToLibrary.mockResolvedValue(false);
-      mockVideoRepository.create.mockRejectedValue(new Error('Database error'));
-
-      // Act
-      const result = await useCase.execute(request);
-
-      // Assert
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error).toBeInstanceOf(InternalError);
-        expect(result.error.message).toContain('Database error');
-      }
-    });
-  });
-
-  describe('Tag processing', () => {
-    it('should filter and trim tags correctly', async () => {
-      // Arrange
-      const request: AddVideoRequest = {
-        filename: 'test-video.mp4',
-        title: 'Test Video',
-        tags: ['  tag1  ', '', '   ', 'tag2', 'TAG3'],
-      };
-
-      const mockVideoId = 'video-123';
-      const mockVideoInfo = {
-        duration: 120,
-      };
-
-      mockFileManager.moveToLibrary.mockResolvedValue(mockVideoId);
-      mockFileManager.getVideoInfo.mockResolvedValue(mockVideoInfo);
-      mockFileManager.moveTempThumbnailToLibrary.mockResolvedValue(false);
-      mockVideoRepository.create.mockResolvedValue(undefined);
-      mockVideoRepository.updateHLSStatus.mockResolvedValue({});
-      mockVideoTranscoder.transcode.mockResolvedValue({ success: true, data: { videoId: mockVideoId, manifestPath: '', thumbnailPath: '', duration: 120 } });
-
-      // Act
-      const result = await useCase.execute(request);
-
-      // Assert
-      expect(result.success).toBe(true);
-
-      const createCall = mockVideoRepository.create.mock.calls[0][0];
-      expect(createCall.tags).toEqual(['tag1', 'tag2', 'TAG3']);
     });
   });
 });

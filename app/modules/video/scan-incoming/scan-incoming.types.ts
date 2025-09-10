@@ -1,4 +1,5 @@
 import type { PendingVideo } from '~/types/video';
+import type { ThumbnailGenerationPort } from '../../thumbnail/application/ports/thumbnail-generation.port';
 
 /**
  * Request interface for scanning incoming videos
@@ -21,10 +22,7 @@ export interface ScanIncomingResponse {
  * Dependencies required for ScanIncomingUseCase
  */
 export interface ScanIncomingDependencies {
-  fileManager: {
-    ensureUploadsDirectory: () => Promise<void>;
-    scanIncomingFiles: () => Promise<PendingVideo[]>;
-  };
+  thumbnailGenerator: ThumbnailGenerationPort;
   logger: {
     info: (message: string, data?: unknown) => void;
     error: (message: string, error?: unknown) => void;

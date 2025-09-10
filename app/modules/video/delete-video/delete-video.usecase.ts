@@ -32,7 +32,7 @@ export class DeleteVideoUseCase extends UseCase<DeleteVideoRequest, DeleteVideoR
 
       // 4. Delete physical files
       try {
-        await this.deps.fileManager.deleteVideoFiles(request.videoId);
+        await this.deps.workspaceManager.cleanupWorkspace(request.videoId);
         this.deps.logger?.info(`Video files deleted: ${request.videoId}`);
       }
       catch (fileError) {
