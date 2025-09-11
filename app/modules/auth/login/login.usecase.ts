@@ -1,7 +1,7 @@
+import { cookieManager } from '~/lib/cookie';
 import { InternalError, UnauthorizedError, ValidationError } from '~/lib/errors';
 import { Result } from '~/lib/result';
 import { UseCase } from '~/lib/usecase.base';
-import { COOKIE_NAME, getCookieOptions, serializeCookie } from '~/services/session-store.server';
 import { toPublicUser } from '~/utils/auth.server';
 import {
   type LoginDependencies,
@@ -48,10 +48,10 @@ export class LoginUseCase extends UseCase<LoginRequest, LoginResponse> {
       );
 
       // 5. Create cookie string
-      const cookieString = serializeCookie(
-        COOKIE_NAME,
+      const cookieString = cookieManager.serialize(
+        cookieManager.cookieName,
         session.id,
-        getCookieOptions(),
+        cookieManager.getCookieOptions(),
       );
 
       this.deps.logger?.info('User logged in successfully', {

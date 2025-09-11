@@ -2,7 +2,7 @@ import type { LoginRequest } from '~/modules/auth/login/login.types';
 import type { LoginFormData } from '~/types/auth';
 import { DomainError } from '~/lib/errors';
 import { LoginUseCase } from '~/modules/auth/login/login.usecase';
-import { createSession } from '~/services/session-store.server';
+import { getSessionRepository } from '~/repositories';
 import { authenticateUser } from '~/services/user-store.server';
 import { addLoginDelay, getClientIP, isValidEmail } from '~/utils/auth.server';
 import type { Route } from './+types/login';
@@ -14,7 +14,7 @@ function createLoginUseCase() {
   };
 
   const sessionRepository = {
-    createSession,
+    createSession: (userId: string, userAgent?: string, ipAddress?: string) => getSessionRepository().create({ userId, userAgent, ipAddress }),
   };
 
   return new LoginUseCase({
