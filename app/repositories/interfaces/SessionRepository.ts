@@ -56,6 +56,16 @@ export interface SessionRepository extends BaseRepository<Session, CreateSession
   deactivateAllUserSessions(userId: string): Promise<number>;
 
   /**
+   * Completely delete all sessions for a user (vs deactivate)
+   */
+  deleteAllUserSessions(userId: string): Promise<number>;
+
+  /**
+   * Validate session with optional security checks
+   */
+  validateSession(sessionId: string, userAgent?: string, ipAddress?: string): Promise<Session | null>;
+
+  /**
    * Check if session is valid and not expired
    */
   isValidSession(sessionId: string): Promise<boolean>;

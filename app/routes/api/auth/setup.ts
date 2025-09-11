@@ -1,9 +1,9 @@
 import type { SetupUserRequest } from '~/modules/auth/setup-user/setup-user.types';
 import type { SetupFormData } from '~/types/auth';
+import { cookieManager } from '~/lib/cookie';
 import { DomainError } from '~/lib/errors';
 import { SetupUserUseCase } from '~/modules/auth/setup-user/setup-user.usecase';
 import { getSessionRepository } from '~/repositories';
-import { COOKIE_NAME, createSession, getCookieOptions, serializeCookie } from '~/services/session-store.server';
 import { createUser, hasAdminUser } from '~/services/user-store.server';
 import { addLoginDelay, getClientIP, isValidEmail, isValidPassword, toPublicUser } from '~/utils/auth.server';
 import type { Route } from './+types/setup';
@@ -19,10 +19,10 @@ function createSetupUserUseCase() {
     userRepository,
     sessionRepository: getSessionRepository(),
     sessionManager: {
-      createSession,
-      getCookieOptions,
-      serializeCookie,
-      cookieName: COOKIE_NAME,
+      createSession: (userId: string, userAgent?: string, ipAddress?: string) => getSessionRepository().create({ userId, userAgent, ipAddress }),
+      getCookieOptions: cookieManager.getCookieOptions.bind(cookieManager),
+      serializeCookie: cookieManager.serialize.bind(cookieManager),
+      cookieName: cookieManager.cookieName,
     },
     securityService: {
       isValidEmail,

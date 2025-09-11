@@ -188,6 +188,60 @@ export class JsonSessionRepository extends BaseJsonRepository<Session, CreateSes
   }
 
   /**
+   * Completely delete all sessions for a user (vs deactivate)
+   */
+  async deleteAllUserSessions(userId: string): Promise<number> {
+    const sessions = await this.readAllFromFile();
+    const originalCount = sessions.length;
+
+    const filteredSessions = sessions.filter(session => session.userId !== userId);
+    const deletedCount = originalCount - filteredSessions.length;
+
+    if (deletedCount > 0) {
+      await this.writeAllToFile(filteredSessions);
+    }
+
+    return deletedCount;
+  }
+
+  /**
+   * Validate session with optional security checks (User-Agent and IP validation)
+   * Note: Security checks are currently commented out in original implementation
+   */
+  async validateSession(
+    sessionId: string,
+    userAgent?: string,
+    ipAddress?: string,
+  ): Promise<Session | null> {
+    const session = await this.findById(sessionId);
+
+    if (!session) return null;
+
+    // Check basic session validity
+    if (!session.isActive || session.expiresAt <= new Date()) {
+      return null;
+    }
+
+    // Optional: User-Agent validation (security enhancement)
+    if (session.userAgent && userAgent && session.userAgent !== userAgent) {
+      console.warn(`Session ${sessionId}: User-Agent mismatch`);
+      // Invalidate session if strict security is required
+      // await this.delete(sessionId);
+      // return null;
+    }
+
+    // Optional: IP address validation (security enhancement)
+    if (session.ipAddress && ipAddress && session.ipAddress !== ipAddress) {
+      console.warn(`Session ${sessionId}: IP address mismatch`);
+      // Invalidate session if strict security is required
+      // await this.delete(sessionId);
+      // return null;
+    }
+
+    return session;
+  }
+
+  /**
    * Check if session is valid and not expired
    */
   async isValidSession(sessionId: string): Promise<boolean> {

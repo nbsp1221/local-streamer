@@ -1,16 +1,7 @@
 import { redirect } from 'react-router';
 import type { PublicUser, User } from '~/types/auth';
-import {
-  COOKIE_NAME,
-  createSession,
-  deleteSession,
-  getCookieOptions,
-  getDeleteCookieString,
-  getSession,
-  getSessionIdFromRequest,
-  refreshSession,
-  serializeCookie,
-} from '~/services/session-store.server';
+import { cookieManager } from '~/lib/cookie';
+import { getSessionRepository } from '~/repositories';
 import { findUserById, hasAdminUser } from '~/services/user-store.server';
 
 // Extract user info from request (authentication required)
@@ -38,12 +29,14 @@ export async function requireAuth(request: Request): Promise<User> {
 
 // Extract user info from request (optional)
 export async function getOptionalUser(request: Request): Promise<User | null> {
-  const sessionId = getSessionIdFromRequest(request);
+  const sessionId = cookieManager.extractSessionId(request);
   if (!sessionId) return null;
 
   try {
+    const sessionRepository = getSessionRepository();
+
     // Get session and auto-refresh
-    const session = await refreshSession(sessionId);
+    const session = await sessionRepository.refreshSession(sessionId);
     if (!session) return null;
 
     // Get user info
@@ -72,12 +65,18 @@ export async function createUserSession(
   const userAgent = request.headers.get('User-Agent') || undefined;
   const ipAddress = getClientIP(request);
 
+  const sessionRepository = getSessionRepository();
+
   // Create new session
-  const session = await createSession(user.id, userAgent, ipAddress);
+  const session = await sessionRepository.create({
+    userId: user.id,
+    userAgent,
+    ipAddress,
+  });
 
   // Set cookie
-  const cookieOptions = getCookieOptions();
-  const cookieString = serializeCookie(COOKIE_NAME, session.id, cookieOptions);
+  const cookieOptions = cookieManager.getCookieOptions();
+  const cookieString = cookieManager.serialize(cookieManager.cookieName, session.id, cookieOptions);
 
   return redirect(redirectTo, {
     headers: {
@@ -88,15 +87,16 @@ export async function createUserSession(
 
 // Handle logout
 export async function logout(request: Request, redirectTo: string = '/login'): Promise<Response> {
-  const sessionId = getSessionIdFromRequest(request);
+  const sessionId = cookieManager.extractSessionId(request);
 
   if (sessionId) {
-    await deleteSession(sessionId);
+    const sessionRepository = getSessionRepository();
+    await sessionRepository.delete(sessionId);
   }
 
   return redirect(redirectTo, {
     headers: {
-      'Set-Cookie': getDeleteCookieString(COOKIE_NAME),
+      'Set-Cookie': cookieManager.getDeleteString(cookieManager.cookieName),
     },
   });
 }
@@ -150,14 +150,16 @@ export async function validateSessionMiddleware(request: Request): Promise<{
   user: User | null;
   sessionValid: boolean;
 }> {
-  const sessionId = getSessionIdFromRequest(request);
+  const sessionId = cookieManager.extractSessionId(request);
 
   if (!sessionId) {
     return { user: null, sessionValid: false };
   }
 
   try {
-    const session = await getSession(sessionId);
+    const sessionRepository = getSessionRepository();
+
+    const session = await sessionRepository.findById(sessionId);
     if (!session) {
       return { user: null, sessionValid: false };
     }
@@ -165,7 +167,7 @@ export async function validateSessionMiddleware(request: Request): Promise<{
     const user = await findUserById(session.userId);
     if (!user) {
       // Delete session if user was deleted
-      await deleteSession(sessionId);
+      await sessionRepository.delete(sessionId);
       return { user: null, sessionValid: false };
     }
 
