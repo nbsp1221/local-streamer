@@ -15,7 +15,7 @@ describe('LoginUseCase', () => {
   beforeEach(() => {
     // Create mock user repository
     mockUserRepository = {
-      authenticateUser: vi.fn(),
+      authenticate: vi.fn(),
     };
 
     // Create mock session repository
@@ -76,7 +76,7 @@ describe('LoginUseCase', () => {
       };
 
       mockIsValidEmail.mockReturnValue(true);
-      mockUserRepository.authenticateUser.mockResolvedValue(mockUser);
+      mockUserRepository.authenticate.mockResolvedValue(mockUser);
       mockSessionRepository.createSession.mockResolvedValue(mockSession);
 
       // Act
@@ -94,7 +94,7 @@ describe('LoginUseCase', () => {
       }
 
       expect(mockIsValidEmail).toHaveBeenCalledWith('test@example.com');
-      expect(mockUserRepository.authenticateUser).toHaveBeenCalledWith('test@example.com', 'validpassword');
+      expect(mockUserRepository.authenticate).toHaveBeenCalledWith('test@example.com', 'validpassword');
       expect(mockSessionRepository.createSession).toHaveBeenCalledWith('user-123', 'Mozilla/5.0', '192.168.1.1');
       expect(mockLogger.info).toHaveBeenCalledWith('User logged in successfully', {
         userId: 'user-123',
@@ -130,7 +130,7 @@ describe('LoginUseCase', () => {
       };
 
       mockIsValidEmail.mockReturnValue(true);
-      mockUserRepository.authenticateUser.mockResolvedValue(mockUser);
+      mockUserRepository.authenticate.mockResolvedValue(mockUser);
       mockSessionRepository.createSession.mockResolvedValue(mockSession);
 
       // Act
@@ -166,7 +166,7 @@ describe('LoginUseCase', () => {
       }
 
       expect(mockAddLoginDelay).toHaveBeenCalled();
-      expect(mockUserRepository.authenticateUser).not.toHaveBeenCalled();
+      expect(mockUserRepository.authenticate).not.toHaveBeenCalled();
     });
 
     it('should fail when password is missing', async () => {
@@ -187,7 +187,7 @@ describe('LoginUseCase', () => {
       }
 
       expect(mockAddLoginDelay).toHaveBeenCalled();
-      expect(mockUserRepository.authenticateUser).not.toHaveBeenCalled();
+      expect(mockUserRepository.authenticate).not.toHaveBeenCalled();
     });
 
     it('should fail when email format is invalid', async () => {
@@ -211,7 +211,7 @@ describe('LoginUseCase', () => {
 
       expect(mockIsValidEmail).toHaveBeenCalledWith('invalid-email');
       expect(mockAddLoginDelay).toHaveBeenCalled();
-      expect(mockUserRepository.authenticateUser).not.toHaveBeenCalled();
+      expect(mockUserRepository.authenticate).not.toHaveBeenCalled();
     });
 
     it('should fail when email is only whitespace', async () => {
@@ -245,7 +245,7 @@ describe('LoginUseCase', () => {
       };
 
       mockIsValidEmail.mockReturnValue(true);
-      mockUserRepository.authenticateUser.mockResolvedValue(null);
+      mockUserRepository.authenticate.mockResolvedValue(null);
 
       // Act
       const result = await useCase.execute(request);
@@ -257,7 +257,7 @@ describe('LoginUseCase', () => {
         expect(result.error.message).toContain('Invalid email or password');
       }
 
-      expect(mockUserRepository.authenticateUser).toHaveBeenCalledWith('test@example.com', 'wrongpassword');
+      expect(mockUserRepository.authenticate).toHaveBeenCalledWith('test@example.com', 'wrongpassword');
       expect(mockAddLoginDelay).toHaveBeenCalled();
       expect(mockLogger.warn).toHaveBeenCalledWith('Login attempt with invalid credentials', {
         email: 'test@example.com',
@@ -274,7 +274,7 @@ describe('LoginUseCase', () => {
       };
 
       mockIsValidEmail.mockReturnValue(true);
-      mockUserRepository.authenticateUser.mockResolvedValue(null);
+      mockUserRepository.authenticate.mockResolvedValue(null);
 
       // Act
       const result = await useCase.execute(request);
@@ -299,7 +299,7 @@ describe('LoginUseCase', () => {
       };
 
       mockIsValidEmail.mockReturnValue(true);
-      mockUserRepository.authenticateUser.mockRejectedValue(new Error('Database connection error'));
+      mockUserRepository.authenticate.mockRejectedValue(new Error('Database connection error'));
 
       // Act
       const result = await useCase.execute(request);
@@ -311,7 +311,7 @@ describe('LoginUseCase', () => {
         expect(result.error.message).toContain('Database connection error');
       }
 
-      expect(mockUserRepository.authenticateUser).toHaveBeenCalledWith('test@example.com', 'validpassword');
+      expect(mockUserRepository.authenticate).toHaveBeenCalledWith('test@example.com', 'validpassword');
       expect(mockAddLoginDelay).toHaveBeenCalled();
       expect(mockLogger.error).toHaveBeenCalledWith('Login failed with unexpected error', expect.any(Error));
       expect(mockSessionRepository.createSession).not.toHaveBeenCalled();
@@ -333,7 +333,7 @@ describe('LoginUseCase', () => {
       };
 
       mockIsValidEmail.mockReturnValue(true);
-      mockUserRepository.authenticateUser.mockResolvedValue(mockUser);
+      mockUserRepository.authenticate.mockResolvedValue(mockUser);
       mockSessionRepository.createSession.mockRejectedValue(new Error('Session creation failed'));
 
       // Act
@@ -346,7 +346,7 @@ describe('LoginUseCase', () => {
         expect(result.error.message).toContain('Session creation failed');
       }
 
-      expect(mockUserRepository.authenticateUser).toHaveBeenCalledWith('test@example.com', 'validpassword');
+      expect(mockUserRepository.authenticate).toHaveBeenCalledWith('test@example.com', 'validpassword');
       expect(mockSessionRepository.createSession).toHaveBeenCalledWith('user-123', undefined, undefined);
       expect(mockAddLoginDelay).toHaveBeenCalled();
       expect(mockLogger.error).toHaveBeenCalledWith('Login failed with unexpected error', expect.any(Error));
@@ -389,7 +389,7 @@ describe('LoginUseCase', () => {
       };
 
       mockIsValidEmail.mockReturnValue(true);
-      mockUserRepository.authenticateUser.mockResolvedValue(mockUser);
+      mockUserRepository.authenticate.mockResolvedValue(mockUser);
       mockSessionRepository.createSession.mockResolvedValue(mockSession);
 
       // Act
@@ -453,7 +453,7 @@ describe('LoginUseCase', () => {
       };
 
       mockIsValidEmail.mockReturnValue(true);
-      mockUserRepository.authenticateUser.mockResolvedValue(null);
+      mockUserRepository.authenticate.mockResolvedValue(null);
 
       // Act
       await useCase.execute(request);
