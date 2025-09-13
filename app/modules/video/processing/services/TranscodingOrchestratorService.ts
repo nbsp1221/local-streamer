@@ -311,7 +311,7 @@ export class TranscodingOrchestratorServiceImpl implements TranscodingOrchestrat
       inputPath: workspace.intermediatePath,
       outputDir: workspace.rootDir,
       encryption: encryptionConfig,
-      segmentDuration: parseInt(process.env.HLS_SEGMENT_DURATION || '10'),
+      segmentDuration: parseInt(process.env.DASH_SEGMENT_DURATION || '10'),
       staticLiveMpd: true,
     };
 
