@@ -58,7 +58,7 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
         mimeType: this.getMimeType(ext),
       };
 
-      // 6. Handle thumbnail (move only, encryption happens after HLS)
+      // 6. Handle thumbnail (move only, encryption happens after DASH)
       await this.handleThumbnail(request.filename, videoId, request.title, workspace);
 
       // 7. Create video entity
@@ -73,12 +73,12 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
       // 7. Save to database
       await this.saveVideo(video);
 
-      // 8. Generate video processing (HLS/DASH)
+      // 8. Generate video processing (DASH)
       const transcodeResult = await this.processVideo(videoId, moveResult.destination, request.encodingOptions);
 
-      // 9. Encrypt thumbnail after HLS generation (when AES key is available)
-      // Always attempt encryption since thumbnails are generated during HLS conversion
-      await this.encryptThumbnailAfterHLS(videoId, request.title);
+      // 9. Encrypt thumbnail after DASH generation (when AES key is available)
+      // Always attempt encryption since thumbnails are generated during DASH conversion
+      await this.encryptThumbnailAfterDASH(videoId, request.title);
 
       // 10. Return success response
       return Result.ok({
@@ -86,7 +86,7 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
         message: transcodeResult.success
           ? 'Video added to library successfully with video conversion'
           : 'Video added to library but video conversion failed',
-        hlsEnabled: transcodeResult.success,
+        dashEnabled: transcodeResult.success,
       });
     }
     catch (error) {
@@ -139,16 +139,16 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
     catch {
       this.deps.logger?.info(
         `No temporary thumbnail available for: ${title} (${videoId}). ` +
-        `Encrypted thumbnail will be generated during video conversion if needed`,
+        `Encrypted thumbnail will be generated during DASH conversion if needed`,
       );
       return false;
     }
   }
 
   /**
-   * Encrypt thumbnail after HLS generation when AES key is available
+   * Encrypt thumbnail after DASH generation when AES key is available
    */
-  private async encryptThumbnailAfterHLS(videoId: string, title: string): Promise<void> {
+  private async encryptThumbnailAfterDASH(videoId: string, title: string): Promise<void> {
     try {
       // Lazy load to avoid environment variable issues during testing
       const { encryptedThumbnailGenerator } = await import('~/modules/thumbnail/shared/thumbnail-generator-encrypted.server');

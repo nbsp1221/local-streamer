@@ -16,7 +16,6 @@ describe('AddVideoUseCase', () => {
     // Create mock video repository
     mockVideoRepository = {
       create: vi.fn(),
-      updateHLSStatus: vi.fn(),
     };
 
     // Create mock workspace manager
@@ -30,7 +29,7 @@ describe('AddVideoUseCase', () => {
       analyze: vi.fn(),
     };
 
-    // Create mock HLS converter
+    // Create mock DASH converter
     mockVideoTranscoder = {
       transcode: vi.fn(),
       extractMetadata: vi.fn(),
@@ -75,7 +74,7 @@ describe('AddVideoUseCase', () => {
       mockWorkspaceManager.moveToWorkspace.mockResolvedValue({ success: true, destination: `/videos/${mockVideoId}/video.mp4` });
       mockVideoAnalysis.analyze.mockResolvedValue(mockVideoInfo);
       mockVideoRepository.create.mockResolvedValue(undefined);
-      mockVideoRepository.updateHLSStatus.mockResolvedValue({});
+      // mockVideoRepository.updateDASHStatus.mockResolvedValue({});
       mockVideoTranscoder.transcode.mockResolvedValue({ success: true, data: { videoId: mockVideoId, manifestPath: '', thumbnailPath: '', duration: 120 } });
 
       // Act
@@ -86,7 +85,7 @@ describe('AddVideoUseCase', () => {
       if (result.success) {
         expect(result.data.videoId).toBeDefined();
         expect(result.data.message).toContain('successfully with video conversion');
-        expect(result.data.hlsEnabled).toBe(true);
+        expect(result.data.dashEnabled).toBe(true);
       }
 
       expect(mockWorkspaceManager.createWorkspace).toHaveBeenCalledWith({ videoId: expect.any(String), temporary: false, cleanupOnError: true });

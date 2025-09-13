@@ -50,13 +50,13 @@ export class FFprobeAnalysisService implements VideoAnalysisService {
     }
 
     // Calculate target video bitrate (total - audio - overhead)
-    const hlsOverheadEstimate = 50; // kbps estimate for HLS segmentation overhead
+    const dashOverheadEstimate = 50; // kbps estimate for DASH segmentation overhead
     const targetVideoBitrate = Math.max(
       500, // Minimum 500kbps for video quality
-      Math.floor(maxTotalBitrate - audioBitrateValue - hlsOverheadEstimate),
+      Math.floor(maxTotalBitrate - audioBitrateValue - dashOverheadEstimate),
     );
 
-    console.log(`📊 Bitrate calculation: Original ${analysis.bitrate}k → Max total ${maxTotalBitrate}k (Video: ${targetVideoBitrate}k + Audio: ${audioBitrateValue}k + Overhead: ${hlsOverheadEstimate}k)`);
+    console.log(`📊 Bitrate calculation: Original ${analysis.bitrate}k → Max total ${maxTotalBitrate}k (Video: ${targetVideoBitrate}k + Audio: ${audioBitrateValue}k + Overhead: ${dashOverheadEstimate}k)`);
 
     return {
       targetVideoBitrate,

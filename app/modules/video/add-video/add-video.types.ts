@@ -43,7 +43,7 @@ export interface AddVideoRequest {
 export interface AddVideoResponse {
   videoId: string;
   message: string;
-  hlsEnabled: boolean;
+  dashEnabled: boolean;
 }
 
 export interface AddVideoDependencies {
