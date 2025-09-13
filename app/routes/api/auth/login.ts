@@ -2,16 +2,13 @@ import type { LoginRequest } from '~/modules/auth/login/login.types';
 import type { LoginFormData } from '~/types/auth';
 import { DomainError } from '~/lib/errors';
 import { LoginUseCase } from '~/modules/auth/login/login.usecase';
-import { getSessionRepository } from '~/repositories';
-import { authenticateUser } from '~/services/user-store.server';
+import { getSessionRepository, getUserRepository } from '~/repositories';
 import { addLoginDelay, getClientIP, isValidEmail } from '~/utils/auth.server';
 import type { Route } from './+types/login';
 
 // Create UseCase with dependencies
 function createLoginUseCase() {
-  const userRepository = {
-    authenticateUser,
-  };
+  const userRepository = getUserRepository();
 
   const sessionRepository = {
     createSession: (userId: string, userAgent?: string, ipAddress?: string) => getSessionRepository().create({ userId, userAgent, ipAddress }),

@@ -30,7 +30,7 @@ export class LoginUseCase extends UseCase<LoginRequest, LoginResponse> {
       }
 
       // 3. Authenticate user
-      const user = await this.deps.userRepository.authenticateUser(request.email, request.password);
+      const user = await this.deps.userRepository.authenticate(request.email, request.password);
       if (!user) {
         await this.deps.addLoginDelay();
         this.deps.logger?.warn('Login attempt with invalid credentials', {

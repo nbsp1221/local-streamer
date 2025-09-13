@@ -16,7 +16,7 @@ export interface LoginResponse {
 
 export interface LoginDependencies {
   userRepository: {
-    authenticateUser: (email: string, password: string) => Promise<User | null>;
+    authenticate: (email: string, password: string) => Promise<User | null>;
   };
   sessionRepository: {
     createSession: (userId: string, userAgent?: string, ipAddress?: string) => Promise<{ id: string }>;

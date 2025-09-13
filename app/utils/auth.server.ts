@@ -1,13 +1,12 @@
 import { redirect } from 'react-router';
 import type { PublicUser, User } from '~/types/auth';
 import { cookieManager } from '~/lib/cookie';
-import { getSessionRepository } from '~/repositories';
-import { findUserById, hasAdminUser } from '~/services/user-store.server';
+import { getSessionRepository, getUserRepository } from '~/repositories';
 
 // Extract user info from request (authentication required)
 export async function requireAuth(request: Request): Promise<User> {
   // Check if admin account exists first
-  const adminExists = await hasAdminUser();
+  const adminExists = await getUserRepository().hasAdminUser();
   if (!adminExists) {
     // Redirect to setup page if no admin exists
     throw redirect('/setup');
@@ -40,7 +39,7 @@ export async function getOptionalUser(request: Request): Promise<User | null> {
     if (!session) return null;
 
     // Get user info
-    const user = await findUserById(session.userId);
+    const user = await getUserRepository().findById(session.userId);
     return user;
   }
   catch (error) {
@@ -164,7 +163,7 @@ export async function validateSessionMiddleware(request: Request): Promise<{
       return { user: null, sessionValid: false };
     }
 
-    const user = await findUserById(session.userId);
+    const user = await getUserRepository().findById(session.userId);
     if (!user) {
       // Delete session if user was deleted
       await sessionRepository.delete(sessionId);

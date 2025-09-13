@@ -3,17 +3,13 @@ import type { SetupFormData } from '~/types/auth';
 import { cookieManager } from '~/lib/cookie';
 import { DomainError } from '~/lib/errors';
 import { SetupUserUseCase } from '~/modules/auth/setup-user/setup-user.usecase';
-import { getSessionRepository } from '~/repositories';
-import { createUser, hasAdminUser } from '~/services/user-store.server';
+import { getSessionRepository, getUserRepository } from '~/repositories';
 import { addLoginDelay, getClientIP, isValidEmail, isValidPassword, toPublicUser } from '~/utils/auth.server';
 import type { Route } from './+types/setup';
 
 // Create UseCase with dependencies
 function createSetupUserUseCase() {
-  const userRepository = {
-    hasAdminUser,
-    create: createUser,
-  };
+  const userRepository = getUserRepository();
 
   return new SetupUserUseCase({
     userRepository,
