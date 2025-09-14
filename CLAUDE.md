@@ -40,7 +40,7 @@ Local Streamer is a personal media server application built with React Router v7
 ### File Structure
 - `app/` - React Router application code
   - `root.tsx` - Root layout with global styles and error boundary
-  - `routes.ts` - Route configuration (comprehensive routing with API, auth, HLS endpoints)
+  - `routes.ts` - Route configuration (comprehensive routing with API, auth, DASH endpoints)
   - `routes/` - Route components and API handlers
   - `welcome/` - Welcome page components (unused, home.tsx serves as index)
 - `build/` - Production build output (client and server)
@@ -54,10 +54,10 @@ Local Streamer is a personal media server application built with React Router v7
 ### Product Requirements
 The PRD.md outlines a comprehensive video streaming platform with:
 - File management system with uploads/ folder and data/videos/ library
-- UUID-based file identification with HLS streaming and AES-128 encryption
+- UUID-based file identification with DASH streaming and AES-128 encryption
 - JWT token-based authentication for secure video access
 - YouTube-inspired UI/UX for library browsing and video playback
-- @vidstack/react player with HLS support
+- @vidstack/react player with DASH support
 - Docker deployment with Bun runtime for optimal performance
 
 ## Development Notes
@@ -67,7 +67,7 @@ The PRD.md outlines a comprehensive video streaming platform with:
 - TailwindCSS is integrated via Vite plugin
 - The app includes proper error boundaries and meta/link functions
 - Font loading uses Google Fonts (Inter)
-- **HLS Implementation**: All local videos use HLS streaming with AES-128 encryption
+- **DASH Implementation**: All local videos use DASH streaming with AES-128 encryption
 - **Authentication**: JWT-based session management with Argon2 password hashing
 - **File Processing**: FFmpeg for video conversion and thumbnail generation
 - **Data Storage**: JSON-based repositories with async write queue for concurrency safety

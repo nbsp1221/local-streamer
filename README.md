@@ -7,7 +7,7 @@ Personal media server application for streaming local video files through a web 
 - 🎬 Stream local video files through web browser
 - 🔐 User authentication and session management
 - 📁 File management with preparation and library folders
-- 🔒 HLS streaming with AES-128 encryption
+- 🔒 DASH streaming with AES-128 encryption
 - 🎨 YouTube-inspired UI for video browsing
 - ⚡ Pure Bun runtime for maximum performance
 
@@ -90,7 +90,7 @@ cp .env.example .env
 - **Styling**: TailwindCSS v4
 - **Database**: JSON files with async write queue
 - **Video**: FFmpeg for thumbnails and streaming
-- **Streaming**: HLS with AES-128 encryption
+- **Streaming**: DASH with AES-128 encryption
 
 ---
 
