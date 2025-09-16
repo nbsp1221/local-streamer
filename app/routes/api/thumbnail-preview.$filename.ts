@@ -28,7 +28,7 @@ export async function loader({ request, params }: { request: Request; params: { 
     const stream = createReadStream(thumbnailPath);
 
     // Return response with proper headers
-    return new Response(stream as any, {
+    return new Response(stream as unknown as ReadableStream, {
       headers: {
         'Content-Type': 'image/jpeg',
         'Content-Length': fileSize.toString(),

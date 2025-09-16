@@ -5,6 +5,7 @@ import { workspaceManagerService } from '~/modules/video/storage/services/Worksp
 import { FFmpegVideoTranscoderAdapter } from '~/modules/video/transcoding';
 import { getVideoRepository } from '~/repositories';
 import { requireAuth } from '~/utils/auth.server';
+import { createErrorResponse, handleUseCaseResult } from '~/utils/error-response.server';
 import type { Route } from './+types/add-to-library';
 
 export async function action({ request }: Route.ActionArgs) {
@@ -27,29 +28,19 @@ export async function action({ request }: Route.ActionArgs) {
     // Execute use case
     const result = await useCase.execute(body);
 
-    // Return response based on result
-    if (result.success) {
-      return Response.json({
-        success: true,
-        ...result.data,
-      });
+    // Handle result with type-safe error handling
+    const response = handleUseCaseResult(result);
+    if (response instanceof Response) {
+      return response;
     }
-    else {
-      const statusCode = result.error instanceof Error && 'statusCode' in result.error
-        ? (result.error as any).statusCode
-        : 500;
-      return Response.json({
-        success: false,
-        error: result.error.message,
-      }, { status: statusCode });
-    }
+
+    return Response.json({
+      success: true,
+      ...response,
+    });
   }
   catch (error) {
     console.error('Unexpected error in add-to-library route:', error);
-
-    return Response.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unexpected error occurred',
-    }, { status: 500 });
+    return createErrorResponse(error);
   }
 }

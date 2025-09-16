@@ -88,7 +88,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       }
 
       // Return regular streaming response
-      return new Response(result.data.stream as any, {
+      return new Response(result.data.stream, {
         headers: result.data.headers,
       });
     }
