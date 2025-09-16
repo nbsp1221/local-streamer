@@ -70,7 +70,7 @@ export function handleDashRangeRequest(
   const chunksize = (end - start) + 1;
   const stream = createReadStream(filePath, { start, end });
 
-  return new Response(stream as any, {
+  return new Response(stream as unknown as ReadableStream, {
     status: 206,
     headers: {
       'Content-Type': contentType,
