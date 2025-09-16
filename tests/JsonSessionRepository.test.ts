@@ -77,8 +77,8 @@ describe('JsonSessionRepository', () => {
     it('should update session', async () => {
       const session = await repository.create(createSampleSession());
 
-      // Add small delay to ensure different timestamp
-      await new Promise(resolve => setTimeout(resolve, 1));
+      // Add delay to ensure different timestamp (CI-safe)
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       const updates: UpdateSessionInput = {
         userAgent: 'Updated User Agent',
@@ -239,8 +239,8 @@ describe('JsonSessionRepository', () => {
       const soonExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes from now
       await repository.update(session.id, { expiresAt: soonExpiry });
 
-      // Add small delay to ensure different timestamp
-      await new Promise(resolve => setTimeout(resolve, 1));
+      // Add delay to ensure different timestamp (CI-safe)
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       const refreshedSession = await repository.refreshSession(session.id);
 
