@@ -17,6 +17,9 @@ export default [
   route('api/auth/login', 'routes/api/auth/login.ts'),
   route('api/auth/logout', 'routes/api/auth/logout.ts'),
   route('api/auth/me', 'routes/api/auth/me.ts'),
+  // Playlist API routes
+  route('api/playlists', 'routes/api/playlists/index.ts'),
+  route('api/playlists/:id', 'routes/api/playlists/$id.ts'),
   // RESTful video resource routes
   route('videos/:videoId/token', 'routes/videos.$videoId.token.ts'),
   route('videos/:videoId/clearkey', 'routes/videos.$videoId.clearkey.ts'),

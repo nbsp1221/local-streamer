@@ -16,4 +16,6 @@ export const paths = {
   usersJson: path.join(STORAGE_DIR, 'data', 'users.json'),
   sessionsJson: path.join(STORAGE_DIR, 'data', 'sessions.json'),
   pendingJson: path.join(STORAGE_DIR, 'data', 'pending.json'),
+  playlistsJson: path.join(STORAGE_DIR, 'data', 'playlists.json'),
+  playlistItemsJson: path.join(STORAGE_DIR, 'data', 'playlist-items.json'),
 } as const;

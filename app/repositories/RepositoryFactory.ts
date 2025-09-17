@@ -1,3 +1,5 @@
+import { JsonPlaylistRepository } from '../modules/playlist/infrastructure/adapters/json-playlist.repository';
+import type { PlaylistRepository } from './interfaces/PlaylistRepository';
 import type { SessionRepository } from './interfaces/SessionRepository';
 import type { UserRepository } from './interfaces/UserRepository';
 import type { PendingVideoRepository, VideoRepository } from './interfaces/VideoRepository';
@@ -14,6 +16,7 @@ class RepositoryFactory {
   private pendingVideoRepository: PendingVideoRepository | null = null;
   private userRepository: UserRepository | null = null;
   private sessionRepository: SessionRepository | null = null;
+  private playlistRepository: PlaylistRepository | null = null;
 
   /**
    * Get VideoRepository instance (singleton)
@@ -56,6 +59,16 @@ class RepositoryFactory {
   }
 
   /**
+   * Get PlaylistRepository instance (singleton)
+   */
+  getPlaylistRepository(): PlaylistRepository {
+    if (!this.playlistRepository) {
+      this.playlistRepository = new JsonPlaylistRepository();
+    }
+    return this.playlistRepository;
+  }
+
+  /**
    * Clear all repository instances (useful for testing)
    */
   clearInstances(): void {
@@ -63,6 +76,7 @@ class RepositoryFactory {
     this.pendingVideoRepository = null;
     this.userRepository = null;
     this.sessionRepository = null;
+    this.playlistRepository = null;
   }
 }
 
@@ -74,3 +88,4 @@ export const getVideoRepository = () => repositoryFactory.getVideoRepository();
 export const getPendingVideoRepository = () => repositoryFactory.getPendingVideoRepository();
 export const getUserRepository = () => repositoryFactory.getUserRepository();
 export const getSessionRepository = () => repositoryFactory.getSessionRepository();
+export const getPlaylistRepository = () => repositoryFactory.getPlaylistRepository();

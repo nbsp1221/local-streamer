@@ -1,6 +1,14 @@
 // Base repository interface
 export type { BaseRepository } from './BaseRepository';
 
+// Playlist repository interfaces
+export type {
+  CreatePlaylistInput,
+  PlaylistItemRepository,
+  PlaylistRepository,
+  UpdatePlaylistInput,
+} from './PlaylistRepository';
+
 // Session repository interfaces
 export type {
   CreateSessionInput,

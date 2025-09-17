@@ -11,6 +11,7 @@ export { JsonPendingVideoRepository, JsonVideoRepository } from './JsonVideoRepo
 // Repository factory
 export {
   getPendingVideoRepository,
+  getPlaylistRepository,
   getSessionRepository,
   getUserRepository,
   getVideoRepository,
