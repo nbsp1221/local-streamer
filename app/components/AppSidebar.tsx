@@ -1,4 +1,4 @@
-import { BookOpen, Camera, Clapperboard, Film, Home, Monitor, Settings, Upload, Zap } from 'lucide-react';
+import { BookOpen, Camera, Clapperboard, Film, Home, List, Monitor, Settings, Upload, Zap } from 'lucide-react';
 import { Link, useLocation } from 'react-router';
 import {
   Sidebar,
@@ -54,6 +54,15 @@ const GENRE_CATEGORIES = [
     label: 'Other',
     icon: Camera,
     path: '/?genre=other',
+  },
+];
+
+const LIBRARY_ITEMS = [
+  {
+    id: 'playlists',
+    label: 'Playlists',
+    icon: List,
+    path: '/playlists',
   },
 ];
 
@@ -129,6 +138,35 @@ export function AppSidebar() {
                     <Link to={category.path}>
                       <Icon className="h-5 w-5" />
                       <span>{category.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
+          </SidebarMenu>
+        </div>
+
+        {/* Library Section */}
+        <div>
+          <h3 className="mb-3 px-3 text-base font-semibold text-sidebar-foreground/70 uppercase tracking-wide">
+            Library
+          </h3>
+          <SidebarMenu>
+            {LIBRARY_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const isActive = isActivePath(item.path);
+
+              return (
+                <SidebarMenuItem key={item.id}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={isActive}
+                    size="default"
+                    className="gap-3 px-3 py-3 text-sm font-medium"
+                  >
+                    <Link to={item.path}>
+                      <Icon className="h-5 w-5" />
+                      <span>{item.label}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

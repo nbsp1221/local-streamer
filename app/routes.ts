@@ -4,6 +4,7 @@ export default [
   index('routes/home.tsx'),
   route('add-videos', 'routes/add-videos.tsx'),
   route('player/:id', 'routes/player.$id.tsx'),
+  route('playlists', 'routes/playlists.tsx'),
   route('setup', 'routes/setup.tsx'),
   route('login', 'routes/login.tsx'),
   route('api/thumbnail/:id', 'routes/api/thumbnail.$id.ts'),
