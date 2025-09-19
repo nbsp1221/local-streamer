@@ -20,6 +20,8 @@ export default [
   // Playlist API routes
   route('api/playlists', 'routes/api/playlists/index.ts'),
   route('api/playlists/:id', 'routes/api/playlists/$id.ts'),
+  route('api/playlists/:id/items', 'routes/api/playlists/$id.items.ts'),
+  route('api/playlists/:id/items/:videoId', 'routes/api/playlists/$id.items.$videoId.ts'),
   // RESTful video resource routes
   route('videos/:videoId/token', 'routes/videos.$videoId.token.ts'),
   route('videos/:videoId/clearkey', 'routes/videos.$videoId.clearkey.ts'),

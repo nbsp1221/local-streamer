@@ -64,6 +64,17 @@ export class JsonPlaylistRepository
     };
   }
 
+  /**
+   * Override update to automatically set updatedAt timestamp
+   */
+  async update(id: string, updates: UpdatePlaylistInput): Promise<Playlist | null> {
+    const result = await super.update(id, {
+      ...updates,
+      updatedAt: new Date(),
+    } as any);
+    return result;
+  }
+
   // ========== Playlist-specific query methods ==========
 
   /**
