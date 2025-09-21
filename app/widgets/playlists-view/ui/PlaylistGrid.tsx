@@ -1,13 +1,14 @@
 import { Plus } from 'lucide-react';
 import type { Playlist } from '~/modules/playlist/domain/playlist.types';
 import { Button } from '~/components/ui/button';
-import { PlaylistCard } from './PlaylistCard';
+import { PlaylistCard } from '~/entities/playlist/ui/PlaylistCard';
 
 interface PlaylistGridProps {
   playlists: Playlist[];
   videoCountMap?: Map<string, number>;
   isLoading?: boolean;
   onPlay?: (playlist: Playlist) => void;
+  onClick?: (playlist: Playlist) => void;
   onCreateNew?: () => void;
 }
 
@@ -26,6 +27,7 @@ export function PlaylistGrid({
   videoCountMap,
   isLoading = false,
   onPlay,
+  onClick,
   onCreateNew,
 }: PlaylistGridProps) {
   if (isLoading) {
@@ -68,6 +70,7 @@ export function PlaylistGrid({
           playlist={playlist}
           videoCount={videoCountMap?.get(playlist.id)}
           onPlay={onPlay}
+          onClick={onClick}
         />
       ))}
     </div>

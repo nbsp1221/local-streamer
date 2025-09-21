@@ -6,12 +6,14 @@ interface PlaylistCardProps {
   playlist: Playlist;
   videoCount?: number;
   onPlay?: (playlist: Playlist) => void;
+  onClick?: (playlist: Playlist) => void;
 }
 
 export function PlaylistCard({
   playlist,
   videoCount,
   onPlay,
+  onClick,
 }: PlaylistCardProps) {
   const actualVideoCount = videoCount ?? playlist.videoIds.length;
 
@@ -19,6 +21,10 @@ export function PlaylistCard({
     e.preventDefault();
     e.stopPropagation();
     onPlay?.(playlist);
+  };
+
+  const handleCardClick = () => {
+    onClick?.(playlist);
   };
 
   // Generate thumbnail or placeholder
@@ -44,7 +50,7 @@ export function PlaylistCard({
 
   return (
     <div className="group relative">
-      <div className="block cursor-pointer">
+      <div className="block cursor-pointer" onClick={handleCardClick}>
         <div className="space-y-3">
           {/* Thumbnail area */}
           <div className="relative overflow-hidden rounded-lg bg-muted">

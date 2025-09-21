@@ -27,46 +27,38 @@
 
 ---
 
-## 🚀 **Phase 2: Primary User Flow Implementation**
+## 🚀 **Phase 2: Enhanced User Flow Implementation**
 
 ### 🎯 Objectives
-Transform current "playlist listing" into "continuous viewing" experience
+Transform current "playlist listing" into YouTube-like browsing and continuous viewing experience
 
 ### 📝 Implementation Plan
 
-#### **2.1 Playlist-to-Player Flow**
+#### **2.1 Playlist Detail Page Flow**
 ```
 Current: PlaylistCard → (blocked)
-Target:  PlaylistCard → First Video Player + Playlist Sidebar
+Target:  PlaylistCard → Playlist Detail Page → Player + Playlist Context
 ```
 
-**Tasks:**
-1. **Update PlaylistCard click behavior**
-   - Change from navigation to first video playback
-   - Route to `/player/{firstVideoId}?playlist={playlistId}`
-   - Handle empty playlists gracefully
+**User Journey:**
+1. **Playlist Discovery**: User browses playlist grid
+2. **Playlist Exploration**: Click playlist card → detailed view with metadata
+3. **Playback Decision**: Choose "Play All", specific video, or shuffle
+4. **Continuous Viewing**: Watch with auto-progression and playlist sidebar
 
-2. **Enhance Player with Playlist Context**
-   - Detect `playlist` query parameter in `player.$id.tsx`
-   - Load playlist data in player page loader
-   - Show/hide playlist sidebar based on context
+#### **2.2 Playlist Detail Page Features**
+- **Playlist Information**: Title, description, video count, total duration
+- **Action Buttons**: "Play All", "Shuffle", "Edit", "Share"
+- **Video List**: Thumbnails, titles, durations with individual play buttons
+- **Quick Access**: Breadcrumb navigation back to playlist library
 
-3. **Create PlaylistSidebar Component**
-   ```
-   app/features/playlist/components/
-   └── PlaylistSidebar.tsx      # Right sidebar in player
-       ├── Current video highlight
-       ├── Next/Previous navigation
-       ├── Episode list with thumbnails
-       └── Auto-play controls
-   ```
+#### **2.3 Enhanced Player Experience**
+- **Playlist Context**: Detect playlist parameter and show sidebar
+- **Auto-progression**: Seamless transition between videos
+- **Navigation Controls**: Next/Previous buttons and keyboard shortcuts
+- **Progress Tracking**: Visual indicator of current position in playlist
 
-4. **Auto-progression Logic**
-   - Auto-play next video on completion
-   - Keyboard shortcuts (N for next, P for previous)
-   - Progress tracking within playlist
-
-#### **2.2 Playlist Management UI**
+#### **2.4 Playlist Management UI**
 Add convenient management without disrupting primary flow:
 
 1. **PlaylistCard Enhancement**
@@ -84,14 +76,14 @@ Add convenient management without disrupting primary flow:
    ```
 
 ### ✅ Phase 2 Deliverables
-- [ ] Playlist-to-player direct navigation
-- [ ] Player with playlist sidebar
+- [ ] Playlist detail page with comprehensive information
+- [ ] Multiple playback options (Play All, Shuffle, specific video)
+- [ ] Player with playlist sidebar and context
 - [ ] Auto-progression between videos
 - [ ] Playlist management menu on cards
 - [ ] Quick edit/delete functionality
-- [ ] Keyboard shortcuts for navigation
 
-**Success Metric:** User can click playlist → immediately start watching → seamlessly continue to next video
+**Success Metric:** User can explore playlist details → make informed viewing decisions → enjoy seamless continuous playback
 
 ---
 
@@ -132,13 +124,13 @@ Add power-user features while keeping simplicity
 
 ## 📅 **Implementation Timeline**
 
-### **Week 1: Primary Flow (Phase 2.1)**
-- Day 1-2: PlaylistCard → Player navigation
-- Day 3-4: PlaylistSidebar component
-- Day 5-6: Auto-progression logic
-- Day 7: Testing and refinement
+### **Week 1: Detail Page & Navigation (Phase 2.1-2.3)**
+- Day 1-2: Playlist detail page implementation
+- Day 3-4: Player playlist context and sidebar
+- Day 5-6: Auto-progression and navigation controls
+- Day 7: Testing and UX refinement
 
-### **Week 2: Management UI (Phase 2.2)**
+### **Week 2: Management UI (Phase 2.4)**
 - Day 1-2: Playlist card menu system
 - Day 3-4: Edit/Delete modals
 - Day 5-6: Integration testing
@@ -171,20 +163,120 @@ Add power-user features while keeping simplicity
 
 ## 🔍 **Technical Architecture**
 
-### **Frontend Structure (Feature-Based)**
+### **FSD (Feature-Sliced Design) Structure**
+
+This project follows **Feature-Sliced Design** architectural methodology with 3-level hierarchy:
+
+#### **1. Layers (Standardized)**
 ```
-app/features/playlist/
-├── components/
-│   ├── PlaylistCard.tsx          # ✅ Complete
-│   ├── PlaylistGrid.tsx          # ✅ Complete
-│   ├── CreatePlaylistDialog.tsx  # ✅ Complete
-│   ├── PlaylistSidebar.tsx       # 🔄 Phase 2
-│   ├── EditPlaylistModal.tsx     # 🔄 Phase 2
-│   └── AddToPlaylistDropdown.tsx # 🔄 Phase 3
-├── hooks/
-│   └── usePlaylistPlayer.ts      # 🔄 Phase 2
-└── types.ts                      # ✅ Complete
+Features → Widgets → Entities → Shared
 ```
+
+#### **2. Slices (Business Domains)**
+```
+playlist/ → video/ → user/ → (domain-specific)
+```
+
+#### **3. Segments (Technical Purpose)**
+```
+model/ → ui/ → api/ → (technical-specific)
+```
+
+### **Current FSD Implementation**
+```
+✅ Completed Structure:
+
+app/features/
+└── playlist/                    # 🎯 Slice (Business Domain)
+    └── create-playlist/         # 🎯 Feature (Single Action)
+        ├── model/
+        │   └── useCreatePlaylist.ts     # ✅ Complete
+        ├── ui/
+        │   ├── CreatePlaylistForm.tsx   # ✅ Complete
+        │   └── CreatePlaylistDialog.tsx # ✅ Complete
+        └── api/ (future)
+
+app/widgets/
+└── playlists-view/              # 🎯 Widget (Complex UI Assembly)
+    ├── model/
+    │   └── usePlaylistsView.ts          # ✅ Complete
+    └── ui/
+        ├── PlaylistsView.tsx            # ✅ Complete
+        └── PlaylistGrid.tsx             # ✅ Complete
+
+app/entities/
+└── playlist/                    # 🎯 Entity (Pure Domain UI)
+    └── ui/
+        └── PlaylistCard.tsx             # ✅ Complete
+```
+
+### **🔄 Phase 2 FSD Extensions**
+```
+🚀 Planned Additions:
+
+app/features/
+└── playlist/
+    ├── create-playlist/         # ✅ Complete
+    ├── edit-playlist/           # 🔄 Phase 2
+    │   ├── model/useEditPlaylist.ts
+    │   └── ui/EditPlaylistModal.tsx
+    ├── delete-playlist/         # 🔄 Phase 2
+    │   ├── model/useDeletePlaylist.ts
+    │   └── ui/DeleteConfirmDialog.tsx
+    └── add-video-to-playlist/   # 🔄 Phase 3
+        ├── model/useAddToPlaylist.ts
+        └── ui/AddToPlaylistDropdown.tsx
+
+app/widgets/
+├── playlists-view/              # ✅ Complete
+├── playlist-detail-view/        # 🔄 Phase 2
+│   ├── model/usePlaylistDetail.ts
+│   └── ui/PlaylistDetailView.tsx
+└── playlist-player/             # 🔄 Phase 2
+    ├── model/usePlaylistPlayer.ts
+    └── ui/PlaylistSidebar.tsx
+```
+
+### **🎯 FSD Development Guidelines**
+
+#### **Adding New Features (MUST FOLLOW)**
+1. **Identify Operation Type**:
+   - Single Action → `features/[domain]/[action]/`
+   - Complex UI Assembly → `widgets/[purpose]/`
+   - Pure Domain Display → `entities/[domain]/ui/`
+
+2. **Create Complete Vertical Slice**:
+   ```bash
+   mkdir -p app/features/playlist/[new-feature]/
+   cd app/features/playlist/[new-feature]/
+   touch model/use[FeatureName].ts    # Business logic
+   touch ui/[FeatureName]Form.tsx     # UI components
+   touch api/[feature].api.ts         # API calls (if needed)
+   ```
+
+3. **Respect Dependency Rules**:
+   - Features MAY import from: Entities, Shared
+   - Features MUST NOT import from: Widgets, Pages
+   - Widgets MAY import from: Features, Entities, Shared
+   - Never reverse dependencies!
+
+4. **Public API Only**:
+   ```typescript
+   // ✅ CORRECT - Import from feature root
+   import { useCreatePlaylist } from '~/features/playlist/create-playlist'
+
+   // ❌ WRONG - Don't import internals
+   import { useCreatePlaylist } from '~/features/playlist/create-playlist/model/useCreatePlaylist'
+   ```
+
+#### **📋 Feature Development Checklist**
+- [ ] Feature organized in correct Layer > Slice > Segment structure
+- [ ] Dependencies flow downward only (no circular imports)
+- [ ] Public API exported from feature index
+- [ ] Business logic in `model/` segment
+- [ ] UI components in `ui/` segment
+- [ ] Types co-located with usage
+- [ ] Tests follow same structure pattern
 
 ### **API Endpoints (All Complete)**
 ```
@@ -203,10 +295,11 @@ app/features/playlist/
 ## 📊 **Success Metrics**
 
 ### **Phase 2 Success Criteria**
-- [ ] Playlist click → video starts playing < 2 seconds
+- [ ] Playlist click → detail page loads < 1 second
+- [ ] Play button → video starts playing < 2 seconds
 - [ ] Auto-play next video works 100% of time
 - [ ] Playlist management accessible within 2 clicks
-- [ ] Zero broken states in primary user flow
+- [ ] Zero broken states in browsing and playback flow
 
 ### **User Experience Goals**
 - [ ] 90%+ users find playlist playback intuitive

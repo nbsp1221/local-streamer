@@ -1,6 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '~/components/ui/button';
@@ -32,7 +31,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 interface CreatePlaylistFormProps {
-  onSubmit: (data: CreatePlaylistRequest) => Promise<void>;
+  onSubmit: (data: CreatePlaylistRequest) => void;
   onCancel: () => void;
   isSubmitting?: boolean;
 }
@@ -42,8 +41,6 @@ export function CreatePlaylistForm({
   onCancel,
   isSubmitting = false,
 }: CreatePlaylistFormProps) {
-  const [isLoading, setIsLoading] = useState(false);
-
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -52,28 +49,18 @@ export function CreatePlaylistForm({
     },
   });
 
-  const handleSubmit = async (values: FormData) => {
-    setIsLoading(true);
+  const handleSubmit = (values: FormData) => {
+    const createRequest: CreatePlaylistRequest = {
+      name: values.name,
+      description: values.description || undefined,
+      type: 'user_created',
+      isPublic: false, // Default to private for user-created playlists
+    };
 
-    try {
-      const createRequest: CreatePlaylistRequest = {
-        name: values.name,
-        description: values.description || undefined,
-        type: 'user_created',
-        isPublic: false, // Default to private for user-created playlists
-      };
-
-      await onSubmit(createRequest);
-    }
-    catch (error) {
-      console.error('Failed to create playlist:', error);
-    }
-    finally {
-      setIsLoading(false);
-    }
+    onSubmit(createRequest);
   };
 
-  const isDisabled = isSubmitting || isLoading;
+  const isDisabled = isSubmitting;
 
   return (
     <Form {...form}>
@@ -132,7 +119,7 @@ export function CreatePlaylistForm({
             Cancel
           </Button>
           <Button type="submit" disabled={isDisabled}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create Playlist
           </Button>
         </div>
