@@ -1,11 +1,5 @@
-import { Plus } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
 import { useLoaderData } from 'react-router';
-import type { Playlist } from '~/features/playlist/types';
-import { AppLayout } from '~/components/AppLayout';
-import { Button } from '~/components/ui/button';
-import { CreatePlaylistDialog } from '~/features/playlist/components/CreatePlaylistDialog';
-import { PlaylistGrid } from '~/features/playlist/components/PlaylistGrid';
+import { PlaylistsPage } from '~/pages/playlists/ui/PlaylistsPage';
 import type { Route } from './+types/playlists';
 
 // Loader function to fetch playlist data from server-side API
@@ -56,75 +50,13 @@ export default function Playlists() {
   // Get data from server-side loader
   const { playlists, videoCountMap, total } = useLoaderData<typeof loader>();
 
-  // Search is now handled by URL params and server-side filtering
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Dialog state for creating playlists
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-
-  // Convert videoCountMap object back to Map for component compatibility
-  const videoCountMapData = useMemo(() => {
-    const map = new Map<string, number>();
-    Object.entries(videoCountMap).forEach(([id, count]) => {
-      map.set(id, count as number);
-    });
-    return map;
-  }, [videoCountMap]);
-
-  const handleSearchChange = useCallback((query: string) => {
-    setSearchQuery(query);
-  }, []);
-
-  const handlePlaylistPlay = useCallback((playlist: Playlist) => {
-    console.log('Playing playlist:', playlist.name);
-    // TODO: Navigate to player with first video
-  }, []);
-
-  const handleCreatePlaylist = useCallback(() => {
-    setIsCreateDialogOpen(true);
-  }, []);
-
   return (
-    <AppLayout
-      searchQuery={searchQuery}
-      onSearchChange={handleSearchChange}
-      pendingCount={0}
-    >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Simple header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold mb-2">My Playlists</h1>
-            <p className="text-muted-foreground">
-              {total === 0 ? (
-                'No playlists yet'
-              ) : (
-                `${playlists.length} playlist${playlists.length !== 1 ? 's' : ''}`
-              )}
-            </p>
-          </div>
-
-          <Button onClick={handleCreatePlaylist} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New Playlist
-          </Button>
-        </div>
-
-        {/* Playlist grid */}
-        <PlaylistGrid
-          playlists={playlists}
-          videoCountMap={videoCountMapData}
-          isLoading={false}
-          onPlay={handlePlaylistPlay}
-          onCreateNew={handleCreatePlaylist}
-        />
-
-        {/* Create Playlist Dialog */}
-        <CreatePlaylistDialog
-          open={isCreateDialogOpen}
-          onOpenChange={setIsCreateDialogOpen}
-        />
-      </div>
-    </AppLayout>
+    <PlaylistsPage
+      playlists={playlists}
+      videoCountMap={videoCountMap}
+      total={total}
+      searchQuery=""
+      onSearchChange={() => {}}
+    />
   );
 }

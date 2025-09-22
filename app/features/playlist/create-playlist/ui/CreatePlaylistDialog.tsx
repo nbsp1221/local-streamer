@@ -1,6 +1,4 @@
 import { useEffect } from 'react';
-import { useFetcher } from 'react-router';
-import type { CreatePlaylistRequest } from '~/modules/playlist/domain/playlist.types';
 import {
   Dialog,
   DialogContent,
@@ -8,6 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '~/components/ui/dialog';
+import { useCreatePlaylist } from '../model/useCreatePlaylist';
 import { CreatePlaylistForm } from './CreatePlaylistForm';
 
 interface CreatePlaylistDialogProps {
@@ -19,26 +18,14 @@ export function CreatePlaylistDialog({
   open,
   onOpenChange,
 }: CreatePlaylistDialogProps) {
-  const fetcher = useFetcher();
-  const isSubmitting = fetcher.state !== 'idle';
+  const { createPlaylist, isSubmitting, isSuccess } = useCreatePlaylist();
 
   // Close dialog when playlist is successfully created
   useEffect(() => {
-    if (fetcher.state === 'idle' && fetcher.data?.success) {
+    if (isSuccess) {
       onOpenChange(false);
     }
-  }, [fetcher.state, fetcher.data, onOpenChange]);
-
-  const handleSubmit = async (data: CreatePlaylistRequest) => {
-    fetcher.submit(
-      JSON.stringify(data),
-      {
-        method: 'POST',
-        action: '/api/playlists',
-        encType: 'application/json',
-      },
-    );
-  };
+  }, [isSuccess, onOpenChange]);
 
   const handleCancel = () => {
     if (!isSubmitting) {
@@ -57,7 +44,7 @@ export function CreatePlaylistDialog({
         </DialogHeader>
 
         <CreatePlaylistForm
-          onSubmit={handleSubmit}
+          onSubmit={createPlaylist}
           onCancel={handleCancel}
           isSubmitting={isSubmitting}
         />
