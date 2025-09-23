@@ -26,7 +26,6 @@ export class FFmpegThumbnailAdapter implements ThumbnailGenerationPort {
     const { videoId, inputPath, outputPath, timestamp = 3, useSmartScan = true } = request;
 
     try {
-      // Validate input file exists
       if (!existsSync(inputPath)) {
         return Result.fail(new VideoNotFoundError(inputPath));
       }
@@ -34,48 +33,82 @@ export class FFmpegThumbnailAdapter implements ThumbnailGenerationPort {
       console.log(`🎬 [FFmpegThumbnailAdapter] Generating thumbnail for video ${videoId}`);
       console.log(`   Input: ${inputPath}`);
       console.log(`   Output: ${outputPath}`);
-      console.log(`   Method: ${useSmartScan ? 'Smart scan' : `Timestamp ${timestamp}s`}`);
 
-      // Build FFmpeg arguments based on method
-      const args = useSmartScan
-        ? this.buildSmartScanArgs(inputPath, outputPath)
-        : this.buildTimestampArgs(inputPath, outputPath, timestamp);
+      const strategies: Array<'smart' | 'timestamp'> = useSmartScan
+        ? ['smart', 'timestamp']
+        : ['timestamp'];
 
-      // Execute FFmpeg command using the process manager
-      await spawnFFmpeg('ffmpeg', args);
+      let lastError: ThumbnailGenerationError | Error | undefined;
 
-      // Verify output file was created and get stats
-      if (!existsSync(outputPath)) {
-        return Result.fail(new ThumbnailExtractionFailedError('Output file was not created'));
+      for (const strategy of strategies) {
+        const usingSmartScan = strategy === 'smart';
+        console.log(`   Method: ${usingSmartScan ? 'Smart scan' : `Timestamp ${timestamp}s`}`);
+
+        const args = usingSmartScan
+          ? this.buildSmartScanArgs(inputPath, outputPath)
+          : this.buildTimestampArgs(inputPath, outputPath, timestamp);
+
+        try {
+          await spawnFFmpeg('ffmpeg', args);
+
+          if (!existsSync(outputPath)) {
+            console.warn(`⚠️ [FFmpegThumbnailAdapter] FFmpeg completed but no output file was produced (strategy: ${strategy})`);
+            lastError = new ThumbnailExtractionFailedError('Output file was not created');
+            continue;
+          }
+
+          const stats = await fs.stat(outputPath);
+
+          console.log(`✅ [FFmpegThumbnailAdapter] Thumbnail generated successfully for video ${videoId}`);
+          console.log(`   Size: ${stats.size} bytes`);
+
+          return Result.ok({
+            outputPath,
+            fileSize: stats.size,
+            extractedAtTimestamp: usingSmartScan ? undefined : timestamp,
+            usedSmartScan: usingSmartScan,
+          }) as Result<ThumbnailGenerationResult, ThumbnailGenerationError>;
+        }
+        catch (error) {
+          console.error(`❌ [FFmpegThumbnailAdapter] Thumbnail generation failed (${strategy}) for video ${videoId}:`, error);
+
+          lastError = error instanceof ThumbnailExtractionFailedError ? error : undefined;
+
+          if (error instanceof Error) {
+            const errorMessage = error.message.toLowerCase();
+
+            if (errorMessage.includes('invalid data found') || errorMessage.includes('unknown format')) {
+              return Result.fail(new UnsupportedVideoFormatError(inputPath, error));
+            }
+
+            if (errorMessage.includes('no space left') || errorMessage.includes('cannot allocate memory')) {
+              return Result.fail(new InsufficientResourcesError(error));
+            }
+
+            if (!usingSmartScan) {
+              return Result.fail(new ThumbnailExtractionFailedError(error.message, error));
+            }
+
+            // For smart scan failures, try the next strategy (timestamp fallback)
+            continue;
+          }
+
+          if (!usingSmartScan) {
+            return Result.fail(new ThumbnailExtractionFailedError('Unknown error during thumbnail generation'));
+          }
+        }
       }
 
-      const stats = await fs.stat(outputPath);
+      const fallbackError = lastError instanceof ThumbnailExtractionFailedError
+        ? lastError
+        : new ThumbnailExtractionFailedError('Thumbnail generation failed after all strategies');
 
-      console.log(`✅ [FFmpegThumbnailAdapter] Thumbnail generated successfully for video ${videoId}`);
-      console.log(`   Size: ${stats.size} bytes`);
-
-      return Result.ok({
-        outputPath,
-        fileSize: stats.size,
-        extractedAtTimestamp: timestamp,
-        usedSmartScan: useSmartScan,
-      }) as Result<ThumbnailGenerationResult, ThumbnailGenerationError>;
+      return Result.fail(fallbackError);
     }
     catch (error) {
-      console.error(`❌ [FFmpegThumbnailAdapter] Thumbnail generation failed for video ${videoId}:`, error);
+      console.error(`❌ [FFmpegThumbnailAdapter] Unexpected thumbnail generation error for video ${videoId}:`, error);
 
       if (error instanceof Error) {
-        // Check for specific FFmpeg errors
-        const errorMessage = error.message.toLowerCase();
-
-        if (errorMessage.includes('invalid data found') || errorMessage.includes('unknown format')) {
-          return Result.fail(new UnsupportedVideoFormatError(inputPath, error));
-        }
-
-        if (errorMessage.includes('no space left') || errorMessage.includes('cannot allocate memory')) {
-          return Result.fail(new InsufficientResourcesError(error));
-        }
-
         return Result.fail(new ThumbnailExtractionFailedError(error.message, error));
       }
 

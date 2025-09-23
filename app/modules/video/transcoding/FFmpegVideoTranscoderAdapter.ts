@@ -1,5 +1,6 @@
 import { join } from 'path';
 import { config } from '~/configs';
+import { getFFmpegPath } from '~/configs/ffmpeg';
 import {
   InvalidVideoFileError,
   ResourceNotFoundError,
@@ -14,7 +15,9 @@ import type { VideoAnalysisService } from '../analysis/video-analysis.types';
 import type { OrchestrationRequest, OrchestrationResult } from '../processing/types/transcoding-orchestrator.types';
 import { FFmpegThumbnailAdapter } from '../../thumbnail/infrastructure/adapters/ffmpeg-thumbnail.adapter';
 import { FFprobeAnalysisService } from '../analysis/ffprobe-analysis.service';
+import { processExecutionService } from '../processing/services/ProcessExecutionService';
 import { TranscodingOrchestratorServiceImpl } from '../processing/services/TranscodingOrchestratorService';
+import { ProcessExecutionError } from '../processing/types/process-execution.types';
 import { Pbkdf2KeyManagerAdapter } from '../security/adapters/pbkdf2-key-manager.adapter';
 import type { TranscodeRequest, TranscodeResult, VideoMetadata, VideoTranscoder } from './VideoTranscoder';
 import { getCodecForEncoder, getQualityParamName, getQualitySettings } from './quality-mapping';
@@ -28,6 +31,10 @@ import { getCodecForEncoder, getQualityParamName, getQualitySettings } from './q
 export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
   private analysisService: VideoAnalysisService;
   private transcodingOrchestratorService: TranscodingOrchestratorServiceImpl;
+  private hardwareEncoderAvailability: Map<string, {
+    available: boolean;
+    reason?: string;
+  }> = new Map();
 
   constructor(
     analysisService?: VideoAnalysisService,
@@ -65,8 +72,11 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
         return Result.fail(new ResourceNotFoundError(`Source file: ${request.sourcePath}`));
       }
 
-      // Map business quality to enhanced encoding options
-      const enhancedOptions = await this.createEnhancedEncodingOptions(request.quality, request.useGpu, request.sourcePath);
+      // Check whether requested GPU encoders are actually available.
+      const {
+        options: enhancedOptions,
+        useGpu,
+      } = await this.resolveEncodingOptions(request);
 
       // Extract video metadata before processing
       const metadataResult = await this.extractMetadata(request.sourcePath);
@@ -85,6 +95,114 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
     catch (error) {
       return this.handleTranscodingError(error);
     }
+  }
+
+  /**
+   * Resolves encoding options. If GPU encoding is requested but unavailable, throw immediately.
+   */
+  private async resolveEncodingOptions(
+    request: TranscodeRequest,
+  ): Promise<{ options: EnhancedEncodingOptions; useGpu: boolean }> {
+    const useGpu = request.useGpu;
+
+    if (useGpu) {
+      const gpuCodec = getCodecForEncoder(true);
+      const availability = await this.isHardwareCodecAvailable(gpuCodec, request.videoId);
+      if (!availability.available) {
+        const reason = availability.reason?.trim();
+        throw new TranscodingEngineError(
+          reason
+            ? `Hardware encoder ${gpuCodec} unavailable for video ${request.videoId}: ${reason}`
+            : `Hardware encoder ${gpuCodec} unavailable for video ${request.videoId}.`,
+        );
+      }
+    }
+
+    const options = await this.createEnhancedEncodingOptions(request.quality, useGpu, request.sourcePath);
+    return { options, useGpu };
+  }
+
+  /**
+   * Checks whether the requested hardware encoder is actually usable in the current environment.
+   */
+  private async isHardwareCodecAvailable(codec: string, videoId: string): Promise<{
+    available: boolean;
+    reason?: string;
+  }> {
+    const isHardwareCodec = codec.includes('nvenc') || codec.includes('vaapi');
+    if (!isHardwareCodec) {
+      return { available: true };
+    }
+
+    if (this.hardwareEncoderAvailability.has(codec)) {
+      return this.hardwareEncoderAvailability.get(codec)!;
+    }
+
+    const probeResolution = this.getHardwareProbeResolution(codec);
+    const args = [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-f',
+      'lavfi',
+      '-i',
+      `color=c=black:s=${probeResolution}:d=1`,
+      '-frames:v',
+      '1',
+      '-c:v',
+      codec,
+      '-f',
+      'null',
+      '-',
+    ];
+
+    try {
+      await processExecutionService.execute({
+        command: getFFmpegPath(),
+        args,
+        captureStderr: true,
+        captureStdout: false,
+        timeout: 5000,
+        label: `probe-${codec}`,
+      });
+
+      const availability = { available: true } as const;
+      this.hardwareEncoderAvailability.set(codec, availability);
+      return availability;
+    }
+    catch (error) {
+      const reason = error instanceof ProcessExecutionError
+        ? (error.stderr || error.message)
+        : error instanceof Error ? error.message : 'unknown error';
+
+      console.warn(
+        `[FFmpegVideoTranscoderAdapter] Hardware encoder ${codec} unavailable (video ${videoId}): ${reason?.trim() || 'no details'}.`,
+      );
+
+      const availability = {
+        available: false,
+        reason,
+      } as const;
+      this.hardwareEncoderAvailability.set(codec, availability);
+      return availability;
+    }
+  }
+
+  /**
+   * Returns a conservative resolution that satisfies the minimum NVENC requirements.
+   * Ampere+ GPUs require at least ~129x33 for HEVC and ~145x33 for H.264, so we probe at 256x256.
+   */
+  private getHardwareProbeResolution(codec: string): string {
+    if (codec.includes('hevc') || codec.includes('av1')) {
+      return '256x256';
+    }
+
+    if (codec.includes('h264') || codec.includes('avc')) {
+      return '256x256';
+    }
+
+    // Default to a square resolution safely above known minimums.
+    return '256x256';
   }
 
   /**
