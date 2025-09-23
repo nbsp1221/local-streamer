@@ -11,6 +11,7 @@
  */
 
 import { type ChildProcess, spawn } from 'child_process';
+import { getFFmpegPath } from '~/configs/ffmpeg';
 import { type ProcessingTask, videoProcessingQueue } from './video-processing-queue';
 
 export interface FFmpegProcessOptions {
@@ -39,9 +40,10 @@ export interface FFmpegProcessResult {
 export async function executeFFmpegCommand(options: FFmpegProcessOptions): Promise<FFmpegProcessResult> {
   const task: ProcessingTask<FFmpegProcessResult> = () => {
     return new Promise((resolve, reject) => {
-      console.log(`🎬 Executing FFmpeg: ${options.command} ${options.args.join(' ')}`);
+      const command = options.command === 'ffmpeg' ? getFFmpegPath() : options.command;
+      console.log(`🎬 Executing FFmpeg: ${command} ${options.args.join(' ')}`);
 
-      const process: ChildProcess = spawn(options.command, options.args);
+      const process: ChildProcess = spawn(command, options.args);
       let stdout = '';
       let stderr = '';
       let isCleanedUp = false;
