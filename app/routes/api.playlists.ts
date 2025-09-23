@@ -1,15 +1,14 @@
-import type { CreatePlaylistUseCaseRequest } from '~/modules/playlist/commands/create-playlist/create-playlist.types';
+import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { CreatePlaylistUseCase } from '~/modules/playlist/commands/create-playlist/create-playlist.usecase';
 import { FindPlaylistsUseCase } from '~/modules/playlist/queries/find-playlists/find-playlists.usecase';
 import { getPlaylistRepository, getUserRepository } from '~/repositories';
 import { requireAuth } from '~/utils/auth.server';
 import { createErrorResponse, handleUseCaseResult } from '~/utils/error-response.server';
-import type { Route } from './+types/index';
 
 /**
  * GET /api/playlists - List playlists with filtering and pagination
  */
-export async function loader({ request }: Route.LoaderArgs) {
+export async function loader({ request }: LoaderFunctionArgs) {
   try {
     // Authentication is optional for public playlists
     let user;
@@ -77,7 +76,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
 }
 
-export async function action({ request }: Route.ActionArgs) {
+export async function action({ request }: ActionFunctionArgs) {
   // Only allow POST requests for playlist creation
   if (request.method !== 'POST') {
     return Response.json(

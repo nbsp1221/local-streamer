@@ -1,7 +1,7 @@
+import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
 import { useLoaderData } from 'react-router';
 import type { PlaylistStats, PlaylistWithVideos } from '~/modules/playlist/domain/playlist.types';
 import { PlaylistDetailPage } from '~/pages/playlist-detail/ui/PlaylistDetailPage';
-import type { Route } from './+types/playlists.$id';
 
 function parsePlaylist(data: any): PlaylistWithVideos {
   return {
@@ -25,7 +25,7 @@ function parseStats(data: any): PlaylistStats | null {
   };
 }
 
-export async function loader({ request, params }: Route.LoaderArgs) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
   const playlistId = params.id;
 
   if (!playlistId) {
@@ -60,12 +60,10 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   } as const;
 }
 
-export function meta() {
-  return [
-    { title: 'Playlist Detail - Local Streamer' },
-    { name: 'description', content: 'View playlist information and videos' },
-  ];
-}
+export const meta: MetaFunction = () => ([
+  { title: 'Playlist Detail - Local Streamer' },
+  { name: 'description', content: 'View playlist information and videos' },
+]);
 
 export default function PlaylistDetailRoute() {
   const data = useLoaderData<typeof loader>();

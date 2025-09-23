@@ -1,3 +1,4 @@
+import type { ActionFunctionArgs } from 'react-router';
 import type { SetupUserRequest } from '~/modules/auth/setup-user/setup-user.types';
 import type { SetupFormData } from '~/types/auth';
 import { cookieManager } from '~/lib/cookie';
@@ -5,7 +6,6 @@ import { DomainError } from '~/lib/errors';
 import { SetupUserUseCase } from '~/modules/auth/setup-user/setup-user.usecase';
 import { getSessionRepository, getUserRepository } from '~/repositories';
 import { addLoginDelay, getClientIP, isValidEmail, isValidPassword, toPublicUser } from '~/utils/auth.server';
-import type { Route } from './+types/setup';
 
 // Create UseCase with dependencies
 function createSetupUserUseCase() {
@@ -31,7 +31,7 @@ function createSetupUserUseCase() {
   });
 }
 
-export async function action({ request }: Route.ActionArgs): Promise<Response> {
+export async function action({ request }: ActionFunctionArgs): Promise<Response> {
   if (request.method !== 'POST') {
     return Response.json(
       { success: false, error: 'Method not allowed' },

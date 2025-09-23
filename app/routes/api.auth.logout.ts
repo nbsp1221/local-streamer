@@ -1,10 +1,10 @@
+import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
 import type { LogoutRequest } from '~/modules/auth/logout/logout.types';
 import { cookieManager } from '~/lib/cookie';
 import { DomainError } from '~/lib/errors';
 import { LogoutUseCase } from '~/modules/auth/logout/logout.usecase';
 import { getSessionRepository } from '~/repositories';
-import type { Route } from './+types/logout';
 
 // Create UseCase with dependencies
 function createLogoutUseCase() {
@@ -18,7 +18,7 @@ function createLogoutUseCase() {
   });
 }
 
-export async function action({ request }: Route.ActionArgs): Promise<Response> {
+export async function action({ request }: ActionFunctionArgs): Promise<Response> {
   if (request.method !== 'POST') {
     return Response.json(
       { success: false, error: 'Method not allowed' },
@@ -77,7 +77,7 @@ export async function action({ request }: Route.ActionArgs): Promise<Response> {
 }
 
 // Also supports GET requests (direct logout via URL)
-export async function loader({ request }: Route.LoaderArgs): Promise<Response> {
+export async function loader({ request }: LoaderFunctionArgs): Promise<Response> {
   try {
     // Extract session ID from cookies
     const sessionId = cookieManager.extractSessionId(request);

@@ -1,10 +1,10 @@
+import type { ActionFunctionArgs } from 'react-router';
 import type { LoginRequest } from '~/modules/auth/login/login.types';
 import type { LoginFormData } from '~/types/auth';
 import { DomainError } from '~/lib/errors';
 import { LoginUseCase } from '~/modules/auth/login/login.usecase';
 import { getSessionRepository, getUserRepository } from '~/repositories';
 import { addLoginDelay, getClientIP, isValidEmail } from '~/utils/auth.server';
-import type { Route } from './+types/login';
 
 // Create UseCase with dependencies
 function createLoginUseCase() {
@@ -23,7 +23,7 @@ function createLoginUseCase() {
   });
 }
 
-export async function action({ request }: Route.ActionArgs): Promise<Response> {
+export async function action({ request }: ActionFunctionArgs): Promise<Response> {
   if (request.method !== 'POST') {
     return Response.json(
       { success: false, error: 'Method not allowed' },

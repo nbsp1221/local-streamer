@@ -1,15 +1,15 @@
+import type { ActionFunctionArgs } from 'react-router';
 import { AddVideoToPlaylistUseCase } from '~/modules/playlist/commands/add-video-to-playlist/add-video-to-playlist.usecase';
 import { ReorderPlaylistItemsUseCase } from '~/modules/playlist/commands/reorder-playlist-items/reorder-playlist-items.usecase';
 import { getPlaylistRepository, getUserRepository, getVideoRepository } from '~/repositories';
 import { requireAuth } from '~/utils/auth.server';
 import { createErrorResponse, handleUseCaseResult } from '~/utils/error-response.server';
-import type { Route } from './+types/$id.items';
 
 /**
  * POST /api/playlists/:id/items - Add video to playlist
  * PUT /api/playlists/:id/items - Reorder playlist items
  */
-export async function action({ request, params }: Route.ActionArgs) {
+export async function action({ request, params }: ActionFunctionArgs) {
   try {
     // Authentication required for all playlist modifications
     const user = await requireAuth(request);

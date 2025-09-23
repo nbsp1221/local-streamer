@@ -1,3 +1,4 @@
+import type { LoaderFunctionArgs } from 'react-router';
 import { ArrowLeft, Check, FileVideo, RefreshCw, Upload } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
@@ -13,7 +14,6 @@ import { Label } from '~/components/ui/label';
 import { Separator } from '~/components/ui/separator';
 import { requireAuth } from '~/utils/auth.server';
 import { DEFAULT_ENCODING_OPTIONS } from '~/utils/encoding';
-import type { Route } from './+types/add-videos';
 
 interface ScanResponse {
   success: boolean;
@@ -29,7 +29,7 @@ interface AddResponse {
   error?: string;
 }
 
-export async function loader({ request }: Route.LoaderArgs) {
+export async function loader({ request }: LoaderFunctionArgs) {
   // Server-side authentication check
   await requireAuth(request);
   return {};

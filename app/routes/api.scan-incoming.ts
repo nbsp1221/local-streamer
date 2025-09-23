@@ -1,9 +1,9 @@
+import type { LoaderFunctionArgs } from 'react-router';
 import type { ScanIncomingDependencies } from '~/modules/video/scan-incoming/scan-incoming.types';
 import { DomainError } from '~/lib/errors';
 import { FFmpegThumbnailAdapter } from '~/modules/thumbnail/infrastructure/adapters/ffmpeg-thumbnail.adapter';
 import { ScanIncomingUseCase } from '~/modules/video/scan-incoming/scan-incoming.usecase';
 import { requireAuth } from '~/utils/auth.server';
-import type { Route } from './+types/scan-incoming';
 
 // Create dependencies for the UseCase
 function createDependencies(): ScanIncomingDependencies {
@@ -13,7 +13,7 @@ function createDependencies(): ScanIncomingDependencies {
   };
 }
 
-export async function loader({ request }: Route.LoaderArgs) {
+export async function loader({ request }: LoaderFunctionArgs) {
   // Authentication check
   await requireAuth(request);
 

@@ -1,13 +1,13 @@
+import type { ActionFunctionArgs } from 'react-router';
 import { RemoveVideoFromPlaylistUseCase } from '~/modules/playlist/commands/remove-video-from-playlist/remove-video-from-playlist.usecase';
 import { getPlaylistRepository, getUserRepository } from '~/repositories';
 import { requireAuth } from '~/utils/auth.server';
 import { createErrorResponse, handleUseCaseResult } from '~/utils/error-response.server';
-import type { Route } from './+types/$id.items.$videoId';
 
 /**
  * DELETE /api/playlists/:id/items/:videoId - Remove video from playlist
  */
-export async function action({ request, params }: Route.ActionArgs) {
+export async function action({ request, params }: ActionFunctionArgs) {
   try {
     // Only allow DELETE requests
     if (request.method !== 'DELETE') {

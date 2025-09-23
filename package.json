@@ -52,6 +52,7 @@
   },
   "devDependencies": {
     "@react-router/dev": "^7.7.1",
+    "@react-router/fs-routes": "^7.9.1",
     "@retn0/eslint-config": "^1.1.0",
     "@tailwindcss/vite": "^4.1.4",
     "@types/bun": "^1.2.19",

@@ -1,3 +1,4 @@
+import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
 import { ArrowLeft, Download, Share2 } from 'lucide-react';
 import { Link, useLoaderData, useParams } from 'react-router';
 import { RelatedVideos } from '~/components/RelatedVideos';
@@ -7,9 +8,7 @@ import { VidstackPlayer } from '~/components/VidstackPlayer';
 import { useVideoLibrary } from '~/hooks/useVideoLibrary';
 import { getVideoRepository } from '~/repositories';
 import { requireAuth } from '~/utils/auth.server';
-import type { Route } from './+types/player.$id';
-
-export async function loader({ request, params }: Route.LoaderArgs) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
   // Server-side authentication check
   await requireAuth(request);
 
@@ -17,12 +16,10 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   return { videos };
 }
 
-export function meta({ params }: Route.MetaArgs) {
-  return [
-    { title: `Video Player - Local Streamer` },
-    { name: 'description', content: 'Local video streaming' },
-  ];
-}
+export const meta: MetaFunction = () => ([
+  { title: 'Video Player - Local Streamer' },
+  { name: 'description', content: 'Local video streaming' },
+]);
 
 export default function Player() {
   const { id } = useParams();

@@ -1,3 +1,4 @@
+import type { ActionFunctionArgs } from 'react-router';
 import type { AddVideoRequest } from '~/modules/video/add-video/add-video.types';
 import { AddVideoUseCase } from '~/modules/video/add-video/add-video.usecase';
 import { FFprobeAnalysisService } from '~/modules/video/analysis/ffprobe-analysis.service';
@@ -6,9 +7,7 @@ import { FFmpegVideoTranscoderAdapter } from '~/modules/video/transcoding';
 import { getVideoRepository } from '~/repositories';
 import { requireAuth } from '~/utils/auth.server';
 import { createErrorResponse, handleUseCaseResult } from '~/utils/error-response.server';
-import type { Route } from './+types/add-to-library';
-
-export async function action({ request }: Route.ActionArgs) {
+export async function action({ request }: ActionFunctionArgs) {
   // Authentication check
   await requireAuth(request);
 
