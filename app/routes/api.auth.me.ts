@@ -1,8 +1,7 @@
+import type { LoaderFunctionArgs } from 'react-router';
 import type { AuthResponse } from '~/types/auth';
 import { createUnauthorizedResponse, getOptionalUser, toPublicUser } from '~/utils/auth.server';
-import type { Route } from './+types/me';
-
-export async function loader({ request }: Route.LoaderArgs): Promise<Response> {
+export async function loader({ request }: LoaderFunctionArgs): Promise<Response> {
   try {
     const user = await getOptionalUser(request);
 

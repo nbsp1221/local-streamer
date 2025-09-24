@@ -1,9 +1,8 @@
+import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
 import { useLoaderData } from 'react-router';
 import { PlaylistsPage } from '~/pages/playlists/ui/PlaylistsPage';
-import type { Route } from './+types/playlists._index';
-
 // Loader function to fetch playlist data from server-side API
-export async function loader({ request }: Route.LoaderArgs) {
+export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const searchQuery = url.searchParams.get('q') || '';
 
@@ -39,12 +38,10 @@ export async function loader({ request }: Route.LoaderArgs) {
   };
 }
 
-export function meta() {
-  return [
-    { title: 'Playlists - Local Streamer' },
-    { name: 'description', content: 'Manage your video playlists' },
-  ];
-}
+export const meta: MetaFunction = () => ([
+  { title: 'Playlists - Local Streamer' },
+  { name: 'description', content: 'Manage your video playlists' },
+]);
 
 export default function Playlists() {
   // Get data from server-side loader

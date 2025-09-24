@@ -1,15 +1,15 @@
+import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { DeletePlaylistUseCase } from '~/modules/playlist/commands/delete-playlist/delete-playlist.usecase';
 import { UpdatePlaylistUseCase } from '~/modules/playlist/commands/update-playlist/update-playlist.usecase';
 import { GetPlaylistDetailsUseCase } from '~/modules/playlist/queries/get-playlist-details/get-playlist-details.usecase';
 import { getPlaylistRepository, getUserRepository, getVideoRepository } from '~/repositories';
 import { requireAuth } from '~/utils/auth.server';
 import { createErrorResponse, handleUseCaseResult } from '~/utils/error-response.server';
-import type { Route } from './+types/$id';
 
 /**
  * GET /api/playlists/:id - Get playlist details
  */
-export async function loader({ request, params }: Route.LoaderArgs) {
+export async function loader({ request, params }: LoaderFunctionArgs) {
   try {
     // Authentication is optional for public playlists
     let user;
@@ -77,7 +77,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
  * PUT /api/playlists/:id - Update playlist
  * DELETE /api/playlists/:id - Delete playlist
  */
-export async function action({ request, params }: Route.ActionArgs) {
+export async function action({ request, params }: ActionFunctionArgs) {
   try {
     // Authentication required for all modifications
     const user = await requireAuth(request);

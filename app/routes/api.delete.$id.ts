@@ -1,12 +1,11 @@
+import type { ActionFunctionArgs } from 'react-router';
 import type { DeleteVideoRequest } from '~/modules/video/delete-video/delete-video.types';
 import { DeleteVideoUseCase } from '~/modules/video/delete-video/delete-video.usecase';
 import { workspaceManagerService } from '~/modules/video/storage/services/WorkspaceManagerService';
 import { getVideoRepository } from '~/repositories';
 import { requireAuth } from '~/utils/auth.server';
 import { createErrorResponse, handleUseCaseResult } from '~/utils/error-response.server';
-import type { Route } from './+types/delete.$id';
-
-export async function action({ request, params }: Route.ActionArgs) {
+export async function action({ request, params }: ActionFunctionArgs) {
   // Authentication check
   await requireAuth(request);
 
@@ -19,9 +18,17 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 
   try {
+    const videoId = params.id;
+    if (!videoId) {
+      return Response.json({
+        success: false,
+        error: 'Video ID is required',
+      }, { status: 400 });
+    }
+
     // Create request object
     const deleteRequest: DeleteVideoRequest = {
-      videoId: params.id,
+      videoId,
     };
 
     // Create UseCase with dependencies

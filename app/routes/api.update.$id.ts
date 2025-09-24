@@ -1,11 +1,10 @@
+import type { ActionFunctionArgs } from 'react-router';
 import type { UpdateVideoRequest } from '~/modules/video/update-video/update-video.types';
 import { UpdateVideoUseCase } from '~/modules/video/update-video/update-video.usecase';
 import { getVideoRepository } from '~/repositories';
 import { requireAuth } from '~/utils/auth.server';
 import { createErrorResponse, handleUseCaseResult } from '~/utils/error-response.server';
-import type { Route } from './+types/update.$id';
-
-export async function action({ request, params }: Route.ActionArgs) {
+export async function action({ request, params }: ActionFunctionArgs) {
   // Authentication check
   await requireAuth(request);
 
@@ -14,12 +13,17 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 
   try {
+    const videoId = params.id;
+    if (!videoId) {
+      return Response.json({ success: false, error: 'Video ID is required' }, { status: 400 });
+    }
+
     // Parse request body
     const body = await request.json();
 
     // Create request object
     const updateRequest: UpdateVideoRequest = {
-      videoId: params.id,
+      videoId,
       title: body.title,
       tags: body.tags,
       description: body.description,
