@@ -220,10 +220,14 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
     }
   };
 
-  // Only set videoSrc when both token and DRM config are ready (for local videos)
+  // Determine the playable src. We keep MediaPlayer mounted at all times so that
+  // Vidstack layout hooks always have a valid media context, even while tokens
+  // are loading asynchronously during client-side navigation.
   const videoSrc = video.videoUrl.startsWith('http')
     ? video.videoUrl
-    : (videoToken && (drmConfig || videoToken === 'external') ? `${video.videoUrl}?token=${videoToken}` : null);
+    : (videoToken && (drmConfig || videoToken === 'external') ? `${video.videoUrl}?token=${videoToken}` : undefined);
+
+  const showLoadingOverlay = isLoading || (!videoSrc && !error);
 
   if (error) {
     return (
@@ -238,7 +242,7 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
 
   return (
     <div className="w-full h-full relative bg-background">
-      {isLoading && (
+      {showLoadingOverlay && (
         <div className="absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground z-10">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4" />
@@ -246,31 +250,29 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
           </div>
         </div>
       )}
-      {videoSrc && (
-        <MediaPlayer
-          ref={playerRef}
-          title={video.title}
-          src={videoSrc}
-          poster={video.thumbnailUrl}
-          playsInline
-          className="w-full h-full"
-          crossOrigin=""
-          volume={0.5}
-          autoPlay={false}
-          onLoadStart={handleLoadStart}
-          onCanPlay={handleCanPlay}
-          onLoad={handleLoaded}
-          onError={handleError}
-          onProviderChange={handleProviderChange}
-        >
-          <MediaProvider />
-          <DefaultVideoLayout
-            icons={defaultLayoutIcons}
-            colorScheme="dark"
-            menuContainer=".vds-player"
-          />
-        </MediaPlayer>
-      )}
+      <MediaPlayer
+        ref={playerRef}
+        title={video.title}
+        src={videoSrc}
+        poster={video.thumbnailUrl}
+        playsInline
+        className="w-full h-full"
+        crossOrigin=""
+        volume={0.5}
+        autoPlay={false}
+        onLoadStart={handleLoadStart}
+        onCanPlay={handleCanPlay}
+        onLoad={handleLoaded}
+        onError={handleError}
+        onProviderChange={handleProviderChange}
+      >
+        <MediaProvider />
+        <DefaultVideoLayout
+          icons={defaultLayoutIcons}
+          colorScheme="dark"
+          menuContainer=".vds-player"
+        />
+      </MediaPlayer>
     </div>
   );
 }
