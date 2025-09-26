@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react';
 import { Clock, Play } from 'lucide-react';
 import { Link } from 'react-router';
 import type { Video } from '~/types/video';
@@ -16,7 +17,7 @@ interface RelatedVideoItemProps {
 }
 
 function RelatedVideoItem({ video, onTagClick }: RelatedVideoItemProps) {
-  const handleTagClick = (tag: string, e: React.MouseEvent) => {
+  const handleTagClick = (tag: string, e: MouseEvent<HTMLElement>) => {
     e.preventDefault();
     e.stopPropagation();
     onTagClick?.(tag);
