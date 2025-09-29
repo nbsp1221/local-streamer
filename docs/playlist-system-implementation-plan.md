@@ -10,7 +10,7 @@
   - `/api/playlists` (GET/POST) - List/Create playlists
   - `/api/playlists/:id` (GET/PUT/DELETE) - Manage individual playlists
   - `/api/playlists/:id/items` (POST/PUT/DELETE) - Video management
-- ✅ Feature-based frontend architecture following temp.md guidelines
+- ✅ Feature-based frontend architecture aligned with the FSD guidelines documented below
 - ✅ Playlist listing page with server-side data loading
 - ✅ Playlist creation functionality (React Hook Form + Zod validation)
 - ✅ Authentication integration with cookie forwarding
@@ -162,6 +162,18 @@ Add power-user features while keeping simplicity
 ---
 
 ## 🔍 **Technical Architecture**
+
+### **Frontend Architecture Summary**
+
+We standardized the SPA around a lightweight interpretation of Feature-Sliced Design (FSD) to end the previous “component soup.” Core ideas:
+
+- `components/ui` holds purely presentational primitives that know nothing about business concepts.
+- `entities` groups UI and model helpers around domain nouns (e.g., `video`, `playlist`) so repeated blocks—`VideoCard`, `PlaylistCard`—live in one place.
+- `features` encapsulate user actions (verbs) such as creating or editing playlists; they may compose entities and shared components but remain self-contained.
+- `widgets` assemble entities and features into page-ready sections (library view, playlist detail, etc.).
+- `pages/routes` orchestrate widgets to deliver complete screens and own data loading via React Router loaders.
+
+This dependency direction keeps concerns separated while staying approachable for a single-maintainer project.
 
 ### **FSD (Feature-Sliced Design) Structure**
 
