@@ -32,15 +32,11 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
 
   if (!video) return null;
 
-  const handleTagClick = (tag: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleTagClick = (tag: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
     onTagClick?.(tag);
     onClose();
-  };
-
-  const handleDeleteClick = () => {
-    setShowDeleteConfirm(true);
   };
 
   const handleDeleteConfirm = async () => {
@@ -54,23 +50,10 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
     }
     catch (error) {
       console.error('Failed to delete video:', error);
-      // TODO: Show toast error message
     }
     finally {
       setIsDeleting(false);
     }
-  };
-
-  const handleDeleteCancel = () => {
-    setShowDeleteConfirm(false);
-  };
-
-  const handleEditClick = () => {
-    setIsEditMode(true);
-  };
-
-  const handleEditCancel = () => {
-    setIsEditMode(false);
   };
 
   const handleEditSave = async (data: { title: string; tags: string[]; description?: string }) => {
@@ -79,17 +62,14 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
     try {
       await onUpdate(video.id, data);
       setIsEditMode(false);
-      // The parent component should handle refreshing the video data
     }
     catch (error) {
       console.error('Failed to update video:', error);
-      // TODO: Show toast error message
     }
   };
 
   return (
     <>
-      {/* Main video modal */}
       <Dialog
         open={isOpen}
         onOpenChange={(open) => {
@@ -108,7 +88,7 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
 
               {!isEditMode && onUpdate && (
                 <div className="flex justify-start">
-                  <Button variant="ghost" size="sm" onClick={handleEditClick}>
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditMode(true)}>
                     <Edit className="h-4 w-4 mr-2" />
                     Edit Info
                   </Button>
@@ -124,11 +104,10 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
             <EditVideoForm
               video={video}
               onSave={handleEditSave}
-              onCancel={handleEditCancel}
+              onCancel={() => setIsEditMode(false)}
             />
           ) : (
             <div className="space-y-6">
-              {/* Thumbnail area */}
               <div className="relative overflow-hidden rounded-lg bg-muted">
                 <AspectRatio ratio={16 / 9}>
                   <img
@@ -137,13 +116,11 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
                     className="h-full w-full object-cover"
                   />
 
-                  {/* Duration badge */}
                   <div className="absolute bottom-3 right-3 flex items-center gap-1 rounded bg-black/80 px-2 py-1 text-sm text-white">
                     <Clock className="h-3 w-3" />
                     {formatDuration(video.duration)}
                   </div>
 
-                  {/* Center play button */}
                   <div className="absolute inset-0 flex items-center justify-center">
                     <Link to={`/player/${video.id}`} onClick={onClose}>
                       <Button size="lg" className="h-16 w-16 rounded-full">
@@ -154,9 +131,7 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
                 </AspectRatio>
               </div>
 
-              {/* Video information */}
               <div className="space-y-4">
-                {/* Description */}
                 {video.description && (
                   <div>
                     <h3 className="font-medium mb-2">Description</h3>
@@ -166,7 +141,6 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
                   </div>
                 )}
 
-                {/* Tags */}
                 <div>
                   <h3 className="font-medium mb-2">Tags</h3>
                   <div className="flex flex-wrap gap-2">
@@ -175,7 +149,7 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
                         key={tag}
                         variant="secondary"
                         className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                        onClick={e => handleTagClick(tag, e)}
+                        onClick={event => handleTagClick(tag, event)}
                       >
                         #{tag}
                       </Badge>
@@ -183,7 +157,6 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
                   </div>
                 </div>
 
-                {/* Metadata */}
                 <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
                   <div>
                     <span className="font-medium">Duration:</span>
@@ -196,7 +169,6 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
                 </div>
               </div>
 
-              {/* Action buttons */}
               <div className="flex gap-3 pt-4 border-t">
                 <Button asChild className="flex-1" size="default">
                   <Link to={`/player/${video.id}`} onClick={onClose}>
@@ -206,7 +178,7 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
                 </Button>
 
                 {onDelete && (
-                  <Button variant="destructive" size="default" onClick={handleDeleteClick}>
+                  <Button variant="destructive" size="default" onClick={() => setShowDeleteConfirm(true)}>
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete
                   </Button>
@@ -222,7 +194,6 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation dialog */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -237,7 +208,7 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={handleDeleteCancel}
+              onClick={() => setShowDeleteConfirm(false)}
               disabled={isDeleting}
             >
               Cancel
@@ -247,9 +218,7 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
               onClick={handleDeleteConfirm}
               disabled={isDeleting}
             >
-              {isDeleting ? (
-                <>Deleting...</>
-              ) : (
+              {isDeleting ? 'Deleting…' : (
                 <>
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete

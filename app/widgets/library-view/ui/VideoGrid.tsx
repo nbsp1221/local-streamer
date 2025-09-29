@@ -1,5 +1,5 @@
 import type { Video } from '~/types/video';
-import { VideoCard } from '~/components/VideoCard';
+import { VideoCard } from '~/entities/video/ui/VideoCard';
 
 interface VideoGridProps {
   videos: Video[];

@@ -13,24 +13,22 @@ interface VideoCardProps {
 }
 
 export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
-  const handleTagClick = (tag: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleTagClick = (tag: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
     onTagClick?.(tag);
   };
 
-  const handleQuickView = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleQuickView = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
     onQuickView?.(video);
   };
 
   return (
     <div className="group relative">
-      {/* Main link area */}
       <Link to={`/player/${video.id}`} className="block">
         <div className="space-y-3">
-          {/* Thumbnail area */}
           <div className="relative overflow-hidden rounded-lg bg-muted">
             <AspectRatio ratio={16 / 9}>
               <img
@@ -40,20 +38,17 @@ export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
                 loading="lazy"
               />
 
-              {/* Play button overlay */}
               <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-black">
                   <Play className="h-5 w-5 fill-current" />
                 </div>
               </div>
 
-              {/* Duration badge */}
               <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-black/80 px-1.5 py-0.5 text-xs text-white">
                 <Clock className="h-3 w-3" />
                 {formatDuration(video.duration)}
               </div>
 
-              {/* Quick view button */}
               {onQuickView && (
                 <div className="absolute top-2 right-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                   <Button
@@ -69,13 +64,11 @@ export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
             </AspectRatio>
           </div>
 
-          {/* Video info */}
           <div className="space-y-2">
             <h3 className="font-semibold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
               {video.title}
             </h3>
 
-            {/* Added date */}
             <p className="text-xs text-muted-foreground">
               {video.createdAt.toLocaleDateString()}
             </p>
@@ -83,14 +76,13 @@ export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
         </div>
       </Link>
 
-      {/* Tags - placed outside Link */}
       <div className="flex flex-wrap gap-1 mt-2">
         {video.tags.slice(0, 3).map(tag => (
           <Badge
             key={tag}
             variant="secondary"
             className="text-xs h-5 px-2 cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-            onClick={e => handleTagClick(tag, e)}
+            onClick={event => handleTagClick(tag, event)}
           >
             #{tag}
           </Badge>
