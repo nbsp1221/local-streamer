@@ -40,6 +40,24 @@ function createInitialFilters(initialFilters?: SearchFilters): SearchFilters {
   };
 }
 
+function areFiltersEqual(a: SearchFilters, b: SearchFilters) {
+  const normalizeQuery = (value: string) => value.trim().toLowerCase();
+  const normalizeTags = (tags: string[]) => [...tags].map(tag => tag.toLowerCase()).sort();
+
+  if (normalizeQuery(a.query) !== normalizeQuery(b.query)) {
+    return false;
+  }
+
+  const aTags = normalizeTags(a.tags);
+  const bTags = normalizeTags(b.tags);
+
+  if (aTags.length !== bTags.length) {
+    return false;
+  }
+
+  return aTags.every((tag, index) => tag === bTags[index]);
+}
+
 export function useLibraryView({
   initialVideos,
   initialPendingVideos,
@@ -143,6 +161,16 @@ export function useLibraryView({
   useEffect(() => {
     setPendingVideos(initialPendingVideos);
   }, [initialPendingVideos]);
+
+  useEffect(() => {
+    const nextFilters = createInitialFilters(initialFilters);
+
+    setSearchFilters(prevFilters => (
+      areFiltersEqual(prevFilters, nextFilters)
+        ? prevFilters
+        : nextFilters
+    ));
+  }, [initialFilters, initialVideos, initialPendingVideos]);
 
   return {
     videos: filteredVideos,
