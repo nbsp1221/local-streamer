@@ -32,7 +32,10 @@ export function useLoginView(): UseLoginViewResult {
       return;
     }
 
-    const redirectTo = searchParams.get('redirectTo') || '/';
+    const rawRedirectTo = searchParams.get('redirectTo');
+    const redirectTo = rawRedirectTo && rawRedirectTo.startsWith('/') && !rawRedirectTo.startsWith('//')
+      ? rawRedirectTo
+      : '/';
     navigate(redirectTo, { replace: true });
   }, [isAuthenticated, navigate, searchParams]);
 
@@ -63,7 +66,10 @@ export function useLoginView(): UseLoginViewResult {
       const result = await login(email, password);
 
       if (result.success) {
-        const redirectTo = searchParams.get('redirectTo') || '/';
+        const rawRedirectTo = searchParams.get('redirectTo');
+        const redirectTo = rawRedirectTo && rawRedirectTo.startsWith('/') && !rawRedirectTo.startsWith('//')
+          ? rawRedirectTo
+          : '/';
         navigate(redirectTo, { replace: true });
         return;
       }
