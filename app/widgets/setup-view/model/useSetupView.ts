@@ -16,7 +16,7 @@ export interface UseSetupViewReturn {
   onConfirmPasswordChange: (value: string) => void;
   onTogglePassword: () => void;
   onToggleConfirmPassword: () => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
 }
 
 /**
