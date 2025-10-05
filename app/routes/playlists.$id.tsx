@@ -1,6 +1,9 @@
 import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
-import { useLoaderData } from 'react-router';
+import { isRouteErrorResponse, Link, useLoaderData, useRouteError } from 'react-router';
 import type { PlaylistStats, PlaylistWithVideos } from '~/modules/playlist/domain/playlist.types';
+import { AppLayout } from '~/components/AppLayout';
+import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert';
+import { Button } from '~/components/ui/button';
 import { PlaylistDetailPage } from '~/pages/playlist-detail/ui/PlaylistDetailPage';
 
 function parsePlaylist(data: any): PlaylistWithVideos {
@@ -76,5 +79,53 @@ export default function PlaylistDetailRoute() {
       videoPagination={data.videoPagination}
       permissions={data.permissions}
     />
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  let title = 'Unable to open playlist';
+  let description = 'Something went wrong while loading this playlist.';
+  const primaryAction = { label: 'Back to playlists', to: '/playlists' };
+  const secondaryAction = { label: 'Go to home', to: '/' };
+
+  if (isRouteErrorResponse(error)) {
+    if (error.status === 403) {
+      title = 'You do not have access to this playlist';
+      description = 'This playlist is private or restricted. Ask the owner to share it or switch to a playlist you can view.';
+    }
+    else if (error.status === 404) {
+      title = 'Playlist not found';
+      description = 'The playlist you are trying to open may have been deleted or never existed.';
+    }
+    else {
+      title = error.statusText || title;
+      description = typeof error.data === 'string' ? error.data : description;
+    }
+  }
+  else if (error instanceof Error) {
+    description = error.message;
+  }
+
+  return (
+    <AppLayout>
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-16">
+        <Alert>
+          <AlertTitle>{title}</AlertTitle>
+          <AlertDescription>
+            <p>{description}</p>
+          </AlertDescription>
+        </Alert>
+        <div className="flex flex-wrap gap-3">
+          <Button asChild>
+            <Link to={primaryAction.to}>{primaryAction.label}</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to={secondaryAction.to}>{secondaryAction.label}</Link>
+          </Button>
+        </div>
+      </div>
+    </AppLayout>
   );
 }
