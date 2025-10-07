@@ -71,7 +71,7 @@ export function ErrorBoundary() {
         icon={<RefreshCw className="h-6 w-6" aria-hidden />}
         title="We couldn’t load your playlists"
         description={
-          error.data
+          typeof error.data === 'string'
             ? <p>{error.data}</p>
             : <p>Please check your connection and try again.</p>
         }
