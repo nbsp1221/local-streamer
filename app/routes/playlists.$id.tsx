@@ -1,9 +1,8 @@
 import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
-import { isRouteErrorResponse, Link, useLoaderData, useRouteError } from 'react-router';
+import { AlertTriangle, FileWarning, Lock } from 'lucide-react';
+import { isRouteErrorResponse, useLoaderData, useRouteError } from 'react-router';
 import type { PlaylistStats, PlaylistWithVideos } from '~/modules/playlist/domain/playlist.types';
-import { AppLayout } from '~/components/AppLayout';
-import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert';
-import { Button } from '~/components/ui/button';
+import { RouteErrorView } from '~/components/RouteErrorView';
 import { PlaylistDetailPage } from '~/pages/playlist-detail/ui/PlaylistDetailPage';
 
 function parsePlaylist(data: any): PlaylistWithVideos {
@@ -85,47 +84,56 @@ export default function PlaylistDetailRoute() {
 export function ErrorBoundary() {
   const error = useRouteError();
 
-  let title = 'Unable to open playlist';
-  let description = 'Something went wrong while loading this playlist.';
-  const primaryAction = { label: 'Back to playlists', to: '/playlists' };
-  const secondaryAction = { label: 'Go to home', to: '/' };
-
   if (isRouteErrorResponse(error)) {
     if (error.status === 403) {
-      title = 'You do not have access to this playlist';
-      description = 'This playlist is private or restricted. Ask the owner to share it or switch to a playlist you can view.';
+      return (
+        <RouteErrorView
+          tone="warning"
+          icon={<Lock className="h-6 w-6" aria-hidden />}
+          title="This playlist is private"
+          description={(
+            <p>
+              The owner hasn’t shared this playlist yet. Ask them to invite you or explore public collections instead.
+            </p>
+          )}
+          actions={[
+            { label: 'Explore public playlists', to: '/playlists' },
+            { label: 'Back to library', to: '/', variant: 'outline' },
+          ]}
+          footnote="If you believe you should have access, contact the playlist owner for an invitation."
+        />
+      );
     }
-    else if (error.status === 404) {
-      title = 'Playlist not found';
-      description = 'The playlist you are trying to open may have been deleted or never existed.';
+
+    if (error.status === 404) {
+      return (
+        <RouteErrorView
+          icon={<FileWarning className="h-6 w-6" aria-hidden />}
+          title="Playlist not found"
+          description={<p>The playlist might have been removed or the link could be incorrect. Try a different collection instead.</p>}
+          actions={[
+            { label: 'Browse playlists', to: '/playlists' },
+            { label: 'Go to library', to: '/', variant: 'outline' },
+          ]}
+        />
+      );
     }
-    else {
-      title = error.statusText || title;
-      description = typeof error.data === 'string' ? error.data : description;
-    }
-  }
-  else if (error instanceof Error) {
-    description = error.message;
   }
 
   return (
-    <AppLayout>
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-16">
-        <Alert>
-          <AlertTitle>{title}</AlertTitle>
-          <AlertDescription>
-            <p>{description}</p>
-          </AlertDescription>
-        </Alert>
-        <div className="flex flex-wrap gap-3">
-          <Button asChild>
-            <Link to={primaryAction.to}>{primaryAction.label}</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link to={secondaryAction.to}>{secondaryAction.label}</Link>
-          </Button>
-        </div>
-      </div>
-    </AppLayout>
+    <RouteErrorView
+      tone="critical"
+      icon={<AlertTriangle className="h-6 w-6" aria-hidden />}
+      title="We couldn’t open this playlist"
+      description={
+        error instanceof Error
+          ? error.message
+          : 'Something unexpected happened while loading the playlist. Please try again shortly.'
+      }
+      actions={[
+        { label: 'Try again', to: '/playlists', variant: 'secondary' },
+        { label: 'Go to home', to: '/', variant: 'outline' },
+      ]}
+    />
   );
 }
