@@ -1,5 +1,8 @@
 import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
-import { useLoaderData } from 'react-router';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { isRouteErrorResponse, useLoaderData, useRouteError } from 'react-router';
+
+import { RouteErrorView } from '~/components/RouteErrorView';
 import { PlaylistsPage } from '~/pages/playlists/ui/PlaylistsPage';
 // Loader function to fetch playlist data from server-side API
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -54,6 +57,46 @@ export default function Playlists() {
       total={total}
       searchQuery=""
       onSearchChange={() => {}}
+    />
+  );
+}
+
+export function ErrorBoundary() {
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error)) {
+    return (
+      <RouteErrorView
+        tone="warning"
+        icon={<RefreshCw className="h-6 w-6" aria-hidden />}
+        title="We couldn’t load your playlists"
+        description={
+          typeof error.data === 'string'
+            ? <p>{error.data}</p>
+            : <p>Please check your connection and try again.</p>
+        }
+        actions={[
+          { label: 'Try again', to: '/playlists' },
+          { label: 'Go to home', to: '/', variant: 'outline' },
+        ]}
+      />
+    );
+  }
+
+  return (
+    <RouteErrorView
+      tone="critical"
+      icon={<AlertTriangle className="h-6 w-6" aria-hidden />}
+      title="Something went wrong"
+      description={
+        error instanceof Error
+          ? error.message
+          : 'We weren’t able to display your playlists right now. Please try again soon.'
+      }
+      actions={[
+        { label: 'Try again', to: '/playlists' },
+        { label: 'Go to home', to: '/', variant: 'outline' },
+      ]}
     />
   );
 }
