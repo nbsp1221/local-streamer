@@ -38,7 +38,7 @@ export function AddToPlaylistDialog({ video, open, onOpenChange }: AddToPlaylist
     if (isLoading) {
       return (
         <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-          <Loader2 className="mb-3 h-5 w-5 animate-spin" />
+          <Loader2 className="mb-3 h-5 w-5 animate-spin" aria-hidden="true" />
           Loading your playlists…
         </div>
       );
