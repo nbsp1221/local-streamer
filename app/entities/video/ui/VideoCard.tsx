@@ -55,30 +55,6 @@ export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
                 <Clock className="h-3 w-3" />
                 {formatDuration(video.duration)}
               </div>
-
-              {hasActions && (
-                <div className="absolute top-2 right-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="h-8 w-8 p-0 rounded-full bg-black/60 hover:bg-black/80 text-white border-0"
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      {onQuickView && (
-                        <DropdownMenuItem onClick={handleQuickView}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Quick view
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              )}
             </AspectRatio>
           </div>
 
@@ -93,6 +69,31 @@ export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
           </div>
         </div>
       </Link>
+
+      {hasActions && (
+        <div className="absolute top-2 right-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="secondary"
+                size="sm"
+                aria-label="Open actions menu"
+                className="h-8 w-8 p-0 rounded-full bg-black/60 hover:bg-black/80 text-white border-0 pointer-events-auto"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {onQuickView && (
+                <DropdownMenuItem onClick={handleQuickView}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Quick view
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-1 mt-2">
         {video.tags.slice(0, 3).map(tag => (

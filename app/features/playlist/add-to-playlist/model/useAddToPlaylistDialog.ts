@@ -93,7 +93,10 @@ export function useAddToPlaylistDialog({ open, video }: UseAddToPlaylistDialogOp
       const rawPlaylists = (Array.isArray(data.playlists) ? data.playlists : []) as RawPlaylist[];
 
       const ownedPlaylists = rawPlaylists
-        .filter(raw => String(raw.ownerId ?? '') === user.id)
+        .filter((raw) => {
+          const rawId = String(raw.id ?? '').trim();
+          return rawId.length > 0 && String(raw.ownerId ?? '') === user.id;
+        })
         .map(raw => toSummary(raw, video.id));
 
       setPlaylists(ownedPlaylists);
@@ -126,6 +129,14 @@ export function useAddToPlaylistDialog({ open, video }: UseAddToPlaylistDialogOp
 
   const handleAdd = useCallback(async (playlistId: string) => {
     if (!video) return;
+
+    const currentPlaylist = playlists.find(playlist => playlist.id === playlistId);
+    if (!currentPlaylist) return;
+
+    const currentState = actionStates[playlistId];
+    if (currentState === 'loading' || currentPlaylist.containsVideo) {
+      return;
+    }
 
     setActionStates(prev => ({ ...prev, [playlistId]: 'loading' }));
 
@@ -161,7 +172,7 @@ export function useAddToPlaylistDialog({ open, video }: UseAddToPlaylistDialogOp
       setActionStates(prev => ({ ...prev, [playlistId]: 'error' }));
       setError(addError instanceof Error ? addError.message : 'Failed to add video to playlist');
     }
-  }, [video]);
+  }, [video, playlists, actionStates]);
 
   const refresh = useCallback(async () => {
     await loadPlaylists();

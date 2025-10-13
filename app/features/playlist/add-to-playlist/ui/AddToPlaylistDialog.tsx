@@ -87,11 +87,16 @@ export function AddToPlaylistDialog({ video, open, onOpenChange }: AddToPlaylist
               <Button
                 variant={isAdded ? 'outline' : 'secondary'}
                 size="sm"
-                disabled={isAdded && !isErrored}
+                disabled={isBusy || (isAdded && !isErrored)}
                 className="w-24 justify-center"
-                onClick={() => handleAdd(playlist.id)}
+                onClick={() => {
+                  if (isBusy) return;
+                  void handleAdd(playlist.id);
+                }}
               >
-                {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : buttonLabel}
+                {isBusy
+                  ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  : buttonLabel}
               </Button>
             </div>
           );
