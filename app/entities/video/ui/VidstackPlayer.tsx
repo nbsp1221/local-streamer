@@ -50,10 +50,15 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
   const [drmConfig, setDrmConfig] = useState<DRMConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const playerRef = useRef<MediaPlayerInstance>(null);
   const retryCountRef = useRef(0);
   const tokenRefreshTimer = useRef<NodeJS.Timeout>(null);
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   const fetchVideoData = useCallback(async () => {
     if (!video.videoUrl.startsWith('http')) {
@@ -228,6 +233,17 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
     : (videoToken && (drmConfig || videoToken === 'external') ? `${video.videoUrl}?token=${videoToken}` : undefined);
 
   const showLoadingOverlay = isLoading || (!videoSrc && !error);
+
+  if (!isHydrated) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground">
+        <div className="text-center space-y-2">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto" />
+          <div className="text-sm text-gray-400">Preparing player…</div>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
