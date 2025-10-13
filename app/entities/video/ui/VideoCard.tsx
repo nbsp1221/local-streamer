@@ -1,18 +1,26 @@
-import { Clock, MoreVertical, Play } from 'lucide-react';
+import { Clock, Eye, MoreVertical, Play, PlusCircle } from 'lucide-react';
 import { Link } from 'react-router';
 import type { Video } from '~/types/video';
 import { AspectRatio } from '~/components/ui/aspect-ratio';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu';
 import { formatDuration } from '~/lib/utils';
 
 interface VideoCardProps {
   video: Video;
   onQuickView?: (video: Video) => void;
   onTagClick?: (tag: string) => void;
+  onAddToPlaylist?: (video: Video) => void;
 }
 
-export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
+export function VideoCard({ video, onQuickView, onTagClick, onAddToPlaylist }: VideoCardProps) {
   const handleTagClick = (tag: string, event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
@@ -24,6 +32,14 @@ export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
     event.stopPropagation();
     onQuickView?.(video);
   };
+
+  const handleAddToPlaylist = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onAddToPlaylist?.(video);
+  };
+
+  const hasActions = Boolean(onQuickView || onAddToPlaylist);
 
   return (
     <div className="group relative">
@@ -49,16 +65,34 @@ export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
                 {formatDuration(video.duration)}
               </div>
 
-              {onQuickView && (
+              {hasActions && (
                 <div className="absolute top-2 right-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="h-8 w-8 p-0 rounded-full bg-black/60 hover:bg-black/80 text-white border-0"
-                    onClick={handleQuickView}
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-full bg-black/60 hover:bg-black/80 text-white border-0"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      {onQuickView && (
+                        <DropdownMenuItem onClick={handleQuickView}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          Quick view
+                        </DropdownMenuItem>
+                      )}
+                      {onQuickView && onAddToPlaylist && <DropdownMenuSeparator />}
+                      {onAddToPlaylist && (
+                        <DropdownMenuItem onClick={handleAddToPlaylist}>
+                          <PlusCircle className="mr-2 h-4 w-4" />
+                          Add to playlist
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               )}
             </AspectRatio>

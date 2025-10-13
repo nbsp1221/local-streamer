@@ -5,9 +5,10 @@ interface VideoGridProps {
   videos: Video[];
   onQuickView?: (video: Video) => void;
   onTagClick?: (tag: string) => void;
+  onAddToPlaylist?: (video: Video) => void;
 }
 
-export function VideoGrid({ videos, onQuickView, onTagClick }: VideoGridProps) {
+export function VideoGrid({ videos, onQuickView, onTagClick, onAddToPlaylist }: VideoGridProps) {
   if (videos.length === 0) {
     return (
       <div className="text-center py-12">
@@ -24,6 +25,7 @@ export function VideoGrid({ videos, onQuickView, onTagClick }: VideoGridProps) {
           video={video}
           onQuickView={onQuickView}
           onTagClick={onTagClick}
+          onAddToPlaylist={onAddToPlaylist}
         />
       ))}
     </div>

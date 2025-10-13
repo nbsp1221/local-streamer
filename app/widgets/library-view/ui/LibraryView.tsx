@@ -1,4 +1,5 @@
 import type { SearchFilters, Video } from '~/types/video';
+import { AddToPlaylistDialog } from '~/features/playlist/add-to-playlist/ui/AddToPlaylistDialog';
 import type { ModalState } from '../model/useLibraryView';
 import { TagFilter } from './TagFilter';
 import { VideoGrid } from './VideoGrid';
@@ -12,6 +13,9 @@ interface LibraryViewProps {
   onClearTags: () => void;
   onQuickView: (video: Video) => void;
   modalState: ModalState;
+  addToPlaylistState: ModalState;
+  onAddToPlaylist: (video: Video) => void;
+  onCloseAddToPlaylist: () => void;
   onCloseModal: () => void;
   onDeleteVideo: (videoId: string) => Promise<void>;
   onUpdateVideo: (videoId: string, updates: { title: string; tags: string[]; description?: string }) => Promise<void>;
@@ -25,6 +29,9 @@ export function LibraryView({
   onClearTags,
   onQuickView,
   modalState,
+  addToPlaylistState,
+  onAddToPlaylist,
+  onCloseAddToPlaylist,
   onCloseModal,
   onDeleteVideo,
   onUpdateVideo,
@@ -49,6 +56,7 @@ export function LibraryView({
           videos={videos}
           onQuickView={onQuickView}
           onTagClick={onTagToggle}
+          onAddToPlaylist={onAddToPlaylist}
         />
       </div>
 
@@ -59,6 +67,17 @@ export function LibraryView({
         onTagClick={onTagToggle}
         onDelete={onDeleteVideo}
         onUpdate={onUpdateVideo}
+        onAddToPlaylist={onAddToPlaylist}
+      />
+
+      <AddToPlaylistDialog
+        video={addToPlaylistState.video}
+        open={addToPlaylistState.isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            onCloseAddToPlaylist();
+          }
+        }}
       />
     </div>
   );
