@@ -1,4 +1,4 @@
-import { Clock, Eye, MoreVertical, Play, PlusCircle } from 'lucide-react';
+import { Clock, Eye, MoreVertical, Play } from 'lucide-react';
 import { Link } from 'react-router';
 import type { Video } from '~/types/video';
 import { AspectRatio } from '~/components/ui/aspect-ratio';
@@ -8,7 +8,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { formatDuration } from '~/lib/utils';
@@ -17,10 +16,9 @@ interface VideoCardProps {
   video: Video;
   onQuickView?: (video: Video) => void;
   onTagClick?: (tag: string) => void;
-  onAddToPlaylist?: (video: Video) => void;
 }
 
-export function VideoCard({ video, onQuickView, onTagClick, onAddToPlaylist }: VideoCardProps) {
+export function VideoCard({ video, onQuickView, onTagClick }: VideoCardProps) {
   const handleTagClick = (tag: string, event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
@@ -32,14 +30,7 @@ export function VideoCard({ video, onQuickView, onTagClick, onAddToPlaylist }: V
     event.stopPropagation();
     onQuickView?.(video);
   };
-
-  const handleAddToPlaylist = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    onAddToPlaylist?.(video);
-  };
-
-  const hasActions = Boolean(onQuickView || onAddToPlaylist);
+  const hasActions = Boolean(onQuickView);
 
   return (
     <div className="group relative">
@@ -82,13 +73,6 @@ export function VideoCard({ video, onQuickView, onTagClick, onAddToPlaylist }: V
                         <DropdownMenuItem onClick={handleQuickView}>
                           <Eye className="mr-2 h-4 w-4" />
                           Quick view
-                        </DropdownMenuItem>
-                      )}
-                      {onQuickView && onAddToPlaylist && <DropdownMenuSeparator />}
-                      {onAddToPlaylist && (
-                        <DropdownMenuItem onClick={handleAddToPlaylist}>
-                          <PlusCircle className="mr-2 h-4 w-4" />
-                          Add to playlist
                         </DropdownMenuItem>
                       )}
                     </DropdownMenuContent>

@@ -30,9 +30,6 @@ export function HomePage({ videos, pendingVideos, initialFilters }: HomePageProp
         onClearTags={view.handleClearTags}
         onQuickView={view.handleQuickView}
         modalState={view.modalState}
-        addToPlaylistState={view.addToPlaylistState}
-        onAddToPlaylist={view.handleAddToPlaylist}
-        onCloseAddToPlaylist={view.handleCloseAddToPlaylist}
         onCloseModal={view.handleCloseModal}
         onDeleteVideo={view.handleDeleteVideo}
         onUpdateVideo={view.handleUpdateVideo}

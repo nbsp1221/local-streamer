@@ -1,4 +1,4 @@
-import { Clock, Edit, Play, PlusCircle, Trash2, X } from 'lucide-react';
+import { Clock, Edit, Play, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import type { Video } from '~/types/video';
@@ -23,10 +23,9 @@ interface VideoModalProps {
   onTagClick?: (tag: string) => void;
   onDelete?: (videoId: string) => Promise<void>;
   onUpdate?: (videoId: string, updates: { title: string; tags: string[]; description?: string }) => Promise<void>;
-  onAddToPlaylist?: (video: Video) => void;
 }
 
-export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpdate, onAddToPlaylist }: VideoModalProps) {
+export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpdate }: VideoModalProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -177,21 +176,6 @@ export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpd
                     Watch
                   </Link>
                 </Button>
-
-                {onAddToPlaylist && (
-                  <Button
-                    variant="secondary"
-                    size="default"
-                    className="flex-1"
-                    onClick={() => {
-                      onAddToPlaylist(video);
-                      onClose();
-                    }}
-                  >
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add to playlist
-                  </Button>
-                )}
 
                 {onDelete && (
                   <Button variant="destructive" size="default" onClick={() => setShowDeleteConfirm(true)}>

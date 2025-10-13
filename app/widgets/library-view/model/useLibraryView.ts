@@ -24,7 +24,6 @@ export interface UseLibraryViewResult {
   pendingVideos: PendingVideo[];
   searchFilters: SearchFilters;
   modalState: ModalState;
-  addToPlaylistState: ModalState;
   handleSearchChange: (query: string) => void;
   handleTagToggle: (tag: string) => void;
   handleClearTags: () => void;
@@ -32,8 +31,6 @@ export interface UseLibraryViewResult {
   handleCloseModal: () => void;
   handleDeleteVideo: (videoId: string) => Promise<void>;
   handleUpdateVideo: (videoId: string, updates: UpdatePayload) => Promise<void>;
-  handleAddToPlaylist: (video: Video) => void;
-  handleCloseAddToPlaylist: () => void;
 }
 
 function createInitialFilters(initialFilters?: SearchFilters): SearchFilters {
@@ -70,10 +67,6 @@ export function useLibraryView({
   const [pendingVideos, setPendingVideos] = useState<PendingVideo[]>(initialPendingVideos);
   const [searchFilters, setSearchFilters] = useState<SearchFilters>(() => createInitialFilters(initialFilters));
   const [modalState, setModalState] = useState<ModalState>({
-    video: null,
-    isOpen: false,
-  });
-  const [addToPlaylistState, setAddToPlaylistState] = useState<ModalState>({
     video: null,
     isOpen: false,
   });
@@ -116,14 +109,6 @@ export function useLibraryView({
 
   const handleCloseModal = useCallback(() => {
     setModalState({ video: null, isOpen: false });
-  }, []);
-
-  const handleAddToPlaylist = useCallback((video: Video) => {
-    setAddToPlaylistState({ video, isOpen: true });
-  }, []);
-
-  const handleCloseAddToPlaylist = useCallback(() => {
-    setAddToPlaylistState({ video: null, isOpen: false });
   }, []);
 
   const handleDeleteVideo = useCallback(async (videoId: string) => {
@@ -193,7 +178,6 @@ export function useLibraryView({
     pendingVideos,
     searchFilters,
     modalState,
-    addToPlaylistState,
     handleSearchChange,
     handleTagToggle,
     handleClearTags,
@@ -201,7 +185,5 @@ export function useLibraryView({
     handleCloseModal,
     handleDeleteVideo,
     handleUpdateVideo,
-    handleAddToPlaylist,
-    handleCloseAddToPlaylist,
   };
 }

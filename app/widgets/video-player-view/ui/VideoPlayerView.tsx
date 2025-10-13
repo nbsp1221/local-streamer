@@ -1,9 +1,12 @@
-import { ArrowLeft, Download, Share2, X } from 'lucide-react';
+import { ArrowLeft, ChevronDown, ChevronUp, Download, PlusCircle, Share2, X } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import type { Video } from '~/types/video';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '~/components/ui/collapsible';
 import { VidstackPlayer } from '~/entities/video/ui/VidstackPlayer';
+import { AddToPlaylistPanel } from '~/features/playlist/add-to-playlist/ui/AddToPlaylistPanel';
 import { RelatedVideos } from '~/widgets/related-videos/ui/RelatedVideos';
 import { useVideoPlayerView } from '../model/useVideoPlayerView';
 
@@ -23,6 +26,8 @@ export function VideoPlayerView({ video, relatedVideos }: VideoPlayerViewProps) 
     clearTagFilter,
   } = useVideoPlayerView({ video, relatedVideos });
 
+  const [isPlaylistSectionOpen, setIsPlaylistSectionOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -34,13 +39,6 @@ export function VideoPlayerView({ video, relatedVideos }: VideoPlayerViewProps) 
                 Library
               </Button>
             </Link>
-            <div className="flex-1" />
-            <Button variant="ghost" size="sm">
-              <Share2 className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm">
-              <Download className="h-4 w-4" />
-            </Button>
           </div>
         </div>
       </div>
@@ -64,6 +62,39 @@ export function VideoPlayerView({ video, relatedVideos }: VideoPlayerViewProps) 
                 <span className="font-medium">Added:</span>
                 <span>{createdAtLabel}</span>
               </div>
+
+              <Collapsible
+                open={isPlaylistSectionOpen}
+                onOpenChange={setIsPlaylistSectionOpen}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <CollapsibleTrigger asChild>
+                    <Button variant="secondary" size="sm" className="gap-2">
+                      <PlusCircle className="h-4 w-4" />
+                      Save to playlist
+                      {isPlaylistSectionOpen ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Share2 className="h-4 w-4" />
+                    Share
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Download
+                  </Button>
+                </div>
+
+                <CollapsibleContent className="mt-3">
+                  {isPlaylistSectionOpen ? (
+                    <AddToPlaylistPanel video={video} open={isPlaylistSectionOpen} />
+                  ) : null}
+                </CollapsibleContent>
+              </Collapsible>
 
               {video.description && (
                 <div className="space-y-2">
