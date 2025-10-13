@@ -23,6 +23,19 @@ interface VidstackPlayerProps {
   video: Video;
 }
 
+interface LoadingSpinnerProps {
+  message: string;
+}
+
+function LoadingSpinner({ message }: LoadingSpinnerProps) {
+  return (
+    <div className="text-center space-y-2">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto" />
+      <div className="text-sm text-gray-400">{message}</div>
+    </div>
+  );
+}
+
 interface VideoTokenResponse {
   success: boolean;
   token?: string;
@@ -237,10 +250,7 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
   if (!isHydrated) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground">
-        <div className="text-center space-y-2">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto" />
-          <div className="text-sm text-gray-400">Preparing player…</div>
-        </div>
+        <LoadingSpinner message="Preparing player…" />
       </div>
     );
   }
@@ -258,14 +268,6 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
 
   return (
     <div className="w-full h-full relative bg-background">
-      {showLoadingOverlay && (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground z-10">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4" />
-            <div className="text-sm text-gray-400">Loading {video.title}...</div>
-          </div>
-        </div>
-      )}
       <MediaPlayer
         ref={playerRef}
         title={video.title}
@@ -283,6 +285,11 @@ export function VidstackPlayer({ video }: VidstackPlayerProps) {
         onProviderChange={handleProviderChange}
       >
         <MediaProvider />
+        {showLoadingOverlay && (
+          <div className="absolute inset-0 flex items-center justify-center bg-muted text-muted-foreground z-10">
+            <LoadingSpinner message={`Loading ${video.title}...`} />
+          </div>
+        )}
         <DefaultVideoLayout
           icons={defaultLayoutIcons}
           colorScheme="dark"
