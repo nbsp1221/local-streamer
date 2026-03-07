@@ -1,8 +1,8 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
+import { requireProtectedApiSession, resolveLegacyCompatibilityUser } from '~/composition/server/auth';
 import { CreatePlaylistUseCase } from '~/legacy/modules/playlist/commands/create-playlist/create-playlist.usecase';
 import { FindPlaylistsUseCase } from '~/legacy/modules/playlist/queries/find-playlists/find-playlists.usecase';
 import { getPlaylistRepository, getUserRepository } from '~/legacy/repositories';
-import { requireAuth } from '~/legacy/utils/auth.server';
 import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
 
 /**
@@ -10,15 +10,10 @@ import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-r
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
-    // Authentication is optional for public playlists
-    let user;
-    try {
-      user = await requireAuth(request);
-    }
-    catch {
-      // Allow anonymous access for public playlists
-      user = null;
-    }
+    const unauthorizedResponse = await requireProtectedApiSession(request);
+    if (unauthorizedResponse) return unauthorizedResponse;
+    const user = await resolveLegacyCompatibilityUser();
+    const userId = user.id;
 
     // Parse query parameters
     const url = new URL(request.url);
@@ -49,7 +44,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     // Execute use case
     const result = await useCase.execute({
-      userId: user?.id,
+      userId,
       filters,
       sortBy,
       sortOrder,
@@ -86,8 +81,10 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
-    // Authentication check - get authenticated user
-    const user = await requireAuth(request);
+    const unauthorizedResponse = await requireProtectedApiSession(request);
+    if (unauthorizedResponse) return unauthorizedResponse;
+    const user = await resolveLegacyCompatibilityUser();
+    const userId = user.id;
 
     // Parse request body
     const body = await request.json();
@@ -100,7 +97,7 @@ export async function action({ request }: ActionFunctionArgs) {
     });
 
     // Execute use case with request data including user ID
-    const result = await useCase.execute({ ...body, userId: user.id });
+    const result = await useCase.execute({ ...body, userId });
 
     // Handle result with type-safe error handling
     const response = handleUseCaseResult(result);

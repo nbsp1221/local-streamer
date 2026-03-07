@@ -1,9 +1,9 @@
 import type { LoaderFunctionArgs } from 'react-router';
+import { requireProtectedApiSession } from '~/composition/server/auth';
 import type { ScanIncomingDependencies } from '~/legacy/modules/video/scan-incoming/scan-incoming.types';
 import { DomainError } from '~/legacy/lib/errors';
 import { FFmpegThumbnailAdapter } from '~/legacy/modules/thumbnail/infrastructure/adapters/ffmpeg-thumbnail.adapter';
 import { ScanIncomingUseCase } from '~/legacy/modules/video/scan-incoming/scan-incoming.usecase';
-import { requireAuth } from '~/legacy/utils/auth.server';
 
 // Create dependencies for the UseCase
 function createDependencies(): ScanIncomingDependencies {
@@ -14,8 +14,8 @@ function createDependencies(): ScanIncomingDependencies {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  // Authentication check
-  await requireAuth(request);
+  const unauthorizedResponse = await requireProtectedApiSession(request);
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   // Create UseCase with dependencies
   const useCase = new ScanIncomingUseCase(createDependencies());

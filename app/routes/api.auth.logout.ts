@@ -1,21 +1,14 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
-import type { LogoutRequest } from '~/legacy/modules/auth/logout/logout.types';
-import { cookieManager } from '~/legacy/lib/cookie';
-import { DomainError } from '~/legacy/lib/errors';
-import { LogoutUseCase } from '~/legacy/modules/auth/logout/logout.usecase';
-import { getSessionRepository } from '~/legacy/repositories';
+import {
+  createClearedSessionCookieHeader,
+  getServerAuthServices,
+  getSiteSessionId,
+} from '~/composition/server/auth';
+import { getSafeRedirectTarget } from '~/shared/lib/http/redirects.server';
 
-// Create UseCase with dependencies
-function createLogoutUseCase() {
-  return new LogoutUseCase({
-    sessionRepository: getSessionRepository(),
-    cookieManager: {
-      getDeleteString: cookieManager.getDeleteString.bind(cookieManager),
-      cookieName: cookieManager.cookieName,
-    },
-    logger: console,
-  });
+function getLogoutRedirectTo(request: Request): string {
+  return getSafeRedirectTarget(request, '/login');
 }
 
 export async function action({ request }: ActionFunctionArgs): Promise<Response> {
@@ -27,50 +20,23 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response>
   }
 
   try {
-    // Check redirectTo parameter
-    const url = new URL(request.url);
-    const redirectTo = url.searchParams.get('redirectTo') || '/login';
+    const authServices = getServerAuthServices();
 
-    // Extract session ID from cookies
-    const sessionId = cookieManager.extractSessionId(request);
+    await authServices.destroyAuthSession.execute({
+      sessionId: getSiteSessionId(request),
+    });
 
-    const logoutRequest: LogoutRequest = {
-      sessionId: sessionId || undefined,
-      redirectTo,
-    };
-
-    // Create UseCase and execute
-    const logoutUseCase = createLogoutUseCase();
-    const result = await logoutUseCase.execute(logoutRequest);
-
-    if (result.success) {
-      console.log('🚪 User logged out');
-
-      return redirect(result.data.redirectTo, {
-        headers: {
-          'Set-Cookie': result.data.cookieString,
-        },
-      });
-    }
-    else {
-      // Handle UseCase errors (should be rare for logout)
-      console.error('Logout error:', result.error);
-
-      // Fallback: still clear cookie and redirect
-      return redirect('/login', {
-        headers: {
-          'Set-Cookie': cookieManager.getDeleteString(cookieManager.cookieName),
-        },
-      });
-    }
+    return redirect(getLogoutRedirectTo(request), {
+      headers: {
+        'Set-Cookie': createClearedSessionCookieHeader(),
+      },
+    });
   }
   catch (error) {
     console.error('Logout error:', error);
-
-    // Fallback: still clear cookie and redirect
     return redirect('/login', {
       headers: {
-        'Set-Cookie': cookieManager.getDeleteString(cookieManager.cookieName),
+        'Set-Cookie': createClearedSessionCookieHeader(),
       },
     });
   }
@@ -79,43 +45,22 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response>
 // Also supports GET requests (direct logout via URL)
 export async function loader({ request }: LoaderFunctionArgs): Promise<Response> {
   try {
-    // Extract session ID from cookies
-    const sessionId = cookieManager.extractSessionId(request);
+    const authServices = getServerAuthServices();
+    await authServices.destroyAuthSession.execute({
+      sessionId: getSiteSessionId(request),
+    });
 
-    const logoutRequest: LogoutRequest = {
-      sessionId: sessionId || undefined,
-      redirectTo: '/login',
-    };
-
-    // Create UseCase and execute
-    const logoutUseCase = createLogoutUseCase();
-    const result = await logoutUseCase.execute(logoutRequest);
-
-    console.log('🚪 User logged out (GET)');
-
-    if (result.success) {
-      return redirect(result.data.redirectTo, {
-        headers: {
-          'Set-Cookie': result.data.cookieString,
-        },
-      });
-    }
-    else {
-      // Fallback: still clear cookie and redirect
-      return redirect('/login', {
-        headers: {
-          'Set-Cookie': cookieManager.getDeleteString(cookieManager.cookieName),
-        },
-      });
-    }
+    return redirect(getLogoutRedirectTo(request), {
+      headers: {
+        'Set-Cookie': createClearedSessionCookieHeader(),
+      },
+    });
   }
   catch (error) {
     console.error('Logout error:', error);
-
-    // Fallback: still clear cookie and redirect
     return redirect('/login', {
       headers: {
-        'Set-Cookie': cookieManager.getDeleteString(cookieManager.cookieName),
+        'Set-Cookie': createClearedSessionCookieHeader(),
       },
     });
   }

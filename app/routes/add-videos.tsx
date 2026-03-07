@@ -1,9 +1,9 @@
 import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
+import { requireProtectedPageSession } from '~/composition/server/auth';
 import { AddVideosPage } from '~/legacy/pages/add-videos/ui/AddVideosPage';
-import { requireAuth } from '~/legacy/utils/auth.server';
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requireAuth(request);
+  await requireProtectedPageSession(request);
   return {};
 }
 

@@ -1,26 +1,18 @@
 import type { ActionFunctionArgs } from 'react-router';
-import type { LoginRequest } from '~/legacy/modules/auth/login/login.types';
-import type { LoginFormData } from '~/legacy/types/auth';
-import { DomainError } from '~/legacy/lib/errors';
-import { LoginUseCase } from '~/legacy/modules/auth/login/login.usecase';
-import { getSessionRepository, getUserRepository } from '~/legacy/repositories';
-import { addLoginDelay, getClientIP, isValidEmail } from '~/legacy/utils/auth.server';
+import { createSessionCookieHeader, getServerAuthServices } from '~/composition/server/auth';
 
-// Create UseCase with dependencies
-function createLoginUseCase() {
-  const userRepository = getUserRepository();
+async function extractPassword(request: Request): Promise<string | null> {
+  const contentType = request.headers.get('Content-Type') || '';
 
-  const sessionRepository = {
-    createSession: (userId: string, userAgent?: string, ipAddress?: string) => getSessionRepository().create({ userId, userAgent, ipAddress }),
-  };
+  if (contentType.includes('application/json')) {
+    const body = await request.json() as { password?: string };
+    return body.password?.trim() || null;
+  }
 
-  return new LoginUseCase({
-    userRepository,
-    sessionRepository,
-    logger: console,
-    addLoginDelay,
-    isValidEmail,
-  });
+  const formData = await request.formData();
+  const password = formData.get('password');
+
+  return typeof password === 'string' ? password.trim() : null;
 }
 
 export async function action({ request }: ActionFunctionArgs): Promise<Response> {
@@ -32,53 +24,50 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response>
   }
 
   try {
-    // Parse request data
-    const formData: LoginFormData = await request.json();
-    const { email, password } = formData;
+    const password = await extractPassword(request);
 
-    // Extract User-Agent and IP address for session creation
-    const userAgent = request.headers.get('User-Agent') || undefined;
-    const ipAddress = getClientIP(request);
+    if (!password) {
+      return Response.json(
+        {
+          success: false,
+          error: 'Password is required',
+        },
+        { status: 400 },
+      );
+    }
 
-    const loginRequest: LoginRequest = {
-      email,
+    const authServices = getServerAuthServices();
+    const result = await authServices.createAuthSession.execute({
+      ipAddress:
+        request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
+        request.headers.get('X-Real-IP') ||
+        undefined,
+      now: new Date(),
       password,
-      userAgent,
-      ipAddress,
-    };
+      userAgent: request.headers.get('User-Agent') || undefined,
+    });
 
-    // Create UseCase and execute
-    const loginUseCase = createLoginUseCase();
-    const result = await loginUseCase.execute(loginRequest);
-
-    if (result.success) {
-      // Return success response with cookie from UseCase
+    if (!result.ok) {
       return Response.json(
-        {
-          success: true,
-          user: result.data.user,
-        },
-        {
-          headers: {
-            'Set-Cookie': result.data.cookieString,
-          },
-        },
+        { success: false, error: 'Invalid password' },
+        { status: 401 },
       );
     }
-    else {
-      // Handle UseCase errors
-      const statusCode = result.error instanceof DomainError ? result.error.statusCode : 500;
-      return Response.json(
-        { success: false, error: result.error.message },
-        { status: statusCode },
-      );
-    }
+
+    return Response.json(
+      {
+        success: true,
+        user: await authServices.toLegacyCompatibleUser(),
+      },
+      {
+        headers: {
+          'Set-Cookie': createSessionCookieHeader(result.session.id),
+        },
+      },
+    );
   }
   catch (error) {
     console.error('Login error:', error);
-
-    // Add security delay on any error
-    await addLoginDelay();
 
     return Response.json(
       { success: false, error: 'Login failed. Please try again.' },

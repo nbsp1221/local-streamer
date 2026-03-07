@@ -73,7 +73,7 @@ Examples of active areas include:
 - **EVERY USECASE MUST HAVE UNIT TESTS** with comprehensive business logic validation
 - **IMMUTABLE DATA PATTERNS** - prefer readonly interfaces and functional updates
 - **DOCSTRINGS REQUIRED** for all public functions and UseCases
-- **75% MINIMUM CODE COVERAGE** - measured by `bun run test -- --coverage`
+- **75% MINIMUM CODE COVERAGE** - measured by `bun run test:run -- --coverage`
 
 ### Security Standards
 
@@ -112,7 +112,7 @@ bun run dev         # Start development server
 bun run typecheck   # Type checking (required before commits)
 bun run lint        # Code linting (required before commits)
 bun run lint:fix    # Auto-fix linting issues
-bun run test        # Run test suite (required before commits)
+bun run test        # Full verification: Vitest + Bun smoke layers (required before commits)
 ```
 
 ### Quality Assurance Commands
@@ -122,7 +122,7 @@ bun run test        # Run test suite (required before commits)
 bun run typecheck && bun run lint && bun run test
 
 # Test with coverage (75% minimum required)
-bun run test -- --coverage
+bun run test:run -- --coverage
 
 # Build verification
 bun run build && bun run start
@@ -450,7 +450,7 @@ export async function action({ request }: Route.ActionArgs) {
 5. **TESTING REQUIREMENTS**
    - ✅ All UseCases have unit tests: `bun run test`
    - ✅ Integration tests for API endpoints
-   - ✅ 75% code coverage minimum: `bun run test -- --coverage`
+   - ✅ 75% code coverage minimum: `bun run test:run -- --coverage`
    - ✅ Error scenarios covered in tests
 
 6. **CODE QUALITY**
@@ -463,7 +463,7 @@ export async function action({ request }: Route.ActionArgs) {
 
 ```bash
 # Run all tests with coverage
-bun run test -- --coverage
+bun run test:run -- --coverage
 
 # Test specific modules
 bun test tests/modules/video/

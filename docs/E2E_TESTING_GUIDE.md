@@ -1,44 +1,131 @@
 # End-to-End Testing Guide
 
-This guide provides instructions for AI assistants to perform comprehensive end-to-end testing of the Local Streamer application.
+This guide defines the current test layers for Local Streamer.
+
+`bun run test` is the default full-suite command. It runs:
+
+- the Vitest suite
+- the dev auth smoke
+- the built Bun auth smoke
 
 ## Prerequisites
 
-1. **Start Development Server**
+1. **Configure auth**
    ```bash
-   bun dev
+   cp .env.example .env
+   ```
+
+2. **Start Development Server**
+   ```bash
+   bun run dev
    ```
    The application will be available at `http://localhost:5173`
 
+## Test Layers
+
+### 1. Module Tests
+
+```bash
+bun run test:modules
+```
+
+Use for:
+
+- policies
+- use cases
+- small infrastructure tests that do not require the full app surface
+
+### 2. Integration Tests
+
+```bash
+bun run test:integration
+```
+
+Use for:
+
+- route adapters
+- auth/session flows
+- cookie behavior
+- media access denial / response headers
+- temporary compatibility bridges
+
+### 3. Legacy Regression Tests
+
+```bash
+bun run test:legacy
+```
+
+Use for legacy modules and repositories that still protect current behavior during migration.
+
+### 4. Bun Runtime Smoke
+
+```bash
+bun run test:smoke:bun-auth
+```
+
+Use for:
+
+- built server startup under Bun
+- shared-password login
+- protected page redirect
+- playback token access
+- protected thumbnail access
+
+This layer exists because Vitest runs in Node while production runs in Bun.
+
+### 5. Dev Runtime Smoke
+
+```bash
+bun run test:smoke:dev-auth
+```
+
+Use for:
+
+- shared-password login under `bun run dev`
+- catching dev-only loader/runtime regressions such as unsupported `bun:` imports
+- validating that the local development server can complete the basic auth happy path
+
+### 6. Browser Verification
+
+Use Playwright when API checks are not enough.
+
+Required for:
+
+- login UI
+- logout UI
+- player surface
+- DRM / token / thumbnail flows that need browser cookies and real navigation
+
 ## Testing Tools
 
-### Primary Tool: cURL
-- Use cURL for API endpoint testing and most server interactions
-- Preferred for authentication, file operations, and API validation
+### Primary Tool: cURL or fetch
+
+- Use HTTP-level checks for API and auth verification first
+- Prefer this layer for deterministic checks
 
 ### Secondary Tool: Playwright
-- Use Playwright for browser-based testing when cURL is insufficient
-- Required for UI interactions, video playback testing, and complex user flows
+
+- Use Playwright for user-visible flows and browser state
+- Prefer locator-based assertions and web-first waits
 
 ## Test Credentials
 
-**Administrator Account:**
-- **Email:** `admin@admin.com`
-- **Password:** `admin@admin.com`
+The app no longer uses the legacy setup/login flow for Phase 1 validation.
+
+Use:
+
+- **Shared Password:** value from `AUTH_SHARED_PASSWORD`
 
 ## Test Assets
 
 ### Video Files
-- **Primary Test Video:** `./data/test-videos/playtime.mp4`
-- **Alternative Test Video:** `./data/test-videos/bunny.mp4` (larger file size)
 
-### Encoding Performance Optimization
-- **Recommendation:** Use GPU encoding instead of CPU encoding for faster test execution
-- **Exception:** Only use CPU encoding when specifically testing the encoding functionality itself
+- Seeded library videos under `storage/data/videos/`
+- Upload fixtures under `storage/data/test-videos/`
 
 ## Important Notes
 
 - **Security:** All video content is encrypted with AES-128
-- **Performance:** GPU encoding significantly reduces test execution time
-- **Authentication:** JWT tokens are required for video resource access
-- **File Structure:** Videos are stored in UUID-based directories under `data/videos/`
+- **Authentication:** Page access, token issuance, and thumbnail access must all be protected by the shared-password session
+- **Runtime split:** Node/Vitest passing does not prove Bun runtime correctness
+- **Browser checks:** Use Playwright for playback and UI flows after the lower layers pass

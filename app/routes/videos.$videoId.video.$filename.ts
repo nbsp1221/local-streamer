@@ -2,6 +2,7 @@ import { createReadStream } from 'fs';
 import { stat } from 'fs/promises';
 import { join } from 'path';
 import { type LoaderFunctionArgs } from 'react-router';
+import { requireProtectedMediaSession } from '~/composition/server/auth';
 import type { MediaSegmentRequest } from '~/legacy/modules/video/media-segment/media-segment.types';
 import { config } from '~/legacy/configs';
 import { DomainError } from '~/legacy/lib/errors';
@@ -61,6 +62,8 @@ function createMediaSegmentUseCase() {
  */
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { videoId, filename } = params;
+  const unauthorizedResponse = await requireProtectedMediaSession(request);
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   if (!videoId || !filename) {
     throw new Response('Video ID and filename required', { status: 400 });

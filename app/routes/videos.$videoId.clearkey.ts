@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { type ActionFunctionArgs, type LoaderFunctionArgs } from 'react-router';
+import { requireProtectedMediaSession } from '~/composition/server/auth';
 import type { ClearKeyRequest } from '~/legacy/modules/video/clear-key/clear-key.types';
 import { DomainError } from '~/legacy/lib/errors';
 import { ClearKeyUseCase } from '~/legacy/modules/video/clear-key/clear-key.usecase';
@@ -91,6 +92,8 @@ async function handleClearKeyRequest(request: Request, videoId: string) {
 // Handle GET requests
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { videoId } = params;
+  const unauthorizedResponse = await requireProtectedMediaSession(request);
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   if (!videoId) {
     throw new Response('Video ID required', { status: 400 });
@@ -103,6 +106,8 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 // Handle POST requests
 export async function action({ request, params }: ActionFunctionArgs) {
   const { videoId } = params;
+  const unauthorizedResponse = await requireProtectedMediaSession(request);
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   if (!videoId) {
     throw new Response('Video ID required', { status: 400 });

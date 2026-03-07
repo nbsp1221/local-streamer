@@ -1,15 +1,15 @@
 import type { ActionFunctionArgs } from 'react-router';
+import { requireProtectedApiSession } from '~/composition/server/auth';
 import type { AddVideoRequest } from '~/legacy/modules/video/add-video/add-video.types';
 import { AddVideoUseCase } from '~/legacy/modules/video/add-video/add-video.usecase';
 import { FFprobeAnalysisService } from '~/legacy/modules/video/analysis/ffprobe-analysis.service';
 import { workspaceManagerService } from '~/legacy/modules/video/storage/services/WorkspaceManagerService';
 import { FFmpegVideoTranscoderAdapter } from '~/legacy/modules/video/transcoding';
 import { getVideoRepository } from '~/legacy/repositories';
-import { requireAuth } from '~/legacy/utils/auth.server';
 import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
 export async function action({ request }: ActionFunctionArgs) {
-  // Authentication check
-  await requireAuth(request);
+  const unauthorizedResponse = await requireProtectedApiSession(request);
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   try {
     // Parse request body

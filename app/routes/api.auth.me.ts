@@ -1,20 +1,20 @@
 import type { LoaderFunctionArgs } from 'react-router';
-import type { AuthResponse } from '~/legacy/types/auth';
-import { createUnauthorizedResponse, getOptionalUser, toPublicUser } from '~/legacy/utils/auth.server';
+import { getOptionalLegacyCompatibleUser } from '~/composition/server/auth';
 export async function loader({ request }: LoaderFunctionArgs): Promise<Response> {
   try {
-    const user = await getOptionalUser(request);
+    const user = await getOptionalLegacyCompatibleUser(request);
 
     if (!user) {
-      return createUnauthorizedResponse('Not authenticated');
+      return Response.json(
+        { success: false, error: 'Not authenticated' },
+        { status: 401 },
+      );
     }
 
-    const response: AuthResponse = {
+    return Response.json({
       success: true,
-      user: toPublicUser(user),
-    };
-
-    return Response.json(response);
+      user,
+    });
   }
   catch (error) {
     console.error('Get current user error:', error);

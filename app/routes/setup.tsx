@@ -1,5 +1,8 @@
-import type { MetaFunction } from 'react-router';
-import { SetupPage } from '~/legacy/pages/setup/ui/SetupPage';
+import { redirect, type LoaderFunctionArgs, type MetaFunction } from 'react-router';
+
+export async function loader(_args: LoaderFunctionArgs) {
+  throw redirect('/login');
+}
 
 export const meta: MetaFunction = () => ([
   { title: 'Setup - Local Streamer' },
@@ -7,5 +10,5 @@ export const meta: MetaFunction = () => ([
 ]);
 
 export default function SetupRoute() {
-  return <SetupPage />;
+  return null;
 }

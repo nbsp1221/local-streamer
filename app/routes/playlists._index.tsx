@@ -2,10 +2,13 @@ import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { isRouteErrorResponse, useLoaderData, useRouteError } from 'react-router';
 
+import { requireProtectedPageSession } from '~/composition/server/auth';
 import { RouteErrorView } from '~/legacy/components/RouteErrorView';
 import { PlaylistsPage } from '~/legacy/pages/playlists/ui/PlaylistsPage';
 // Loader function to fetch playlist data from server-side API
 export async function loader({ request }: LoaderFunctionArgs) {
+  await requireProtectedPageSession(request);
+
   const url = new URL(request.url);
   const searchQuery = url.searchParams.get('q') || '';
 

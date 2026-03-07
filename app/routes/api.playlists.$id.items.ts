@@ -1,8 +1,8 @@
 import type { ActionFunctionArgs } from 'react-router';
+import { requireProtectedApiSession, resolveLegacyCompatibilityUser } from '~/composition/server/auth';
 import { AddVideoToPlaylistUseCase } from '~/legacy/modules/playlist/commands/add-video-to-playlist/add-video-to-playlist.usecase';
 import { ReorderPlaylistItemsUseCase } from '~/legacy/modules/playlist/commands/reorder-playlist-items/reorder-playlist-items.usecase';
 import { getPlaylistRepository, getUserRepository, getVideoRepository } from '~/legacy/repositories';
-import { requireAuth } from '~/legacy/utils/auth.server';
 import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
 
 /**
@@ -11,8 +11,10 @@ import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-r
  */
 export async function action({ request, params }: ActionFunctionArgs) {
   try {
-    // Authentication required for all playlist modifications
-    const user = await requireAuth(request);
+    const unauthorizedResponse = await requireProtectedApiSession(request);
+    if (unauthorizedResponse) return unauthorizedResponse;
+    const user = await resolveLegacyCompatibilityUser();
+    const userId = user.id;
     const { id: playlistId } = params;
 
     if (!playlistId) {
@@ -37,7 +39,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       const result = await useCase.execute({
         playlistId,
-        userId: user.id,
+        userId,
         videoId: body.videoId,
         position: body.position,
         episodeMetadata: body.episodeMetadata,
@@ -62,7 +64,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       const result = await useCase.execute({
         playlistId,
-        userId: user.id,
+        userId,
         newOrder: body.newOrder,
         preserveMetadata: body.preserveMetadata,
       });

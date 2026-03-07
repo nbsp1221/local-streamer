@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { type LoaderFunctionArgs } from 'react-router';
+import { requireProtectedMediaSession } from '~/composition/server/auth';
 import { config } from '~/legacy/configs';
 import { DomainError } from '~/legacy/lib/errors';
 import { GenerateVideoTokenUseCase } from '~/legacy/modules/video/security/generate-token/generate-token.usecase';
@@ -29,6 +30,8 @@ function createGenerateVideoTokenUseCase() {
  */
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { videoId } = params;
+  const unauthorizedResponse = await requireProtectedMediaSession(request);
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   if (!videoId) {
     return Response.json({ success: false, error: 'Video ID is required' }, { status: 400 });

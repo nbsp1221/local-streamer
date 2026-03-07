@@ -1,13 +1,13 @@
 import { createReadStream, existsSync, statSync } from 'fs';
 import { join } from 'path';
+import { requireProtectedMediaSession } from '~/composition/server/auth';
 import { config } from '~/legacy/configs';
-import { requireAuth } from '~/legacy/utils/auth.server';
 
 const THUMBNAILS_DIR = config.paths.thumbnails;
 
 export async function loader({ request, params }: { request: Request; params: { filename: string } }) {
-  // Authentication check
-  await requireAuth(request);
+  const unauthorizedResponse = await requireProtectedMediaSession(request);
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   const { filename } = params;
 
@@ -32,7 +32,7 @@ export async function loader({ request, params }: { request: Request; params: { 
       headers: {
         'Content-Type': 'image/jpeg',
         'Content-Length': fileSize.toString(),
-        'Cache-Control': 'public, max-age=3600', // 1 hour cache (shorter than library thumbnails)
+        'Cache-Control': 'private, max-age=3600, must-revalidate',
         'Last-Modified': lastModified.toUTCString(),
         'ETag': `"preview-${filename}-${lastModified.getTime()}"`,
       },

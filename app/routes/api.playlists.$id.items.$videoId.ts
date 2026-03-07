@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs } from 'react-router';
+import { requireProtectedApiSession, resolveLegacyCompatibilityUser } from '~/composition/server/auth';
 import { RemoveVideoFromPlaylistUseCase } from '~/legacy/modules/playlist/commands/remove-video-from-playlist/remove-video-from-playlist.usecase';
 import { getPlaylistRepository, getUserRepository } from '~/legacy/repositories';
-import { requireAuth } from '~/legacy/utils/auth.server';
 import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
 
 /**
@@ -17,8 +17,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
     }
 
-    // Authentication required
-    const user = await requireAuth(request);
+    const unauthorizedResponse = await requireProtectedApiSession(request);
+    if (unauthorizedResponse) return unauthorizedResponse;
+    const user = await resolveLegacyCompatibilityUser();
+    const userId = user.id;
     const { id: playlistId, videoId } = params;
 
     if (!playlistId || !videoId) {
@@ -38,7 +40,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
     // Execute use case
     const result = await useCase.execute({
       playlistId,
-      userId: user.id,
+      userId,
       videoId,
     });
 

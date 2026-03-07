@@ -17,8 +17,40 @@ export default defineConfig(({ command }) => ({
   },
   test: {
     globals: true,
-    environment: 'node',
-    include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     exclude: ['node_modules', 'build', 'public'],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'modules',
+          environment: 'node',
+          include: [
+            'app/modules/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+          ],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'integration',
+          environment: 'node',
+          include: [
+            'tests/integration/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+          ],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'legacy',
+          environment: 'node',
+          include: [
+            'app/legacy/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+            'tests/Json*.test.ts',
+            'tests/hybrid-upload.test.ts',
+          ],
+        },
+      },
+    ],
   },
 }));

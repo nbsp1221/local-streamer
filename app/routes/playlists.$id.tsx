@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
 import { AlertTriangle, FileWarning, Lock } from 'lucide-react';
 import { isRouteErrorResponse, useLoaderData, useRouteError } from 'react-router';
+import { requireProtectedPageSession } from '~/composition/server/auth';
 import type { PlaylistStats, PlaylistWithVideos } from '~/legacy/modules/playlist/domain/playlist.types';
 import { RouteErrorView } from '~/legacy/components/RouteErrorView';
 import { PlaylistDetailPage } from '~/legacy/pages/playlist-detail/ui/PlaylistDetailPage';
@@ -28,6 +29,8 @@ function parseStats(data: any): PlaylistStats | null {
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
+  await requireProtectedPageSession(request);
+
   const playlistId = params.id;
 
   if (!playlistId) {

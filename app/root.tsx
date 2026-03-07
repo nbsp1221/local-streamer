@@ -8,15 +8,15 @@ import {
   useLoaderData,
 } from 'react-router';
 
+import { getOptionalLegacyCompatibleUser } from '~/composition/server/auth';
 import { AuthInitializer } from '~/legacy/components/AuthInitializer';
-import { getOptionalUser, toPublicUser } from '~/legacy/utils/auth.server';
 import type { Route } from './+types/root';
 import './app.css';
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const user = await getOptionalUser(request);
+  const user = await getOptionalLegacyCompatibleUser(request);
   return {
-    user: user ? toPublicUser(user) : null,
+    user,
   };
 }
 

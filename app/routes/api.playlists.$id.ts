@@ -1,9 +1,9 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
+import { requireProtectedApiSession, resolveLegacyCompatibilityUser } from '~/composition/server/auth';
 import { DeletePlaylistUseCase } from '~/legacy/modules/playlist/commands/delete-playlist/delete-playlist.usecase';
 import { UpdatePlaylistUseCase } from '~/legacy/modules/playlist/commands/update-playlist/update-playlist.usecase';
 import { GetPlaylistDetailsUseCase } from '~/legacy/modules/playlist/queries/get-playlist-details/get-playlist-details.usecase';
 import { getPlaylistRepository, getUserRepository, getVideoRepository } from '~/legacy/repositories';
-import { requireAuth } from '~/legacy/utils/auth.server';
 import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
 
 /**
@@ -11,15 +11,10 @@ import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-r
  */
 export async function loader({ request, params }: LoaderFunctionArgs) {
   try {
-    // Authentication is optional for public playlists
-    let user;
-    try {
-      user = await requireAuth(request);
-    }
-    catch {
-      // Allow anonymous access for public playlists
-      user = null;
-    }
+    const unauthorizedResponse = await requireProtectedApiSession(request);
+    if (unauthorizedResponse) return unauthorizedResponse;
+    const user = await resolveLegacyCompatibilityUser();
+    const userId = user.id;
 
     const { id: playlistId } = params;
     if (!playlistId) {
@@ -48,7 +43,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     // Execute use case
     const result = await useCase.execute({
       playlistId,
-      userId: user?.id,
+      userId,
       includeVideos,
       includeStats,
       includeRelated,
@@ -79,8 +74,10 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
  */
 export async function action({ request, params }: ActionFunctionArgs) {
   try {
-    // Authentication required for all modifications
-    const user = await requireAuth(request);
+    const unauthorizedResponse = await requireProtectedApiSession(request);
+    if (unauthorizedResponse) return unauthorizedResponse;
+    const user = await resolveLegacyCompatibilityUser();
+    const userId = user.id;
     const { id: playlistId } = params;
 
     if (!playlistId) {
@@ -104,7 +101,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       const result = await useCase.execute({
         playlistId,
-        userId: user.id,
+        userId,
         ...body,
       });
 
@@ -131,7 +128,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
       const result = await useCase.execute({
         playlistId,
-        userId: user.id,
+        userId,
         force,
       });
 

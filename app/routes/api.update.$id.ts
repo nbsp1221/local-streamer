@@ -1,12 +1,12 @@
 import type { ActionFunctionArgs } from 'react-router';
+import { requireProtectedApiSession } from '~/composition/server/auth';
 import type { UpdateVideoRequest } from '~/legacy/modules/video/update-video/update-video.types';
 import { UpdateVideoUseCase } from '~/legacy/modules/video/update-video/update-video.usecase';
 import { getVideoRepository } from '~/legacy/repositories';
-import { requireAuth } from '~/legacy/utils/auth.server';
 import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
 export async function action({ request, params }: ActionFunctionArgs) {
-  // Authentication check
-  await requireAuth(request);
+  const unauthorizedResponse = await requireProtectedApiSession(request);
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   if (request.method !== 'PUT' && request.method !== 'PATCH') {
     return Response.json({ success: false, error: 'Method not allowed' }, { status: 405 });

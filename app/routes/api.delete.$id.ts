@@ -1,13 +1,13 @@
 import type { ActionFunctionArgs } from 'react-router';
+import { requireProtectedApiSession } from '~/composition/server/auth';
 import type { DeleteVideoRequest } from '~/legacy/modules/video/delete-video/delete-video.types';
 import { DeleteVideoUseCase } from '~/legacy/modules/video/delete-video/delete-video.usecase';
 import { workspaceManagerService } from '~/legacy/modules/video/storage/services/WorkspaceManagerService';
 import { getVideoRepository } from '~/legacy/repositories';
-import { requireAuth } from '~/legacy/utils/auth.server';
 import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
 export async function action({ request, params }: ActionFunctionArgs) {
-  // Authentication check
-  await requireAuth(request);
+  const unauthorizedResponse = await requireProtectedApiSession(request);
+  if (unauthorizedResponse) return unauthorizedResponse;
 
   // Only allow DELETE method
   if (request.method !== 'DELETE') {

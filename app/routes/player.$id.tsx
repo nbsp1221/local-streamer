@@ -2,11 +2,11 @@ import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
 import { AlertTriangle, ShieldAlert, VideoOff } from 'lucide-react';
 import { isRouteErrorResponse, useLoaderData, useRouteError } from 'react-router';
 
+import { requireProtectedPageSession } from '~/composition/server/auth';
 import type { Video } from '~/legacy/types/video';
 import { RouteErrorView } from '~/legacy/components/RouteErrorView';
 import { VideoPlayerPage } from '~/legacy/pages/video-player/ui/VideoPlayerPage';
 import { getVideoRepository } from '~/legacy/repositories';
-import { requireAuth } from '~/legacy/utils/auth.server';
 
 interface SerializedVideo extends Omit<Video, 'createdAt'> {
   createdAt: string;
@@ -40,7 +40,7 @@ function findRelatedVideos(current: Video, allVideos: Video[]): Video[] {
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  await requireAuth(request);
+  await requireProtectedPageSession(request);
 
   const videoId = params.id;
   if (!videoId) {

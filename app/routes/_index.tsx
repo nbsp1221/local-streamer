@@ -1,9 +1,9 @@
 import type { LoaderFunctionArgs } from 'react-router';
 import { useLoaderData } from 'react-router';
+import { requireProtectedPageSession } from '~/composition/server/auth';
 import type { PendingVideo, Video } from '~/legacy/types/video';
 import { HomePage } from '~/legacy/pages/home/ui/HomePage';
 import { getPendingVideoRepository, getVideoRepository } from '~/legacy/repositories';
-import { requireAuth } from '~/legacy/utils/auth.server';
 
 interface LoaderData {
   videos: Video[];
@@ -11,7 +11,7 @@ interface LoaderData {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  await requireAuth(request);
+  await requireProtectedPageSession(request);
 
   const [videos, pendingVideos] = await Promise.all([
     getVideoRepository().findAll(),

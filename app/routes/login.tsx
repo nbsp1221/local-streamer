@@ -1,5 +1,5 @@
 import type { MetaFunction } from 'react-router';
-import { LoginPage } from '~/legacy/pages/login/ui/LoginPage';
+import { LoginPage } from '~/pages/login/ui/LoginPage';
 
 export const meta: MetaFunction = () => ([
   { title: 'Login - Local Streamer' },
