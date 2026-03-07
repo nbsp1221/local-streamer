@@ -4,6 +4,13 @@ import { defineConfig } from 'eslint/config';
 export default defineConfig([
   ...createConfigs(),
   {
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
+  },
+  {
     ignores: [
       '.react-router',
       'build',
@@ -33,6 +40,29 @@ export default defineConfig([
     ],
     rules: {
       '@typescript-eslint/no-explicit-any': ['warn'],
+    },
+  },
+  {
+    files: [
+      'app/entities/**/*.{ts,tsx}',
+      'app/features/**/*.{ts,tsx}',
+      'app/pages/**/*.{ts,tsx}',
+      'app/routes/**/*.{ts,tsx}',
+      'app/widgets/**/*.{ts,tsx}',
+    ],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          {
+            group: ['~/components/ui/*', '~/legacy/components/ui/*', '**/legacy/components/ui/*'],
+            message: 'Use shadcn primitives from ~/shared/ui/* instead of legacy or deprecated UI paths.',
+          },
+          {
+            group: ['@radix-ui/*', 'radix-ui'],
+            message: 'Import vendor primitives only inside ~/shared/ui/* and consume them elsewhere via ~/shared/ui/*.',
+          },
+        ],
+      }],
     },
   },
 ]);

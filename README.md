@@ -117,6 +117,7 @@ The test suite is split by scope:
 
 - `bun run test:modules`: colocated module and policy tests
 - `bun run test:integration`: route and auth integration tests
+- `bun run test:ui-dom`: jsdom + React Testing Library component tests
 - `bun run test:legacy`: legacy module and repository coverage that still protects current behavior
 - `bun run test:run`: all Vitest projects
 - `bun run test:smoke:dev-auth`: dev-server auth smoke against `bun run dev`

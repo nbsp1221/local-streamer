@@ -1,5 +1,11 @@
+import { AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
+import { Alert, AlertDescription } from '~/shared/ui/alert';
+import { Button } from '~/shared/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/shared/ui/card';
+import { Input } from '~/shared/ui/input';
+import { Label } from '~/shared/ui/label';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -52,44 +58,45 @@ export function LoginPage() {
 
   return (
     <main className="min-h-screen bg-background flex items-center justify-center px-4">
-      <section className="w-full max-w-sm rounded-2xl border border-border bg-card p-8 shadow-sm">
-        <header className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold">Unlock your vault</h1>
-          <p className="text-sm text-muted-foreground">
-            Enter the shared password to access Local Streamer.
-          </p>
-        </header>
+      <Card className="w-full max-w-sm shadow-sm">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">
+            <h1 className="text-inherit font-inherit">Unlock your vault</h1>
+          </CardTitle>
+          <CardDescription>
+            <p>Enter the shared password to access Local Streamer.</p>
+          </CardDescription>
+        </CardHeader>
 
-        <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
-          <label className="block space-y-2">
-            <span className="text-sm font-medium">Shared password</span>
-            <input
-              autoComplete="current-password"
-              className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm"
-              disabled={isSubmitting}
-              onChange={event => setPassword(event.target.value)}
-              placeholder="Enter password"
-              required
-              type="password"
-              value={password}
-            />
-          </label>
+        <CardContent>
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div className="space-y-2">
+              <Label htmlFor="shared-password">Shared password</Label>
+              <Input
+                id="shared-password"
+                autoComplete="current-password"
+                disabled={isSubmitting}
+                onChange={event => setPassword(event.target.value)}
+                placeholder="Enter password"
+                required
+                type="password"
+                value={password}
+              />
+            </div>
 
-          {error && (
-            <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {error}
-            </p>
-          )}
+            {error && (
+              <Alert aria-live="polite" variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          <button
-            className="w-full rounded-xl bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
-            disabled={isSubmitting}
-            type="submit"
-          >
-            {isSubmitting ? 'Unlocking...' : 'Unlock'}
-          </button>
-        </form>
-      </section>
+            <Button className="w-full" disabled={isSubmitting} type="submit">
+              {isSubmitting ? 'Unlocking...' : 'Unlock'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </main>
   );
 }

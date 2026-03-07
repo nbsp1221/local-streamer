@@ -9,7 +9,7 @@ export default defineConfig(({ command }) => ({
     // Use Hono server only in production build
     ...(command === 'build' ? [reactRouterHonoServer({ runtime: 'bun' })] : []),
     tailwindcss(),
-    reactRouter(),
+    ...(process.env.VITEST ? [] : [reactRouter()]),
     tsconfigPaths(),
   ],
   build: {
@@ -36,6 +36,19 @@ export default defineConfig(({ command }) => ({
           environment: 'node',
           include: [
             'tests/integration/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+          ],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'ui',
+          environment: 'jsdom',
+          setupFiles: [
+            'tests/setup/ui-test.setup.ts',
+          ],
+          include: [
+            'tests/ui/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
           ],
         },
       },

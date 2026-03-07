@@ -42,8 +42,9 @@ This project started with mixed architectural patterns - direct API calls, busin
 
 Examples of active areas include:
 - **`app/modules/`** - Clean Architecture UseCases and domain logic
-- **`app/components/`** - React functional components and UI primitives
-- **`app/hooks/`** - Custom hooks for state management
+- **`app/shared/ui/`** - Canonical shadcn-based UI primitives for new frontend work
+- **`app/shared/lib/`** - Shared frontend helpers such as class merging utilities
+- **`app/pages/`, `app/widgets/`, `app/features/`, `app/entities/`** - New FSD-lite frontend surfaces
 - **`app/repositories/`** - Data access layer with JSON storage
 - **`app/routes/`** - API routes (thin controllers only)
 - **`app/types/`** - TypeScript interfaces and type definitions
@@ -53,6 +54,8 @@ Examples of active areas include:
 ### Legacy Areas (MODIFY WITH CAUTION)
 
 - **`app/welcome/`** - Legacy welcome components (use `app/routes/home.tsx` instead)
+- **`app/legacy/components/ui/`** - frozen compatibility primitives; do not add new UI work here
+- **`app/shared/ui/` internals** - generated shadcn primitive source; do not manually patch unless the maintainer explicitly asks for it
 - **Direct API calls in components** - Use custom hooks instead
 - **Business logic in routes** - Move to UseCases in `app/modules/`
 
@@ -63,6 +66,10 @@ Examples of active areas include:
 - **ALWAYS USE Clean Architecture patterns** - UseCases for business logic, thin controllers for routes
 - **ALWAYS USE `bun` FOR ALL PACKAGE MANAGEMENT** - never use npm, yarn, pnpm
 - **NEVER MIX business logic with presentation layer** - keep UseCases separate from React components
+- **FOR NEW FRONTEND PRIMITIVES, USE SHADCN IN `app/shared/ui/`** - do not invent parallel primitive systems
+- **DO NOT IMPORT LEGACY UI PRIMITIVES INTO NEW FSD-LITE CODE** - `app/pages`, `app/widgets`, `app/features`, and `app/entities` must consume `~/shared/ui/*`
+- **LIMIT RAW RADIX IMPORTS TO `app/shared/ui/`** - pages and features should consume wrapped primitives, not vendor packages
+- **DO NOT HAND-EDIT SHADCN GENERATED PRIMITIVES FOR PAGE-LEVEL FIXES** - solve semantics, layout, and accessibility needs in usage layers first
 - **SECURITY FIRST** - all video access must use JWT tokens + AES-128 encryption
 - **YOUTUBE-INSPIRED UX** - maintain familiar interface patterns for user experience
 
@@ -675,16 +682,25 @@ app/
 │           ├── json-write-queue.ts       # Concurrency-safe file operations
 │           ├── logger.service.ts         # Application logging
 │           └── config.service.ts         # Environment configuration
-├── components/                # Frontend React Components (separate architecture)
-│   ├── ui/                    # Design system primitives
-│   │   ├── Button.tsx
-│   │   ├── Modal.tsx
-│   │   └── VideoCard.tsx
-│   └── pages/                 # Page-level components
-│       ├── HomePage.tsx
-│       ├── VideoPlayerPage.tsx
-│       └── PlaylistPage.tsx
-├── hooks/                     # Frontend state management
+├── pages/                     # FSD-lite route-owned page shells
+│   ├── login/
+│   │   └── ui/
+│   │       └── LoginPage.tsx
+│   ├── home/
+│   └── player/
+├── widgets/                   # FSD-lite UI compositions
+├── features/                  # FSD-lite user workflows
+├── entities/                  # FSD-lite domain-shaped UI pieces
+├── shared/                    # Shared frontend/server code
+│   ├── ui/                    # Canonical shadcn primitives
+│   │   ├── button.tsx
+│   │   ├── card.tsx
+│   │   └── input.tsx
+│   ├── lib/                   # Shared helpers such as cn()
+│   ├── config/                # Shared configuration
+│   ├── hooks/                 # Shared frontend hooks when truly reusable
+│   ├── store/                 # Shared state if ownership is truly cross-slice
+│   └── types/                 # Shared types when ownership is truly cross-slice
 ├── repositories/              # Data access implementations
 │   ├── base/                  # BaseJsonRepository
 │   ├── JsonVideoRepository.ts
@@ -693,9 +709,7 @@ app/
 ├── routes/                    # API routing (thin layer)
 │   ├── api/                   # RESTful API endpoints
 │   └── pages/                 # React Router SSR pages
-├── types/                     # Global TypeScript definitions
-├── stores/                    # Global Zustand stores
-└── utils/                     # Global utility functions
+└── legacy/                    # Compatibility zone during migration
 
 tests/
 ├── modules/                   # Feature tests (mirrors module structure)
