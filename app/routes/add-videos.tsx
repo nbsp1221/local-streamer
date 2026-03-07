@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
-import { AddVideosPage } from '~/pages/add-videos/ui/AddVideosPage';
-import { requireAuth } from '~/utils/auth.server';
+import { AddVideosPage } from '~/legacy/pages/add-videos/ui/AddVideosPage';
+import { requireAuth } from '~/legacy/utils/auth.server';
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireAuth(request);

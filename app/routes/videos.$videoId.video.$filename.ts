@@ -2,17 +2,17 @@ import { createReadStream } from 'fs';
 import { stat } from 'fs/promises';
 import { join } from 'path';
 import { type LoaderFunctionArgs } from 'react-router';
-import type { MediaSegmentRequest } from '~/modules/video/media-segment/media-segment.types';
-import { config } from '~/configs';
-import { DomainError } from '~/lib/errors';
-import { MediaSegmentUseCase } from '~/modules/video/media-segment/media-segment.usecase';
-import { JwtValidatorAdapter } from '~/modules/video/security/validate-token/jwt-validator.adapter';
+import type { MediaSegmentRequest } from '~/legacy/modules/video/media-segment/media-segment.types';
+import { config } from '~/legacy/configs';
+import { DomainError } from '~/legacy/lib/errors';
+import { MediaSegmentUseCase } from '~/legacy/modules/video/media-segment/media-segment.usecase';
+import { JwtValidatorAdapter } from '~/legacy/modules/video/security/validate-token/jwt-validator.adapter';
 import {
   getDashContentType,
   getDashSegmentHeaders,
   handleDashRangeRequest,
   isValidDashSegmentName,
-} from '~/utils/dash-segments.server';
+} from '~/legacy/utils/dash-segments.server';
 
 /**
  * Create MediaSegmentUseCase with dependencies for video segments

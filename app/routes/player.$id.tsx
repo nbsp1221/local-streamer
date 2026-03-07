@@ -2,11 +2,11 @@ import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
 import { AlertTriangle, ShieldAlert, VideoOff } from 'lucide-react';
 import { isRouteErrorResponse, useLoaderData, useRouteError } from 'react-router';
 
-import type { Video } from '~/types/video';
-import { RouteErrorView } from '~/components/RouteErrorView';
-import { VideoPlayerPage } from '~/pages/video-player/ui/VideoPlayerPage';
-import { getVideoRepository } from '~/repositories';
-import { requireAuth } from '~/utils/auth.server';
+import type { Video } from '~/legacy/types/video';
+import { RouteErrorView } from '~/legacy/components/RouteErrorView';
+import { VideoPlayerPage } from '~/legacy/pages/video-player/ui/VideoPlayerPage';
+import { getVideoRepository } from '~/legacy/repositories';
+import { requireAuth } from '~/legacy/utils/auth.server';
 
 interface SerializedVideo extends Omit<Video, 'createdAt'> {
   createdAt: string;

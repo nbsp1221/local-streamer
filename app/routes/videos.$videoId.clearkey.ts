@@ -1,10 +1,10 @@
 import crypto from 'crypto';
 import { type ActionFunctionArgs, type LoaderFunctionArgs } from 'react-router';
-import type { ClearKeyRequest } from '~/modules/video/clear-key/clear-key.types';
-import { DomainError } from '~/lib/errors';
-import { ClearKeyUseCase } from '~/modules/video/clear-key/clear-key.usecase';
-import { Pbkdf2KeyManagerAdapter } from '~/modules/video/security/adapters/pbkdf2-key-manager.adapter';
-import { JwtValidatorAdapter } from '~/modules/video/security/validate-token/jwt-validator.adapter';
+import type { ClearKeyRequest } from '~/legacy/modules/video/clear-key/clear-key.types';
+import { DomainError } from '~/legacy/lib/errors';
+import { ClearKeyUseCase } from '~/legacy/modules/video/clear-key/clear-key.usecase';
+import { Pbkdf2KeyManagerAdapter } from '~/legacy/modules/video/security/adapters/pbkdf2-key-manager.adapter';
+import { JwtValidatorAdapter } from '~/legacy/modules/video/security/validate-token/jwt-validator.adapter';
 
 /**
  * Convert hex string to base64url

@@ -1,0 +1,233 @@
+import { Clock, Edit, Play, Trash2, X } from 'lucide-react';
+import { useState } from 'react';
+import { Link } from 'react-router';
+import type { Video } from '~/legacy/types/video';
+import { AspectRatio } from '~/legacy/components/ui/aspect-ratio';
+import { Badge } from '~/legacy/components/ui/badge';
+import { Button } from '~/legacy/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '~/legacy/components/ui/dialog';
+import { formatDuration } from '~/legacy/lib/utils';
+import { EditVideoForm } from './EditVideoForm';
+
+interface VideoModalProps {
+  video: Video | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onTagClick?: (tag: string) => void;
+  onDelete?: (videoId: string) => Promise<void>;
+  onUpdate?: (videoId: string, updates: { title: string; tags: string[]; description?: string }) => Promise<void>;
+}
+
+export function VideoModal({ video, isOpen, onClose, onTagClick, onDelete, onUpdate }: VideoModalProps) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  if (!video) return null;
+
+  const handleTagClick = (tag: string, event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onTagClick?.(tag);
+    onClose();
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!onDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await onDelete(video.id);
+      setShowDeleteConfirm(false);
+      onClose();
+    }
+    catch (error) {
+      console.error('Failed to delete video:', error);
+    }
+    finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleEditSave = async (data: { title: string; tags: string[]; description?: string }) => {
+    if (!onUpdate) return;
+
+    try {
+      await onUpdate(video.id, data);
+      setIsEditMode(false);
+    }
+    catch (error) {
+      console.error('Failed to update video:', error);
+    }
+  };
+
+  return (
+    <>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsEditMode(false);
+            onClose();
+          }
+        }}
+      >
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="space-y-3">
+              <DialogTitle className="text-lg font-semibold line-clamp-2 pr-8">
+                {isEditMode ? 'Edit Video Information' : video.title}
+              </DialogTitle>
+
+              {!isEditMode && onUpdate && (
+                <div className="flex justify-start">
+                  <Button variant="ghost" size="sm" onClick={() => setIsEditMode(true)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Info
+                  </Button>
+                </div>
+              )}
+            </div>
+            <DialogDescription className="sr-only">
+              {video.description || `${video.title} video information and playback options`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {isEditMode ? (
+            <EditVideoForm
+              video={video}
+              onSave={handleEditSave}
+              onCancel={() => setIsEditMode(false)}
+            />
+          ) : (
+            <div className="space-y-6">
+              <div className="relative overflow-hidden rounded-lg bg-muted">
+                <AspectRatio ratio={16 / 9}>
+                  <img
+                    src={video.thumbnailUrl}
+                    alt={video.title}
+                    className="h-full w-full object-cover"
+                  />
+
+                  <div className="absolute bottom-3 right-3 flex items-center gap-1 rounded bg-black/80 px-2 py-1 text-sm text-white">
+                    <Clock className="h-3 w-3" />
+                    {formatDuration(video.duration)}
+                  </div>
+
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Link to={`/player/${video.id}`} onClick={onClose}>
+                      <Button size="lg" className="h-16 w-16 rounded-full">
+                        <Play className="h-6 w-6 fill-current" />
+                      </Button>
+                    </Link>
+                  </div>
+                </AspectRatio>
+              </div>
+
+              <div className="space-y-4">
+                {video.description && (
+                  <div>
+                    <h3 className="font-medium mb-2">Description</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      {video.description}
+                    </p>
+                  </div>
+                )}
+
+                <div>
+                  <h3 className="font-medium mb-2">Tags</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {video.tags.map(tag => (
+                      <Badge
+                        key={tag}
+                        variant="secondary"
+                        className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                        onClick={event => handleTagClick(tag, event)}
+                      >
+                        #{tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
+                  <div>
+                    <span className="font-medium">Duration:</span>
+                    <span className="ml-2">{formatDuration(video.duration)}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Added:</span>
+                    <span className="ml-2">{video.createdAt.toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t">
+                <Button asChild className="flex-1" size="default">
+                  <Link to={`/player/${video.id}`} onClick={onClose}>
+                    <Play className="mr-2 h-4 w-4" />
+                    Watch
+                  </Link>
+                </Button>
+
+                {onDelete && (
+                  <Button variant="destructive" size="default" onClick={() => setShowDeleteConfirm(true)}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </Button>
+                )}
+
+                <Button variant="outline" size="default" onClick={onClose}>
+                  <X className="mr-2 h-4 w-4" />
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Video</DialogTitle>
+            <DialogDescription>
+              {`Are you sure you want to delete "${video.title}"?`}
+              <br />
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting…' : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}

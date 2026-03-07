@@ -1,9 +1,9 @@
 import type { LoaderFunctionArgs } from 'react-router';
 import { useLoaderData } from 'react-router';
-import type { PendingVideo, Video } from '~/types/video';
-import { HomePage } from '~/pages/home/ui/HomePage';
-import { getPendingVideoRepository, getVideoRepository } from '~/repositories';
-import { requireAuth } from '~/utils/auth.server';
+import type { PendingVideo, Video } from '~/legacy/types/video';
+import { HomePage } from '~/legacy/pages/home/ui/HomePage';
+import { getPendingVideoRepository, getVideoRepository } from '~/legacy/repositories';
+import { requireAuth } from '~/legacy/utils/auth.server';
 
 interface LoaderData {
   videos: Video[];

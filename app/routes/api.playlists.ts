@@ -1,9 +1,9 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
-import { CreatePlaylistUseCase } from '~/modules/playlist/commands/create-playlist/create-playlist.usecase';
-import { FindPlaylistsUseCase } from '~/modules/playlist/queries/find-playlists/find-playlists.usecase';
-import { getPlaylistRepository, getUserRepository } from '~/repositories';
-import { requireAuth } from '~/utils/auth.server';
-import { createErrorResponse, handleUseCaseResult } from '~/utils/error-response.server';
+import { CreatePlaylistUseCase } from '~/legacy/modules/playlist/commands/create-playlist/create-playlist.usecase';
+import { FindPlaylistsUseCase } from '~/legacy/modules/playlist/queries/find-playlists/find-playlists.usecase';
+import { getPlaylistRepository, getUserRepository } from '~/legacy/repositories';
+import { requireAuth } from '~/legacy/utils/auth.server';
+import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
 
 /**
  * GET /api/playlists - List playlists with filtering and pagination

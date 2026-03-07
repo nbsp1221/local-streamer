@@ -1,12 +1,12 @@
 import type { ActionFunctionArgs } from 'react-router';
-import type { AddVideoRequest } from '~/modules/video/add-video/add-video.types';
-import { AddVideoUseCase } from '~/modules/video/add-video/add-video.usecase';
-import { FFprobeAnalysisService } from '~/modules/video/analysis/ffprobe-analysis.service';
-import { workspaceManagerService } from '~/modules/video/storage/services/WorkspaceManagerService';
-import { FFmpegVideoTranscoderAdapter } from '~/modules/video/transcoding';
-import { getVideoRepository } from '~/repositories';
-import { requireAuth } from '~/utils/auth.server';
-import { createErrorResponse, handleUseCaseResult } from '~/utils/error-response.server';
+import type { AddVideoRequest } from '~/legacy/modules/video/add-video/add-video.types';
+import { AddVideoUseCase } from '~/legacy/modules/video/add-video/add-video.usecase';
+import { FFprobeAnalysisService } from '~/legacy/modules/video/analysis/ffprobe-analysis.service';
+import { workspaceManagerService } from '~/legacy/modules/video/storage/services/WorkspaceManagerService';
+import { FFmpegVideoTranscoderAdapter } from '~/legacy/modules/video/transcoding';
+import { getVideoRepository } from '~/legacy/repositories';
+import { requireAuth } from '~/legacy/utils/auth.server';
+import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
 export async function action({ request }: ActionFunctionArgs) {
   // Authentication check
   await requireAuth(request);

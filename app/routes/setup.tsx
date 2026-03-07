@@ -1,5 +1,5 @@
 import type { MetaFunction } from 'react-router';
-import { SetupPage } from '~/pages/setup/ui/SetupPage';
+import { SetupPage } from '~/legacy/pages/setup/ui/SetupPage';
 
 export const meta: MetaFunction = () => ([
   { title: 'Setup - Local Streamer' },

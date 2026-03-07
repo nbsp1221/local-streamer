@@ -2,10 +2,10 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { CreateSessionInput, UpdateSessionInput } from '../app/repositories/interfaces/SessionRepository';
-import type { Session } from '../app/types/auth';
-import { JsonSessionRepository } from '../app/repositories/JsonSessionRepository';
-import { JsonWriteQueue } from '../app/repositories/utils/JsonWriteQueue';
+import type { CreateSessionInput, UpdateSessionInput } from '../app/legacy/repositories/interfaces/SessionRepository';
+import type { Session } from '../app/legacy/types/auth';
+import { JsonSessionRepository } from '../app/legacy/repositories/JsonSessionRepository';
+import { JsonWriteQueue } from '../app/legacy/repositories/utils/JsonWriteQueue';
 
 describe('JsonSessionRepository', () => {
   let repository: JsonSessionRepository;

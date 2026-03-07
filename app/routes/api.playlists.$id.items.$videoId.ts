@@ -1,8 +1,8 @@
 import type { ActionFunctionArgs } from 'react-router';
-import { RemoveVideoFromPlaylistUseCase } from '~/modules/playlist/commands/remove-video-from-playlist/remove-video-from-playlist.usecase';
-import { getPlaylistRepository, getUserRepository } from '~/repositories';
-import { requireAuth } from '~/utils/auth.server';
-import { createErrorResponse, handleUseCaseResult } from '~/utils/error-response.server';
+import { RemoveVideoFromPlaylistUseCase } from '~/legacy/modules/playlist/commands/remove-video-from-playlist/remove-video-from-playlist.usecase';
+import { getPlaylistRepository, getUserRepository } from '~/legacy/repositories';
+import { requireAuth } from '~/legacy/utils/auth.server';
+import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
 
 /**
  * DELETE /api/playlists/:id/items/:videoId - Remove video from playlist

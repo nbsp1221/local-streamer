@@ -1,10 +1,10 @@
 import type { ActionFunctionArgs } from 'react-router';
-import type { LoginRequest } from '~/modules/auth/login/login.types';
-import type { LoginFormData } from '~/types/auth';
-import { DomainError } from '~/lib/errors';
-import { LoginUseCase } from '~/modules/auth/login/login.usecase';
-import { getSessionRepository, getUserRepository } from '~/repositories';
-import { addLoginDelay, getClientIP, isValidEmail } from '~/utils/auth.server';
+import type { LoginRequest } from '~/legacy/modules/auth/login/login.types';
+import type { LoginFormData } from '~/legacy/types/auth';
+import { DomainError } from '~/legacy/lib/errors';
+import { LoginUseCase } from '~/legacy/modules/auth/login/login.usecase';
+import { getSessionRepository, getUserRepository } from '~/legacy/repositories';
+import { addLoginDelay, getClientIP, isValidEmail } from '~/legacy/utils/auth.server';
 
 // Create UseCase with dependencies
 function createLoginUseCase() {

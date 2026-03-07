@@ -1,11 +1,11 @@
 import jwt from 'jsonwebtoken';
 import { type LoaderFunctionArgs } from 'react-router';
-import { config } from '~/configs';
-import { getManifestUseCase } from '~/modules/video/manifest/get-manifest.usecase';
-import { ExtractVideoTokenUseCase } from '~/modules/video/security/validate-token/extract-video-token.usecase';
-import { IpExtractorAdapter } from '~/modules/video/security/validate-token/ip-extractor.adapter';
-import { ValidateVideoTokenUseCase } from '~/modules/video/security/validate-token/validate-token.usecase';
-import { ValidateVideoRequestUseCase } from '~/modules/video/security/validate-token/validate-video-request.usecase';
+import { config } from '~/legacy/configs';
+import { getManifestUseCase } from '~/legacy/modules/video/manifest/get-manifest.usecase';
+import { ExtractVideoTokenUseCase } from '~/legacy/modules/video/security/validate-token/extract-video-token.usecase';
+import { IpExtractorAdapter } from '~/legacy/modules/video/security/validate-token/ip-extractor.adapter';
+import { ValidateVideoTokenUseCase } from '~/legacy/modules/video/security/validate-token/validate-token.usecase';
+import { ValidateVideoRequestUseCase } from '~/legacy/modules/video/security/validate-token/validate-video-request.usecase';
 
 /**
  * Create ValidateVideoRequestUseCase with dependencies

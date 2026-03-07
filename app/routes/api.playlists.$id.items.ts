@@ -1,9 +1,9 @@
 import type { ActionFunctionArgs } from 'react-router';
-import { AddVideoToPlaylistUseCase } from '~/modules/playlist/commands/add-video-to-playlist/add-video-to-playlist.usecase';
-import { ReorderPlaylistItemsUseCase } from '~/modules/playlist/commands/reorder-playlist-items/reorder-playlist-items.usecase';
-import { getPlaylistRepository, getUserRepository, getVideoRepository } from '~/repositories';
-import { requireAuth } from '~/utils/auth.server';
-import { createErrorResponse, handleUseCaseResult } from '~/utils/error-response.server';
+import { AddVideoToPlaylistUseCase } from '~/legacy/modules/playlist/commands/add-video-to-playlist/add-video-to-playlist.usecase';
+import { ReorderPlaylistItemsUseCase } from '~/legacy/modules/playlist/commands/reorder-playlist-items/reorder-playlist-items.usecase';
+import { getPlaylistRepository, getUserRepository, getVideoRepository } from '~/legacy/repositories';
+import { requireAuth } from '~/legacy/utils/auth.server';
+import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
 
 /**
  * POST /api/playlists/:id/items - Add video to playlist

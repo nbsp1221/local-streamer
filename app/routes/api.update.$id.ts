@@ -1,9 +1,9 @@
 import type { ActionFunctionArgs } from 'react-router';
-import type { UpdateVideoRequest } from '~/modules/video/update-video/update-video.types';
-import { UpdateVideoUseCase } from '~/modules/video/update-video/update-video.usecase';
-import { getVideoRepository } from '~/repositories';
-import { requireAuth } from '~/utils/auth.server';
-import { createErrorResponse, handleUseCaseResult } from '~/utils/error-response.server';
+import type { UpdateVideoRequest } from '~/legacy/modules/video/update-video/update-video.types';
+import { UpdateVideoUseCase } from '~/legacy/modules/video/update-video/update-video.usecase';
+import { getVideoRepository } from '~/legacy/repositories';
+import { requireAuth } from '~/legacy/utils/auth.server';
+import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
 export async function action({ request, params }: ActionFunctionArgs) {
   // Authentication check
   await requireAuth(request);

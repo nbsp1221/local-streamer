@@ -1,10 +1,10 @@
 import type { ActionFunctionArgs } from 'react-router';
-import type { DeleteVideoRequest } from '~/modules/video/delete-video/delete-video.types';
-import { DeleteVideoUseCase } from '~/modules/video/delete-video/delete-video.usecase';
-import { workspaceManagerService } from '~/modules/video/storage/services/WorkspaceManagerService';
-import { getVideoRepository } from '~/repositories';
-import { requireAuth } from '~/utils/auth.server';
-import { createErrorResponse, handleUseCaseResult } from '~/utils/error-response.server';
+import type { DeleteVideoRequest } from '~/legacy/modules/video/delete-video/delete-video.types';
+import { DeleteVideoUseCase } from '~/legacy/modules/video/delete-video/delete-video.usecase';
+import { workspaceManagerService } from '~/legacy/modules/video/storage/services/WorkspaceManagerService';
+import { getVideoRepository } from '~/legacy/repositories';
+import { requireAuth } from '~/legacy/utils/auth.server';
+import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
 export async function action({ request, params }: ActionFunctionArgs) {
   // Authentication check
   await requireAuth(request);

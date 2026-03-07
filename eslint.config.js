@@ -7,6 +7,7 @@ export default defineConfig([
     ignores: [
       '.react-router',
       'build',
+      'app/legacy/**/*',
       'app/components/ui/**/*',
     ],
   },

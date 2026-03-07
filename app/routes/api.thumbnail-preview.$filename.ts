@@ -1,7 +1,7 @@
 import { createReadStream, existsSync, statSync } from 'fs';
 import { join } from 'path';
-import { config } from '~/configs';
-import { requireAuth } from '~/utils/auth.server';
+import { config } from '~/legacy/configs';
+import { requireAuth } from '~/legacy/utils/auth.server';
 
 const THUMBNAILS_DIR = config.paths.thumbnails;
 

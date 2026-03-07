@@ -1,9 +1,9 @@
 import jwt from 'jsonwebtoken';
 import { type LoaderFunctionArgs } from 'react-router';
-import { config } from '~/configs';
-import { DomainError } from '~/lib/errors';
-import { GenerateVideoTokenUseCase } from '~/modules/video/security/generate-token/generate-token.usecase';
-import { IpExtractorAdapter } from '~/modules/video/security/validate-token/ip-extractor.adapter';
+import { config } from '~/legacy/configs';
+import { DomainError } from '~/legacy/lib/errors';
+import { GenerateVideoTokenUseCase } from '~/legacy/modules/video/security/generate-token/generate-token.usecase';
+import { IpExtractorAdapter } from '~/legacy/modules/video/security/validate-token/ip-extractor.adapter';
 
 /**
  * Create GenerateVideoTokenUseCase with dependencies

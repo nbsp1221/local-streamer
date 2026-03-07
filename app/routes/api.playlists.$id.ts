@@ -1,10 +1,10 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
-import { DeletePlaylistUseCase } from '~/modules/playlist/commands/delete-playlist/delete-playlist.usecase';
-import { UpdatePlaylistUseCase } from '~/modules/playlist/commands/update-playlist/update-playlist.usecase';
-import { GetPlaylistDetailsUseCase } from '~/modules/playlist/queries/get-playlist-details/get-playlist-details.usecase';
-import { getPlaylistRepository, getUserRepository, getVideoRepository } from '~/repositories';
-import { requireAuth } from '~/utils/auth.server';
-import { createErrorResponse, handleUseCaseResult } from '~/utils/error-response.server';
+import { DeletePlaylistUseCase } from '~/legacy/modules/playlist/commands/delete-playlist/delete-playlist.usecase';
+import { UpdatePlaylistUseCase } from '~/legacy/modules/playlist/commands/update-playlist/update-playlist.usecase';
+import { GetPlaylistDetailsUseCase } from '~/legacy/modules/playlist/queries/get-playlist-details/get-playlist-details.usecase';
+import { getPlaylistRepository, getUserRepository, getVideoRepository } from '~/legacy/repositories';
+import { requireAuth } from '~/legacy/utils/auth.server';
+import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
 
 /**
  * GET /api/playlists/:id - Get playlist details

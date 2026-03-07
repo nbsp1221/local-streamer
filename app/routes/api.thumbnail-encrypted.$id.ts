@@ -1,1 +1,1 @@
-export { loader } from '~/modules/thumbnail/decrypt-thumbnail/decrypt-thumbnail.route';
+export { loader } from '~/legacy/modules/thumbnail/decrypt-thumbnail/decrypt-thumbnail.route';

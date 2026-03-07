@@ -1,10 +1,10 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
-import type { LogoutRequest } from '~/modules/auth/logout/logout.types';
-import { cookieManager } from '~/lib/cookie';
-import { DomainError } from '~/lib/errors';
-import { LogoutUseCase } from '~/modules/auth/logout/logout.usecase';
-import { getSessionRepository } from '~/repositories';
+import type { LogoutRequest } from '~/legacy/modules/auth/logout/logout.types';
+import { cookieManager } from '~/legacy/lib/cookie';
+import { DomainError } from '~/legacy/lib/errors';
+import { LogoutUseCase } from '~/legacy/modules/auth/logout/logout.usecase';
+import { getSessionRepository } from '~/legacy/repositories';
 
 // Create UseCase with dependencies
 function createLogoutUseCase() {

@@ -1,9 +1,9 @@
 import type { LoaderFunctionArgs } from 'react-router';
-import type { ScanIncomingDependencies } from '~/modules/video/scan-incoming/scan-incoming.types';
-import { DomainError } from '~/lib/errors';
-import { FFmpegThumbnailAdapter } from '~/modules/thumbnail/infrastructure/adapters/ffmpeg-thumbnail.adapter';
-import { ScanIncomingUseCase } from '~/modules/video/scan-incoming/scan-incoming.usecase';
-import { requireAuth } from '~/utils/auth.server';
+import type { ScanIncomingDependencies } from '~/legacy/modules/video/scan-incoming/scan-incoming.types';
+import { DomainError } from '~/legacy/lib/errors';
+import { FFmpegThumbnailAdapter } from '~/legacy/modules/thumbnail/infrastructure/adapters/ffmpeg-thumbnail.adapter';
+import { ScanIncomingUseCase } from '~/legacy/modules/video/scan-incoming/scan-incoming.usecase';
+import { requireAuth } from '~/legacy/utils/auth.server';
 
 // Create dependencies for the UseCase
 function createDependencies(): ScanIncomingDependencies {

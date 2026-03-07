@@ -1,9 +1,9 @@
 import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
 import { AlertTriangle, FileWarning, Lock } from 'lucide-react';
 import { isRouteErrorResponse, useLoaderData, useRouteError } from 'react-router';
-import type { PlaylistStats, PlaylistWithVideos } from '~/modules/playlist/domain/playlist.types';
-import { RouteErrorView } from '~/components/RouteErrorView';
-import { PlaylistDetailPage } from '~/pages/playlist-detail/ui/PlaylistDetailPage';
+import type { PlaylistStats, PlaylistWithVideos } from '~/legacy/modules/playlist/domain/playlist.types';
+import { RouteErrorView } from '~/legacy/components/RouteErrorView';
+import { PlaylistDetailPage } from '~/legacy/pages/playlist-detail/ui/PlaylistDetailPage';
 
 function parsePlaylist(data: any): PlaylistWithVideos {
   return {

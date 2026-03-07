@@ -1,7 +1,7 @@
-import { DecryptThumbnailUseCase } from '~/modules/thumbnail/decrypt-thumbnail/decrypt-thumbnail.usecase';
-import { ThumbnailEncryptionService } from '~/modules/thumbnail/shared/thumbnail-encryption.service';
-import { Pbkdf2KeyManagerAdapter } from '~/modules/video/security/adapters/pbkdf2-key-manager.adapter';
-import { requireAuth } from '~/utils/auth.server';
+import { DecryptThumbnailUseCase } from '~/legacy/modules/thumbnail/decrypt-thumbnail/decrypt-thumbnail.usecase';
+import { ThumbnailEncryptionService } from '~/legacy/modules/thumbnail/shared/thumbnail-encryption.service';
+import { Pbkdf2KeyManagerAdapter } from '~/legacy/modules/video/security/adapters/pbkdf2-key-manager.adapter';
+import { requireAuth } from '~/legacy/utils/auth.server';
 
 /**
  * Create dependencies for the DecryptThumbnailUseCase

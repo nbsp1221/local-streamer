@@ -8,8 +8,8 @@ import {
   useLoaderData,
 } from 'react-router';
 
-import { AuthInitializer } from '~/components/AuthInitializer';
-import { getOptionalUser, toPublicUser } from '~/utils/auth.server';
+import { AuthInitializer } from '~/legacy/components/AuthInitializer';
+import { getOptionalUser, toPublicUser } from '~/legacy/utils/auth.server';
 import type { Route } from './+types/root';
 import './app.css';
 

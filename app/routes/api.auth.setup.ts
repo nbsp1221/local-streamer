@@ -1,11 +1,11 @@
 import type { ActionFunctionArgs } from 'react-router';
-import type { SetupUserRequest } from '~/modules/auth/setup-user/setup-user.types';
-import type { SetupFormData } from '~/types/auth';
-import { cookieManager } from '~/lib/cookie';
-import { DomainError } from '~/lib/errors';
-import { SetupUserUseCase } from '~/modules/auth/setup-user/setup-user.usecase';
-import { getSessionRepository, getUserRepository } from '~/repositories';
-import { addLoginDelay, getClientIP, isValidEmail, isValidPassword, toPublicUser } from '~/utils/auth.server';
+import type { SetupUserRequest } from '~/legacy/modules/auth/setup-user/setup-user.types';
+import type { SetupFormData } from '~/legacy/types/auth';
+import { cookieManager } from '~/legacy/lib/cookie';
+import { DomainError } from '~/legacy/lib/errors';
+import { SetupUserUseCase } from '~/legacy/modules/auth/setup-user/setup-user.usecase';
+import { getSessionRepository, getUserRepository } from '~/legacy/repositories';
+import { addLoginDelay, getClientIP, isValidEmail, isValidPassword, toPublicUser } from '~/legacy/utils/auth.server';
 
 // Create UseCase with dependencies
 function createSetupUserUseCase() {
