@@ -12,7 +12,7 @@ import {
 } from '~/legacy/components/ui/dropdown-menu';
 import { Input } from '~/legacy/components/ui/input';
 import { SidebarTrigger } from '~/legacy/components/ui/sidebar';
-import { useAuthStore, useAuthUser } from '~/legacy/stores/auth-store';
+import { useAuthUser } from '~/legacy/stores/auth-store';
 
 interface AppHeaderProps {
   searchQuery?: string;
@@ -22,16 +22,6 @@ interface AppHeaderProps {
 
 export function AppHeader({ searchQuery = '', onSearchChange, pendingCount = 0 }: AppHeaderProps) {
   const user = useAuthUser();
-  const logout = useAuthStore(state => state.logout);
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-    }
-    catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
 
   return (
     <header className="bg-background/80 backdrop-blur-sm">
@@ -106,12 +96,11 @@ export function AppHeader({ searchQuery = '', onSearchChange, pendingCount = 0 }
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
+                <DropdownMenuItem asChild className="text-destructive focus:text-destructive">
+                  <a href="/api/auth/logout">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </a>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -2,11 +2,11 @@ import { useEffect } from 'react';
 import type { PublicUser } from '~/legacy/types/auth';
 import { useAuthStore } from '~/legacy/stores/auth-store';
 
-interface AuthInitializerProps {
+interface LegacyAuthStoreBridgeProps {
   initialUser: PublicUser | null;
 }
 
-export function AuthInitializer({ initialUser }: AuthInitializerProps) {
+export function LegacyAuthStoreBridge({ initialUser }: LegacyAuthStoreBridgeProps) {
   const setUser = useAuthStore(state => state.setUser);
 
   useEffect(() => {

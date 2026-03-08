@@ -9,7 +9,6 @@ import type {
 interface LoginAttemptRecord {
   blockedUntil: number | null;
   count: number;
-  lastTouchedAt: number;
   windowStartedAt: number;
 }
 
@@ -28,17 +27,6 @@ export class InMemoryLoginAttemptGuard implements LoginAttemptGuard {
 
   private getIdleMutexTtlMs(): number {
     return this.options.windowMs + this.options.blockDurationMs;
-  }
-
-  private markTouched(key: string, nowMs: number): void {
-    const record = this.records.get(key);
-
-    if (record) {
-      this.records.set(key, {
-        ...record,
-        lastTouchedAt: nowMs,
-      });
-    }
   }
 
   private cleanupExpiredState(nowMs: number): void {
@@ -88,7 +76,6 @@ export class InMemoryLoginAttemptGuard implements LoginAttemptGuard {
       finally {
         const finishedAt = Date.now();
         this.mutexTouchedAt.set(key, finishedAt);
-        this.markTouched(key, finishedAt);
         this.cleanupExpiredState(finishedAt);
       }
     });
@@ -115,8 +102,6 @@ export class InMemoryLoginAttemptGuard implements LoginAttemptGuard {
       this.cleanupExpiredState(nowMs);
       return { allowed: true };
     }
-
-    this.markTouched(input.key, nowMs);
     return { allowed: true };
   }
 
@@ -129,7 +114,6 @@ export class InMemoryLoginAttemptGuard implements LoginAttemptGuard {
       this.records.set(input.key, {
         blockedUntil: null,
         count: 1,
-        lastTouchedAt: nowMs,
         windowStartedAt: nowMs,
       });
       return;
@@ -142,7 +126,6 @@ export class InMemoryLoginAttemptGuard implements LoginAttemptGuard {
           ? nowMs + this.options.blockDurationMs
           : null,
       count: nextCount,
-      lastTouchedAt: nowMs,
       windowStartedAt: existingRecord.windowStartedAt,
     });
   }

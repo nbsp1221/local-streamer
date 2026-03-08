@@ -11,14 +11,7 @@ function getLogoutRedirectTo(request: Request): string {
   return getSafeRedirectTarget(request, '/login');
 }
 
-export async function action({ request }: ActionFunctionArgs): Promise<Response> {
-  if (request.method !== 'POST') {
-    return Response.json(
-      { success: false, error: 'Method not allowed' },
-      { status: 405 },
-    );
-  }
-
+async function performLogout(request: Request): Promise<Response> {
   try {
     const authServices = getServerSessionServices();
 
@@ -42,26 +35,17 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response>
   }
 }
 
-// Also supports GET requests (direct logout via URL)
-export async function loader({ request }: LoaderFunctionArgs): Promise<Response> {
-  try {
-    const authServices = getServerSessionServices();
-    await authServices.destroyAuthSession.execute({
-      sessionId: getSiteSessionId(request),
-    });
+export async function action({ request }: ActionFunctionArgs): Promise<Response> {
+  if (request.method !== 'POST') {
+    return Response.json(
+      { success: false, error: 'Method not allowed' },
+      { status: 405 },
+    );
+  }
 
-    return redirect(getLogoutRedirectTo(request), {
-      headers: {
-        'Set-Cookie': createClearedSessionCookieHeader(),
-      },
-    });
-  }
-  catch (error) {
-    console.error('Logout error:', error);
-    return redirect('/login', {
-      headers: {
-        'Set-Cookie': createClearedSessionCookieHeader(),
-      },
-    });
-  }
+  return performLogout(request);
+}
+
+export async function loader({ request }: LoaderFunctionArgs): Promise<Response> {
+  return performLogout(request);
 }

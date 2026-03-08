@@ -1,7 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { redirect } from 'react-router';
-import type { PublicUser } from '~/legacy/types/auth';
-import { getUserRepository } from '~/legacy/repositories';
 import { CreateAuthSessionUseCase } from '~/modules/auth/application/use-cases/create-auth-session.usecase';
 import { DestroyAuthSessionUseCase } from '~/modules/auth/application/use-cases/destroy-auth-session.usecase';
 import { EvaluateSiteAccessUseCase } from '~/modules/auth/application/use-cases/evaluate-site-access.usecase';
@@ -16,16 +14,18 @@ import {
   getAuthSessionConfig,
 } from '~/shared/config/auth.server';
 import { getCookieValue, serializeCookie } from '~/shared/lib/http/cookies.server';
+import {
+  type LegacyBridgeUser,
+  resolveLegacyBridgeUser,
+} from './auth-legacy-identity-bridge';
 
-const LEGACY_COMPATIBILITY_EMAIL = 'vault@local';
-
-export type LegacyCompatibleUser = PublicUser;
+export type LegacyCompatibleUser = LegacyBridgeUser;
 
 interface ServerSessionServices {
   destroyAuthSession: DestroyAuthSessionUseCase;
   evaluateSiteAccess: EvaluateSiteAccessUseCase;
+  resolveLegacyBridgeUser: () => Promise<LegacyCompatibleUser>;
   resolveAuthSession: ResolveAuthSessionUseCase;
-  toLegacyCompatibleUser: () => Promise<LegacyCompatibleUser>;
 }
 
 interface CachedServerSessionServices extends ServerSessionServices {
@@ -38,44 +38,6 @@ interface ServerAuthServices extends ServerSessionServices {
 
 let cachedAuthServices: ServerAuthServices | null = null;
 let cachedSessionServices: CachedServerSessionServices | null = null;
-
-async function resolveLegacyCompatibilityUserFromStore(): Promise<LegacyCompatibleUser> {
-  const userRepository = getUserRepository();
-  const existingCompatibilityUser = await userRepository.findByEmail(LEGACY_COMPATIBILITY_EMAIL);
-
-  if (existingCompatibilityUser) {
-    return userRepository.toPublicUser(existingCompatibilityUser);
-  }
-
-  const [adminUser] = await userRepository.findByRole('admin');
-  if (adminUser) {
-    return userRepository.toPublicUser(adminUser);
-  }
-
-  const [firstUser] = await userRepository.findAll();
-  if (firstUser) {
-    return userRepository.toPublicUser(firstUser);
-  }
-
-  try {
-    const createdUser = await userRepository.create({
-      email: LEGACY_COMPATIBILITY_EMAIL,
-      password: randomUUID(),
-      role: 'admin',
-    });
-
-    return userRepository.toPublicUser(createdUser);
-  }
-  catch (error) {
-    const racedCompatibilityUser = await userRepository.findByEmail(LEGACY_COMPATIBILITY_EMAIL);
-
-    if (racedCompatibilityUser) {
-      return userRepository.toPublicUser(racedCompatibilityUser);
-    }
-
-    throw error;
-  }
-}
 
 function getCachedServerSessionServices(): CachedServerSessionServices {
   if (cachedSessionServices) {
@@ -98,16 +60,16 @@ function getCachedServerSessionServices(): CachedServerSessionServices {
     evaluateSiteAccess: new EvaluateSiteAccessUseCase({
       resolveAuthSession,
     }),
+    resolveLegacyBridgeUser,
     resolveAuthSession,
     sessionRepository,
-    toLegacyCompatibleUser: resolveLegacyCompatibilityUser,
   };
 
   return cachedSessionServices;
 }
 
 export async function resolveLegacyCompatibilityUser(): Promise<LegacyCompatibleUser> {
-  return resolveLegacyCompatibilityUserFromStore();
+  return resolveLegacyBridgeUser();
 }
 
 export function getServerSessionServices(): ServerSessionServices {
@@ -150,8 +112,8 @@ export function getServerAuthServices(): ServerAuthServices {
     }),
     destroyAuthSession: sessionServices.destroyAuthSession,
     evaluateSiteAccess: sessionServices.evaluateSiteAccess,
+    resolveLegacyBridgeUser: sessionServices.resolveLegacyBridgeUser,
     resolveAuthSession: sessionServices.resolveAuthSession,
-    toLegacyCompatibleUser: sessionServices.toLegacyCompatibleUser,
   };
 
   return cachedAuthServices;
@@ -196,7 +158,20 @@ export async function getOptionalLegacyCompatibleUser(request: Request): Promise
     sessionId: getSiteSessionId(request),
   });
 
-  return session ? sessionServices.toLegacyCompatibleUser() : null;
+  return session ? sessionServices.resolveLegacyBridgeUser() : null;
+}
+
+async function requireProtectedSessionAccess(
+  request: Request,
+  surface: 'protected-page' | 'protected-api' | 'media-resource',
+) {
+  const sessionServices = getServerSessionServices();
+
+  return sessionServices.evaluateSiteAccess.execute({
+    now: new Date(),
+    sessionId: getSiteSessionId(request),
+    surface,
+  });
 }
 
 export async function requireProtectedPageSession(request: Request) {
@@ -204,12 +179,7 @@ export async function requireProtectedPageSession(request: Request) {
     throw redirect('/login?misconfigured=1');
   }
 
-  const sessionServices = getServerSessionServices();
-  const access = await sessionServices.evaluateSiteAccess.execute({
-    now: new Date(),
-    sessionId: getSiteSessionId(request),
-    surface: 'protected-page',
-  });
+  const access = await requireProtectedSessionAccess(request, 'protected-page');
 
   if (!access.decision.allowed) {
     const url = new URL(request.url);
@@ -221,52 +191,31 @@ export async function requireProtectedPageSession(request: Request) {
   return access.session;
 }
 
-export async function requireProtectedApiSession(request: Request) {
+function createUnauthorizedAuthResponse(status: 401 | 503, error: string): Response {
+  return Response.json({ success: false, error }, { status });
+}
+
+async function requireProtectedHttpSession(
+  request: Request,
+  surface: 'protected-api' | 'media-resource',
+) {
   if (!getAuthRuntimeState().isConfigured) {
-    return Response.json(
-      { success: false, error: 'Authentication is not configured' },
-      { status: 503 },
-    );
+    return createUnauthorizedAuthResponse(503, 'Authentication is not configured');
   }
 
-  const sessionServices = getServerSessionServices();
-  const access = await sessionServices.evaluateSiteAccess.execute({
-    now: new Date(),
-    sessionId: getSiteSessionId(request),
-    surface: 'protected-api',
-  });
+  const access = await requireProtectedSessionAccess(request, surface);
 
   if (!access.decision.allowed) {
-    return Response.json(
-      { success: false, error: 'Authentication required' },
-      { status: 401 },
-    );
+    return createUnauthorizedAuthResponse(401, 'Authentication required');
   }
 
   return null;
 }
 
+export async function requireProtectedApiSession(request: Request) {
+  return requireProtectedHttpSession(request, 'protected-api');
+}
+
 export async function requireProtectedMediaSession(request: Request) {
-  if (!getAuthRuntimeState().isConfigured) {
-    return Response.json(
-      { success: false, error: 'Authentication is not configured' },
-      { status: 503 },
-    );
-  }
-
-  const sessionServices = getServerSessionServices();
-  const access = await sessionServices.evaluateSiteAccess.execute({
-    now: new Date(),
-    sessionId: getSiteSessionId(request),
-    surface: 'media-resource',
-  });
-
-  if (!access.decision.allowed) {
-    return Response.json(
-      { success: false, error: 'Authentication required' },
-      { status: 401 },
-    );
-  }
-
-  return null;
+  return requireProtectedHttpSession(request, 'media-resource');
 }

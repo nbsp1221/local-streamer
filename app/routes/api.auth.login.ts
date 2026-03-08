@@ -24,7 +24,7 @@ async function extractPassword(request: Request): Promise<string | null> {
   return typeof password === 'string' ? password.trim() : null;
 }
 
-function createLoginResponseHeaders(request: Request, additionalCookies: string[] = []): Headers | undefined {
+function createLoginResponseHeaders(request: Request, additionalCookies: string[] = []): Headers {
   const headers = new Headers();
   const authClientCookie = getAuthClientCookieHeaderForRequest(request);
 
@@ -36,7 +36,7 @@ function createLoginResponseHeaders(request: Request, additionalCookies: string[
     headers.append('Set-Cookie', cookie);
   }
 
-  return headers.keys().next().done ? undefined : headers;
+  return headers;
 }
 
 export async function action({ request }: ActionFunctionArgs): Promise<Response> {
@@ -85,13 +85,6 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response>
           {
             headers: (() => {
               const headers = createLoginResponseHeaders(request);
-
-              if (!headers) {
-                return {
-                  'Retry-After': String(result.retryAfterSeconds),
-                };
-              }
-
               headers.set('Retry-After', String(result.retryAfterSeconds));
               return headers;
             })(),
@@ -112,7 +105,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response>
     return Response.json(
       {
         success: true,
-        user: await authServices.toLegacyCompatibleUser(),
+        user: await authServices.resolveLegacyBridgeUser(),
       },
       {
         headers: createLoginResponseHeaders(request, [

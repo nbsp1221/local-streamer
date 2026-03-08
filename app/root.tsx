@@ -9,7 +9,7 @@ import {
 } from 'react-router';
 
 import { getOptionalLegacyCompatibleUser } from '~/composition/server/auth';
-import { AuthInitializer } from '~/legacy/components/AuthInitializer';
+import { LegacyAuthStoreBridge } from '~/legacy/components/LegacyAuthStoreBridge';
 import type { Route } from './+types/root';
 import './app.css';
 
@@ -56,7 +56,7 @@ export default function App() {
 
   return (
     <>
-      <AuthInitializer initialUser={user} />
+      <LegacyAuthStoreBridge initialUser={user} />
       <Outlet />
     </>
   );
