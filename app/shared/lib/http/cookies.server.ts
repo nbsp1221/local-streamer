@@ -19,7 +19,12 @@ export function getCookieValue(request: Request, cookieName: string): string | n
     const [rawName, ...rawValue] = pair.trim().split('=');
 
     if (rawName === cookieName) {
-      return decodeURIComponent(rawValue.join('='));
+      try {
+        return decodeURIComponent(rawValue.join('='));
+      }
+      catch {
+        return null;
+      }
     }
   }
 

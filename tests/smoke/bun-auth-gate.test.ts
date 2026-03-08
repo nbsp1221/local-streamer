@@ -1,16 +1,42 @@
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { toRequestCookieHeader } from '../helpers/cookies';
 
 const repoRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), 'local-streamer-bun-smoke-'));
 const authDbPath = join(tempDir, 'auth.sqlite');
+const storageDir = join(tempDir, 'storage');
 const port = 3200 + Math.floor(Math.random() * 200);
 const baseUrl = `http://127.0.0.1:${port}`;
-const syntheticVideoId = 'smoke-video-id';
+const syntheticVideoId = '00000000-0000-4000-8000-000000000001';
 
 let server: Bun.Subprocess | null = null;
+
+function seedSmokeStorage(rootDir: string) {
+  mkdirSync(join(rootDir, 'data'), { recursive: true });
+  mkdirSync(join(rootDir, 'uploads', 'thumbnails'), { recursive: true });
+
+  writeFileSync(join(rootDir, 'data', 'pending.json'), '[]');
+  writeFileSync(join(rootDir, 'data', 'playlist-items.json'), '[]');
+  writeFileSync(join(rootDir, 'data', 'playlists.json'), '[]');
+  writeFileSync(join(rootDir, 'data', 'sessions.json'), '[]');
+  writeFileSync(join(rootDir, 'data', 'videos.json'), '[]');
+  writeFileSync(
+    join(rootDir, 'data', 'users.json'),
+    JSON.stringify([
+      {
+        id: 'legacy-admin-1',
+        email: 'admin@example.com',
+        passwordHash: 'not-used-by-phase-1',
+        role: 'admin',
+        createdAt: '2025-10-05T17:17:46.248Z',
+        updatedAt: '2025-10-05T17:17:46.248Z',
+      },
+    ]),
+  );
+}
 
 async function waitForServerReady(url: string) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
@@ -48,10 +74,12 @@ async function loginAndGetCookie() {
   expect(response.status).toBe(200);
   expect(setCookie).toContain('site_session=');
 
-  return setCookie ?? '';
+  return toRequestCookieHeader(setCookie);
 }
 
 beforeAll(async () => {
+  seedSmokeStorage(storageDir);
+
   server = Bun.spawn(['bun', './build/server/index.js'], {
     cwd: repoRoot,
     env: {
@@ -59,6 +87,7 @@ beforeAll(async () => {
       AUTH_SHARED_PASSWORD: 'vault-password',
       AUTH_SQLITE_PATH: authDbPath,
       PORT: String(port),
+      STORAGE_DIR: storageDir,
     },
     stderr: 'pipe',
     stdout: 'pipe',
@@ -96,10 +125,10 @@ describe('Bun auth gate smoke', () => {
     });
 
     expect(response.status).toBe(401);
-    expect(response.headers.get('set-cookie')).toBeNull();
+    expect(response.headers.get('set-cookie')).not.toContain('site_session=');
   });
 
-  test('authenticated token and protected auth routes respond under Bun', async () => {
+  test('authenticated token and protected thumbnail routes respond deterministically under Bun', async () => {
     const cookie = await loginAndGetCookie();
     const headers = new Headers([
       ['Cookie', cookie],
@@ -113,6 +142,7 @@ describe('Bun auth gate smoke', () => {
 
     expect(authMeResponse.status).toBe(200);
     expect(tokenResponse.status).toBe(200);
-    expect(thumbnailResponse.status).not.toBe(401);
+    expect(thumbnailResponse.status).toBe(404);
+    await expect(thumbnailResponse.text()).resolves.toBe('Encrypted thumbnail not found');
   });
 });

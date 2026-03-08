@@ -7,7 +7,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/sha
 import { Input } from '~/shared/ui/input';
 import { Label } from '~/shared/ui/label';
 
-export function LoginPage() {
+interface LoginPageProps {
+  authConfigured?: boolean;
+  configurationError?: string | null;
+}
+
+export function LoginPage({
+  authConfigured = true,
+  configurationError = null,
+}: LoginPageProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +83,7 @@ export function LoginPage() {
               <Input
                 id="shared-password"
                 autoComplete="current-password"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !authConfigured}
                 onChange={event => setPassword(event.target.value)}
                 placeholder="Enter password"
                 required
@@ -84,6 +92,15 @@ export function LoginPage() {
               />
             </div>
 
+            {!authConfigured && (
+              <Alert aria-live="polite" variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {configurationError || 'Shared-password auth is not configured. Set AUTH_SHARED_PASSWORD and restart the server.'}
+                </AlertDescription>
+              </Alert>
+            )}
+
             {error && (
               <Alert aria-live="polite" variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -91,7 +108,7 @@ export function LoginPage() {
               </Alert>
             )}
 
-            <Button className="w-full" disabled={isSubmitting} type="submit">
+            <Button className="w-full" disabled={isSubmitting || !authConfigured} type="submit">
               {isSubmitting ? 'Unlocking...' : 'Unlock'}
             </Button>
           </form>

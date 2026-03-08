@@ -1,15 +1,41 @@
-import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { toRequestCookieHeader } from '../helpers/cookies';
 
 const repoRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), 'local-streamer-dev-smoke-'));
 const authDbPath = join(tempDir, 'auth.sqlite');
+const storageDir = join(tempDir, 'storage');
 const port = 3400 + Math.floor(Math.random() * 200);
 const baseUrl = `http://127.0.0.1:${port}`;
 
 let server: Bun.Subprocess | null = null;
+
+function seedSmokeStorage(rootDir: string) {
+  mkdirSync(join(rootDir, 'data'), { recursive: true });
+  mkdirSync(join(rootDir, 'uploads', 'thumbnails'), { recursive: true });
+
+  writeFileSync(join(rootDir, 'data', 'pending.json'), '[]');
+  writeFileSync(join(rootDir, 'data', 'playlist-items.json'), '[]');
+  writeFileSync(join(rootDir, 'data', 'playlists.json'), '[]');
+  writeFileSync(join(rootDir, 'data', 'sessions.json'), '[]');
+  writeFileSync(join(rootDir, 'data', 'videos.json'), '[]');
+  writeFileSync(
+    join(rootDir, 'data', 'users.json'),
+    JSON.stringify([
+      {
+        id: 'legacy-admin-1',
+        email: 'admin@example.com',
+        passwordHash: 'not-used-by-phase-1',
+        role: 'admin',
+        createdAt: '2025-10-05T17:17:46.248Z',
+        updatedAt: '2025-10-05T17:17:46.248Z',
+      },
+    ]),
+  );
+}
 
 async function waitForServerReady(url: string) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -47,16 +73,19 @@ async function loginAndGetCookie() {
   expect(response.status).toBe(200);
   expect(setCookie).toContain('site_session=');
 
-  return setCookie ?? '';
+  return toRequestCookieHeader(setCookie);
 }
 
 beforeAll(async () => {
+  seedSmokeStorage(storageDir);
+
   server = Bun.spawn(['bun', 'run', 'dev', '--', '--host', '127.0.0.1', '--port', String(port)], {
     cwd: repoRoot,
     env: {
       ...process.env,
       AUTH_SHARED_PASSWORD: 'vault-password',
       AUTH_SQLITE_PATH: authDbPath,
+      STORAGE_DIR: storageDir,
     },
     stderr: 'pipe',
     stdout: 'pipe',

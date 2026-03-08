@@ -2,7 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
 import { redirect } from 'react-router';
 import {
   createClearedSessionCookieHeader,
-  getServerAuthServices,
+  getServerSessionServices,
   getSiteSessionId,
 } from '~/composition/server/auth';
 import { getSafeRedirectTarget } from '~/shared/lib/http/redirects.server';
@@ -20,7 +20,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response>
   }
 
   try {
-    const authServices = getServerAuthServices();
+    const authServices = getServerSessionServices();
 
     await authServices.destroyAuthSession.execute({
       sessionId: getSiteSessionId(request),
@@ -45,7 +45,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response>
 // Also supports GET requests (direct logout via URL)
 export async function loader({ request }: LoaderFunctionArgs): Promise<Response> {
   try {
-    const authServices = getServerAuthServices();
+    const authServices = getServerSessionServices();
     await authServices.destroyAuthSession.execute({
       sessionId: getSiteSessionId(request),
     });

@@ -1,14 +1,18 @@
+import type { ComponentProps } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { LoginPage } from '~/pages/login/ui/LoginPage';
 
-function renderLoginPage(initialEntry: string = '/login') {
+function renderLoginPage(
+  initialEntry: string = '/login',
+  loginPageProps?: ComponentProps<typeof LoginPage>,
+) {
   const router = createMemoryRouter([
     {
       path: '/login',
-      Component: LoginPage,
+      element: <LoginPage {...loginPageProps} />,
     },
     {
       path: '/',
@@ -89,5 +93,18 @@ describe('LoginPage', () => {
     });
 
     expect(screen.getByText('Vault destination')).toBeInTheDocument();
+  });
+
+  test('shows a configuration error and disables login controls when auth is misconfigured', () => {
+    renderLoginPage('/login', {
+      authConfigured: false,
+      configurationError: 'AUTH_SHARED_PASSWORD environment variable is required',
+    });
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'AUTH_SHARED_PASSWORD environment variable is required',
+    );
+    expect(screen.getByLabelText('Shared password')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Unlock' })).toBeDisabled();
   });
 });
