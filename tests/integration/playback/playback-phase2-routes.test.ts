@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
+const requireProtectedMediaSessionMock = vi.fn();
+const requireProtectedPageSessionMock = vi.fn();
 const fakePlaybackServices = {
   issuePlaybackToken: {
     execute: vi.fn(),
@@ -17,6 +19,15 @@ const fakePlaybackServices = {
     execute: vi.fn(),
   },
 };
+
+vi.mock('~/composition/server/auth', () => ({
+  requireProtectedMediaSession: requireProtectedMediaSessionMock,
+  requireProtectedPageSession: requireProtectedPageSessionMock,
+}));
+
+vi.mock('~/composition/server/playback', () => ({
+  getServerPlaybackServices: () => fakePlaybackServices,
+}));
 
 async function importVideoTokenRoute() {
   return import('../../../app/routes/videos.$videoId.token');
@@ -48,14 +59,8 @@ describe('Phase 2 playback route adapters', () => {
     fakePlaybackServices.servePlaybackClearKeyLicense.execute.mockReset();
     fakePlaybackServices.servePlaybackManifest.execute.mockReset();
     fakePlaybackServices.servePlaybackMediaSegment.execute.mockReset();
-
-    vi.doMock('../../../app/composition/server/auth', () => ({
-      requireProtectedMediaSession: async () => null,
-      requireProtectedPageSession: async () => ({ id: 'session-1' }),
-    }));
-    vi.doMock('../../../app/composition/server/playback', () => ({
-      getServerPlaybackServices: () => fakePlaybackServices,
-    }));
+    requireProtectedMediaSessionMock.mockResolvedValue(null);
+    requireProtectedPageSessionMock.mockResolvedValue({ id: 'session-1' });
   });
 
   test('token route delegates issuance to the playback composition root and preserves the current success contract', async () => {

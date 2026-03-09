@@ -1131,24 +1131,30 @@ describe('Phase 1 auth gate routes', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('Cache-Control')).toContain('private');
     expect(response.headers.get('Cache-Control')).not.toContain('public');
+    await response.arrayBuffer();
   });
 
   test('encrypted thumbnail delivery works with the site session without a legacy session cookie', async () => {
-    vi.doMock('../../../app/legacy/modules/thumbnail/decrypt-thumbnail/decrypt-thumbnail.usecase', () => ({
-      DecryptThumbnailUseCase: class {
-        async execute() {
-          return {
-            data: {
-              imageBuffer: new Uint8Array([1, 2, 3]),
-              mimeType: 'image/jpeg',
-              size: 3,
-            },
-            success: true,
-          };
-        }
-      },
-    }));
-    vi.resetModules();
+    const videoId = '00000000-0000-4000-8000-000000000123';
+    const videoDir = join(storageDir, 'data', 'videos', videoId);
+    const plaintextThumbnailPath = join(videoDir, 'thumbnail.jpg');
+    await mkdir(videoDir, { recursive: true });
+    await writeFile(plaintextThumbnailPath, new Uint8Array([1, 2, 3]));
+
+    const [{ Pbkdf2KeyManagerAdapter }, { ThumbnailEncryptionService }] = await Promise.all([
+      import('../../../app/legacy/modules/video/security/adapters/pbkdf2-key-manager.adapter'),
+      import('../../../app/legacy/modules/thumbnail/shared/thumbnail-encryption.service'),
+    ]);
+    const keyManager = new Pbkdf2KeyManagerAdapter();
+    await keyManager.generateAndStoreKey(videoId);
+    const thumbnailEncryptionService = new ThumbnailEncryptionService({
+      keyManager,
+      logger: console,
+    });
+    await thumbnailEncryptionService.encryptThumbnail({
+      thumbnailPath: plaintextThumbnailPath,
+      videoId,
+    });
 
     const { action } = await importLoginAction();
     const loginResponse = await action({
@@ -1168,8 +1174,8 @@ describe('Phase 1 auth gate routes', () => {
 
     const { loader } = await importEncryptedThumbnailRoute();
     const response = await loader({
-      params: { id: 'video-123' },
-      request: new Request('http://localhost/api/thumbnail/video-123', {
+      params: { id: videoId },
+      request: new Request(`http://localhost/api/thumbnail-encrypted/${videoId}`, {
         headers: {
           cookie: cookie ?? '',
         },

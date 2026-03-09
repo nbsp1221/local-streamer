@@ -18,6 +18,7 @@ export default defineConfig(({ command }) => ({
   test: {
     globals: true,
     exclude: ['node_modules', 'build', 'public'],
+    fileParallelism: false,
     projects: [
       {
         extends: true,

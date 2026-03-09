@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { toRequestCookieHeader } from '../helpers/cookies';
+import { createSmokeServerEnv } from './support/create-smoke-server-env';
 
 const repoRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), 'local-streamer-bun-smoke-'));
@@ -82,13 +83,12 @@ beforeAll(async () => {
 
   server = Bun.spawn(['bun', './build/server/index.js'], {
     cwd: repoRoot,
-    env: {
-      ...process.env,
+    env: createSmokeServerEnv({
       AUTH_SHARED_PASSWORD: 'vault-password',
       AUTH_SQLITE_PATH: authDbPath,
       PORT: String(port),
       STORAGE_DIR: storageDir,
-    },
+    }),
     stderr: 'pipe',
     stdout: 'pipe',
   });

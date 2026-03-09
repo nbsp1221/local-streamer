@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { config } from '~/legacy/configs';
 import { FFprobeRepository } from './ffprobe.repository';
 
 // Mock child_process
@@ -84,7 +85,7 @@ describe('FFprobeRepository', () => {
         frameRate: 0, // Default when not in mock data
       });
 
-      expect(mockSpawn).toHaveBeenCalledWith('/usr/bin/ffprobe', [
+      expect(mockSpawn).toHaveBeenCalledWith(config.ffmpeg.ffprobePath, [
         '-v',
         'quiet',
         '-print_format',

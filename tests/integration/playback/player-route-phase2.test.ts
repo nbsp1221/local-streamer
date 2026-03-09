@@ -1,10 +1,19 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
+const requireProtectedPageSessionMock = vi.fn();
 const fakePlaybackServices = {
   resolvePlayerVideo: {
     execute: vi.fn(),
   },
 };
+
+vi.mock('~/composition/server/auth', () => ({
+  requireProtectedPageSession: requireProtectedPageSessionMock,
+}));
+
+vi.mock('~/composition/server/playback', () => ({
+  getServerPlaybackServices: () => fakePlaybackServices,
+}));
 
 async function importPlayerRoute() {
   return import('../../../app/routes/player.$id');
@@ -15,13 +24,7 @@ describe('Phase 2 player route', () => {
     vi.resetModules();
     vi.clearAllMocks();
     fakePlaybackServices.resolvePlayerVideo.execute.mockReset();
-
-    vi.doMock('../../../app/composition/server/auth', () => ({
-      requireProtectedPageSession: async () => ({ id: 'session-1' }),
-    }));
-    vi.doMock('../../../app/composition/server/playback', () => ({
-      getServerPlaybackServices: () => fakePlaybackServices,
-    }));
+    requireProtectedPageSessionMock.mockResolvedValue({ id: 'session-1' });
   });
 
   test('loads player data through the playback composition root instead of the legacy repository', async () => {

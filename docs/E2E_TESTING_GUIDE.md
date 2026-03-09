@@ -21,6 +21,23 @@ This guide defines the current test layers for Local Streamer.
    ```
    The application will be available at `http://localhost:5173`
 
+## CI-Like Verification
+
+For auth, playback, route wiring, or other runtime-sensitive changes, prefer a Docker verification pass that matches GitHub Actions more closely than the host shell:
+
+```bash
+docker run --rm --user "$(id -u):$(id -g)" -e CI=true -e GITHUB_ACTIONS=true -v "$PWD":/workspace -w /workspace oven/bun:1.3.10 bash -lc 'bun install && bun run test'
+```
+
+Use `--user "$(id -u):$(id -g)"` so the container does not leave root-owned files behind in the bind-mounted repository. If you forget this, local `bun run dev`, `bun run typecheck`, or `bun run build` may fail until ownership is fixed for `.react-router/`, `build/`, or `node_modules/.vite/`.
+
+When debugging CI-only failures:
+
+- reproduce the exact failing command inside Docker before changing production code
+- assume host-only passing results are insufficient for runtime-sensitive work
+- treat host-specific absolute paths and leaked local env vars as test bugs
+- prefer tests that seed their own temp storage and configuration explicitly
+
 ## Test Layers
 
 ### 1. Module Tests

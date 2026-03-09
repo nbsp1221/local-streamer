@@ -1,41 +1,41 @@
 import type { ComponentProps } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { LoginPage } from '~/pages/login/ui/LoginPage';
+
+const navigateMock = vi.fn();
+let currentSearchParams = new URLSearchParams();
+
+vi.mock('react-router', async () => {
+  const actual = await vi.importActual<typeof import('react-router')>('react-router');
+
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+    useSearchParams: () => [currentSearchParams, vi.fn()],
+  };
+});
 
 function renderLoginPage(
   initialEntry: string = '/login',
   loginPageProps?: ComponentProps<typeof LoginPage>,
 ) {
-  const router = createMemoryRouter([
-    {
-      path: '/login',
-      element: <LoginPage {...loginPageProps} />,
-    },
-    {
-      path: '/',
-      element: <div>Library home</div>,
-    },
-    {
-      path: '/vault',
-      element: <div>Vault destination</div>,
-    },
-  ], {
-    initialEntries: [initialEntry],
-  });
+  const url = new URL(initialEntry, 'http://localhost');
+  currentSearchParams = new URLSearchParams(url.search);
 
   return {
-    router,
     user: userEvent.setup(),
-    ...render(<RouterProvider router={router} />),
+    ...render(<LoginPage {...loginPageProps} />),
   };
 }
 
 describe('LoginPage', () => {
   afterEach(() => {
+    currentSearchParams = new URLSearchParams();
+    navigateMock.mockReset();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   test('renders an accessible heading and labeled password field', () => {
@@ -60,13 +60,13 @@ describe('LoginPage', () => {
       )) as unknown as typeof fetch,
     );
 
-    const { router, user } = renderLoginPage();
+    const { user } = renderLoginPage();
 
     await user.type(screen.getByLabelText('Shared password'), 'wrong-password');
     await user.click(screen.getByRole('button', { name: 'Unlock' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid password');
-    expect(router.state.location.pathname).toBe('/login');
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 
   test('navigates to redirect target after successful login', async () => {
@@ -83,16 +83,14 @@ describe('LoginPage', () => {
       )) as unknown as typeof fetch,
     );
 
-    const { router, user } = renderLoginPage('/login?redirectTo=%2Fvault');
+    const { user } = renderLoginPage('/login?redirectTo=%2Fvault');
 
     await user.type(screen.getByLabelText('Shared password'), 'correct-password');
     await user.click(screen.getByRole('button', { name: 'Unlock' }));
 
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe('/vault');
+      expect(navigateMock).toHaveBeenCalledWith('/vault', { replace: true });
     });
-
-    expect(screen.getByText('Vault destination')).toBeInTheDocument();
   });
 
   test('shows a configuration error and disables login controls when auth is misconfigured', () => {
