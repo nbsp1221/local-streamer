@@ -1,4 +1,3 @@
-import { getManifestUseCase } from '~/legacy/modules/video/manifest/get-manifest.usecase';
 import type { PlaybackManifestService } from '../../application/ports/playback-manifest-service.port';
 
 interface LegacyManifestUseCaseResult {
@@ -18,7 +17,11 @@ export class LegacyPlaybackManifestServiceAdapter implements PlaybackManifestSer
   private readonly execute: (input: { videoId: string }) => Promise<LegacyManifestUseCaseResult>;
 
   constructor(deps: LegacyPlaybackManifestServiceAdapterDependencies = {}) {
-    this.execute = deps.execute ?? (input => getManifestUseCase.execute(input));
+    this.execute = deps.execute ?? (async (input) => {
+      const { getManifestUseCase } = await import('~/legacy/modules/video/manifest/get-manifest.usecase');
+
+      return getManifestUseCase.execute(input);
+    });
   }
 
   async getManifest(input: { videoId: string }) {

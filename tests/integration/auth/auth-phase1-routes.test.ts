@@ -217,6 +217,8 @@ describe('Phase 1 auth gate routes', () => {
     process.env.AUTH_SHARED_PASSWORD = 'vault-password';
     process.env.AUTH_SQLITE_PATH = authDbPath;
     process.env.STORAGE_DIR = storageDir;
+    delete process.env.VIDEO_JWT_SECRET;
+    delete process.env.VIDEO_MASTER_ENCRYPTION_SEED;
     sqliteDatabaseByPath = new Map<string, InMemorySqliteDatabase>();
     vi.resetModules();
     vi.doMock('../../../app/modules/auth/infrastructure/sqlite/bun-sqlite.database', () => ({
@@ -239,6 +241,8 @@ describe('Phase 1 auth gate routes', () => {
     delete process.env.AUTH_SQLITE_PATH;
     delete process.env.AUTH_TRUST_PROXY_HEADERS;
     delete process.env.STORAGE_DIR;
+    delete process.env.VIDEO_JWT_SECRET;
+    delete process.env.VIDEO_MASTER_ENCRYPTION_SEED;
     vi.resetModules();
     await rm(tempDir, { force: true, recursive: true });
   });
@@ -1005,6 +1009,29 @@ describe('Phase 1 auth gate routes', () => {
     const response = await loader({
       params: { videoId: 'video-1' },
       request,
+    } as never);
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      error: 'Authentication required',
+      success: false,
+    });
+  });
+
+  test('manifest route import does not require playback secrets before the auth gate runs', async () => {
+    delete process.env.VIDEO_JWT_SECRET;
+    delete process.env.VIDEO_MASTER_ENCRYPTION_SEED;
+
+    await expect(importManifestRoute()).resolves.toEqual(
+      expect.objectContaining({
+        loader: expect.any(Function),
+      }),
+    );
+
+    const { loader } = await importManifestRoute();
+    const response = await loader({
+      params: { videoId: 'video-1' },
+      request: new Request('http://localhost/videos/video-1/manifest.mpd'),
     } as never);
 
     expect(response.status).toBe(401);
