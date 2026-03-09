@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs } from 'react-router';
 import { useLoaderData } from 'react-router';
-import { requireProtectedPageSession } from '~/composition/server/auth';
 import type { PendingVideo, Video } from '~/legacy/types/video';
+import { requireProtectedPageSession } from '~/composition/server/auth';
 import { HomePage } from '~/legacy/pages/home/ui/HomePage';
 import { getPendingVideoRepository, getVideoRepository } from '~/legacy/repositories';
 

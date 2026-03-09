@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs } from 'react-router';
-import { requireProtectedApiSession } from '~/composition/server/auth';
 import type { DeleteVideoRequest } from '~/legacy/modules/video/delete-video/delete-video.types';
+import { requireProtectedApiSession } from '~/composition/server/auth';
 import { DeleteVideoUseCase } from '~/legacy/modules/video/delete-video/delete-video.usecase';
 import { workspaceManagerService } from '~/legacy/modules/video/storage/services/WorkspaceManagerService';
 import { getVideoRepository } from '~/legacy/repositories';

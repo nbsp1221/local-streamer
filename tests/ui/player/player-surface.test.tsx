@@ -1,0 +1,237 @@
+import type { ReactNode } from 'react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
+import { describe, expect, test, vi } from 'vitest';
+import type { PlaybackCatalogVideo } from '../../../app/modules/playback/application/ports/video-catalog.port';
+import { PlayerSurface } from '../../../app/widgets/player-surface/ui/PlayerSurface';
+
+vi.mock('@vidstack/react', () => ({
+  MediaPlayer: ({ children, title, src }: { children: ReactNode; title: string; src: string }) => (
+    <div data-player-src={src} data-testid="media-player">
+      {title}
+      {children}
+    </div>
+  ),
+  MediaProvider: () => <div data-testid="media-provider" />,
+  isDASHProvider: () => false,
+}));
+
+vi.mock('@vidstack/react/player/layouts/default', () => ({
+  defaultLayoutIcons: {},
+  DefaultVideoLayout: () => <div data-testid="default-video-layout" />,
+}));
+
+function createVideo(overrides: Partial<PlaybackCatalogVideo> = {}): PlaybackCatalogVideo {
+  return {
+    createdAt: new Date('2026-03-09T00:00:00.000Z'),
+    description: 'A playback regression fixture.',
+    duration: 90,
+    id: 'video-1',
+    tags: ['vault', 'alpha'],
+    thumbnailUrl: '/api/thumbnail/video-1',
+    title: 'Primary fixture video',
+    videoUrl: 'https://cdn.example.com/video-1.mpd',
+    ...overrides,
+  };
+}
+
+function renderPlayerSurface(props?: {
+  relatedVideos?: PlaybackCatalogVideo[];
+  video?: PlaybackCatalogVideo;
+}) {
+  const user = userEvent.setup();
+
+  render(
+    <MemoryRouter>
+      <PlayerSurface
+        relatedVideos={props?.relatedVideos ?? []}
+        video={props?.video ?? createVideo()}
+      />
+    </MemoryRouter>,
+  );
+
+  return { user };
+}
+
+describe('PlayerSurface', () => {
+  test('keeps the watch page content-first without decorative product labels', () => {
+    renderPlayerSurface({
+      relatedVideos: [
+        createVideo({
+          id: 'related-visual',
+          tags: ['beta'],
+          thumbnailUrl: '/api/thumbnail/related-visual',
+          title: 'Related visual fixture',
+          videoUrl: 'https://cdn.example.com/related-visual.mpd',
+        }),
+      ],
+      video: createVideo({ title: 'Watch page fixture' }),
+    });
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Watch page fixture' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: /related videos/i })).toBeInTheDocument();
+    expect(screen.queryByText(/protected playback/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/vault player/i)).not.toBeInTheDocument();
+  });
+
+  test('formats fractional durations without leaking decimals', () => {
+    renderPlayerSurface({
+      relatedVideos: [
+        createVideo({
+          duration: 10.216009,
+          id: 'related-1',
+          tags: ['beta'],
+          thumbnailUrl: '/api/thumbnail/related-1',
+          title: 'Related decimal video',
+          videoUrl: 'https://cdn.example.com/related-1.mpd',
+        }),
+      ],
+      video: createVideo({ duration: 58.916667 }),
+    });
+
+    expect(screen.getByText('0:58')).toBeInTheDocument();
+    expect(screen.getByText('0:10')).toBeInTheDocument();
+    expect(screen.queryByText('0:58.916667')).not.toBeInTheDocument();
+    expect(screen.queryByText('0:10.216009')).not.toBeInTheDocument();
+  });
+
+  test('formats invalid durations as 0:00', () => {
+    renderPlayerSurface({
+      relatedVideos: [
+        createVideo({
+          duration: -1,
+          id: 'related-invalid',
+          tags: ['beta'],
+          thumbnailUrl: '/api/thumbnail/related-invalid',
+          title: 'Invalid related duration',
+          videoUrl: 'https://cdn.example.com/related-invalid.mpd',
+        }),
+      ],
+      video: createVideo({ duration: Number.NaN }),
+    });
+
+    expect(screen.getAllByText('0:00')).toHaveLength(2);
+  });
+
+  test('shows a clear-filter affordance and explanatory empty state for tag filtering', async () => {
+    const { user } = renderPlayerSurface({
+      relatedVideos: [
+        createVideo({
+          id: 'related-beta',
+          tags: ['beta'],
+          thumbnailUrl: '/api/thumbnail/related-beta',
+          title: 'Beta only related video',
+          videoUrl: 'https://cdn.example.com/related-beta.mpd',
+        }),
+      ],
+      video: createVideo({ tags: ['alpha'] }),
+    });
+
+    await user.click(screen.getByRole('button', { name: '#alpha' }));
+
+    expect(screen.getAllByRole('button', { name: /clear filter/i }).length).toBeGreaterThan(0);
+    const emptyDescription = screen.getByText(/No related videos match #alpha/i);
+
+    expect(emptyDescription).toBeInTheDocument();
+    expect(emptyDescription.tagName.toLowerCase()).toBe('p');
+    expect(document.querySelector('[data-slot="empty"]')).not.toBeInTheDocument();
+  });
+
+  test('resets the active tag filter when the current video changes', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <MemoryRouter>
+        <PlayerSurface
+          relatedVideos={[
+            createVideo({
+              id: 'related-alpha',
+              tags: ['alpha'],
+              thumbnailUrl: '/api/thumbnail/related-alpha',
+              title: 'Alpha related video',
+              videoUrl: 'https://cdn.example.com/related-alpha.mpd',
+            }),
+          ]}
+          video={createVideo({ tags: ['alpha'] })}
+        />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getAllByRole('button', { name: '#alpha' })[0]);
+    expect(screen.getAllByRole('button', { name: /clear filter/i }).length).toBeGreaterThan(0);
+
+    rerender(
+      <MemoryRouter>
+        <PlayerSurface
+          relatedVideos={[
+            createVideo({
+              id: 'related-gamma',
+              tags: ['gamma'],
+              thumbnailUrl: '/api/thumbnail/related-gamma',
+              title: 'Gamma related video',
+              videoUrl: 'https://cdn.example.com/related-gamma.mpd',
+            }),
+            createVideo({
+              id: 'related-delta',
+              tags: ['delta'],
+              thumbnailUrl: '/api/thumbnail/related-delta',
+              title: 'Delta related video',
+              videoUrl: 'https://cdn.example.com/related-delta.mpd',
+            }),
+          ]}
+          video={createVideo({
+            id: 'video-2',
+            tags: ['gamma'],
+            title: 'Second fixture video',
+            videoUrl: 'https://cdn.example.com/video-2.mpd',
+          })}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole('button', { name: /clear filter/i })).not.toBeInTheDocument();
+    expect(screen.getByText('Gamma related video')).toBeInTheDocument();
+    expect(screen.getByText('Delta related video')).toBeInTheDocument();
+  });
+
+  test('renders related-video cards with thumbnails, duration badges, and tag chips', () => {
+    renderPlayerSurface({
+      relatedVideos: [
+        createVideo({
+          duration: 125.7,
+          id: 'related-rich',
+          tags: ['beta', 'gamma', 'delta'],
+          thumbnailUrl: '/api/thumbnail/related-rich',
+          title: 'Rich related card',
+          videoUrl: 'https://cdn.example.com/related-rich.mpd',
+        }),
+      ],
+    });
+
+    expect(screen.getByAltText('Rich related card')).toBeInTheDocument();
+    expect(screen.getByText('2:05')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '#beta' })).toBeInTheDocument();
+    expect(screen.getByText('+1')).toBeInTheDocument();
+  });
+
+  test('renders recommendation entries as thumbnail-first links with compact metadata', () => {
+    renderPlayerSurface({
+      relatedVideos: [
+        createVideo({
+          createdAt: new Date('2026-03-08T00:00:00.000Z'),
+          id: 'related-compact',
+          tags: ['beta', 'gamma'],
+          thumbnailUrl: '/api/thumbnail/related-compact',
+          title: 'Compact related row',
+          videoUrl: 'https://cdn.example.com/related-compact.mpd',
+        }),
+      ],
+    });
+
+    const relatedLink = screen.getByRole('link', { name: /compact related row/i });
+
+    expect(relatedLink).toContainElement(screen.getByAltText('Compact related row'));
+    expect(relatedLink).toContainElement(screen.getByText('Compact related row'));
+    expect(relatedLink).toContainElement(screen.getByText('3/8/2026'));
+  });
+});

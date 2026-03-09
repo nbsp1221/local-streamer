@@ -2,8 +2,8 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { AuthSessionRepository, TouchAuthSessionInput } from '../../application/ports/auth-session-repository.port';
 import type { AuthSession } from '../../domain/auth-session';
-import { createBunSqliteDatabase } from './bun-sqlite.database';
 import type { CreateSqliteDatabase, SqliteDatabaseAdapter } from './sqlite-database.adapter';
+import { createBunSqliteDatabase } from './bun-sqlite.database';
 
 interface SqliteSessionRepositoryOptions {
   createDatabase?: CreateSqliteDatabase;

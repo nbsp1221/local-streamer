@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from 'react-router';
-import { requireProtectedApiSession } from '~/composition/server/auth';
 import type { ScanIncomingDependencies } from '~/legacy/modules/video/scan-incoming/scan-incoming.types';
+import { requireProtectedApiSession } from '~/composition/server/auth';
 import { DomainError } from '~/legacy/lib/errors';
 import { FFmpegThumbnailAdapter } from '~/legacy/modules/thumbnail/infrastructure/adapters/ffmpeg-thumbnail.adapter';
 import { ScanIncomingUseCase } from '~/legacy/modules/video/scan-incoming/scan-incoming.usecase';

@@ -1,60 +1,11 @@
-import { createReadStream } from 'fs';
-import { stat } from 'fs/promises';
-import { join } from 'path';
 import { type LoaderFunctionArgs } from 'react-router';
 import { requireProtectedMediaSession } from '~/composition/server/auth';
-import type { MediaSegmentRequest } from '~/legacy/modules/video/media-segment/media-segment.types';
-import { config } from '~/legacy/configs';
-import { DomainError } from '~/legacy/lib/errors';
-import { MediaSegmentUseCase } from '~/legacy/modules/video/media-segment/media-segment.usecase';
-import { JwtValidatorAdapter } from '~/legacy/modules/video/security/validate-token/jwt-validator.adapter';
+import { getServerPlaybackServices } from '~/composition/server/playback';
 import {
-  getDashContentType,
-  getDashSegmentHeaders,
-  handleDashRangeRequest,
-  isValidDashSegmentName,
-} from '~/legacy/utils/dash-segments.server';
-
-/**
- * Create MediaSegmentUseCase with dependencies for audio segments
- */
-function createMediaSegmentUseCase() {
-  const jwtValidator = new JwtValidatorAdapter();
-
-  return new MediaSegmentUseCase({
-    jwtValidator: {
-      validateVideoRequest: jwtValidator.validateVideoRequest.bind(jwtValidator),
-    },
-    fileSystem: {
-      stat: async (path: string) => {
-        const stats = await stat(path);
-        return { size: stats.size, mtime: stats.mtime };
-      },
-      exists: async (path: string) => {
-        try {
-          await stat(path);
-          return true;
-        }
-        catch {
-          return false;
-        }
-      },
-      createReadStream: (path: string) => {
-        return createReadStream(path) as unknown as ReadableStream;
-      },
-    },
-    dashUtils: {
-      isValidDashSegmentName,
-      getDashContentType,
-      getDashSegmentHeaders,
-      handleDashRangeRequest,
-    },
-    pathResolver: {
-      getVideoSegmentPath: (videoId: string, mediaType: 'audio' | 'video', filename: string) => join(config.paths.videos, videoId, mediaType, filename),
-    },
-    logger: console,
-  });
-}
+  createPlaybackDeniedResponse,
+  createPlaybackUnexpectedRouteResponse,
+  extractPlaybackToken,
+} from './playback-route-utils';
 
 /**
  * Handle audio segments (init.mp4, segment-*.m4s) from audio/ folder
@@ -70,43 +21,28 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   try {
-    const mediaSegmentRequest: MediaSegmentRequest = {
-      videoId,
+    const playbackServices = getServerPlaybackServices();
+    const result = await playbackServices.servePlaybackMediaSegment.execute({
       filename,
       mediaType: 'audio',
-      request,
-    };
+      rangeHeader: request.headers.get('range'),
+      token: extractPlaybackToken(request),
+      videoId,
+    });
 
-    // Create UseCase and execute
-    const mediaSegmentUseCase = createMediaSegmentUseCase();
-    const result = await mediaSegmentUseCase.execute(mediaSegmentRequest);
-
-    if (result.success) {
-      // Handle range response differently
-      if (result.data.isRangeResponse) {
-        return new Response(result.data.stream, {
-          status: result.data.statusCode,
-          headers: result.data.headers,
-        });
-      }
-
-      // Return regular streaming response
-      return new Response(result.data.stream, {
-        headers: result.data.headers,
-      });
+    if (!result.ok) {
+      return createPlaybackDeniedResponse(result.reason);
     }
-    else {
-      // Handle UseCase errors
-      const statusCode = result.error instanceof DomainError ? result.error.statusCode : 500;
-      throw new Response(result.error.message, { status: statusCode });
-    }
+
+    return new Response(result.stream, {
+      headers: result.headers,
+      status: result.isRangeResponse ? result.statusCode ?? 206 : 200,
+    });
   }
   catch (error) {
-    if (error instanceof Response) {
-      throw error;
-    }
-
-    console.error(`Failed to serve audio segment ${videoId}/audio/${filename}:`, error);
-    throw new Response('Failed to load audio segment', { status: 500 });
+    return createPlaybackUnexpectedRouteResponse(error, {
+      fallbackMessage: 'Failed to load audio segment',
+      fallbackStatus: 500,
+    });
   }
 }

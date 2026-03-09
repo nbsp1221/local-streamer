@@ -1,4 +1,4 @@
-import { redirect, type LoaderFunctionArgs, type MetaFunction } from 'react-router';
+import { type LoaderFunctionArgs, type MetaFunction, redirect } from 'react-router';
 
 export async function loader(_args: LoaderFunctionArgs) {
   throw redirect('/login');

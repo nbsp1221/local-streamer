@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs } from 'react-router';
-import { requireProtectedApiSession } from '~/composition/server/auth';
 import type { AddVideoRequest } from '~/legacy/modules/video/add-video/add-video.types';
+import { requireProtectedApiSession } from '~/composition/server/auth';
 import { AddVideoUseCase } from '~/legacy/modules/video/add-video/add-video.usecase';
 import { FFprobeAnalysisService } from '~/legacy/modules/video/analysis/ffprobe-analysis.service';
 import { workspaceManagerService } from '~/legacy/modules/video/storage/services/WorkspaceManagerService';

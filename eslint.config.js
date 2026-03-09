@@ -14,7 +14,10 @@ export default defineConfig([
     ignores: [
       '.react-router',
       'build',
+      'playwright-report',
+      'test-results',
       'app/legacy/**/*',
+      'app/shared/ui/**/*',
       'app/components/ui/**/*',
     ],
   },

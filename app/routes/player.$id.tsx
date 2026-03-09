@@ -1,42 +1,30 @@
+import type { ReactNode } from 'react';
 import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
 import { AlertTriangle, ShieldAlert, VideoOff } from 'lucide-react';
 import { isRouteErrorResponse, useLoaderData, useRouteError } from 'react-router';
-
+import type { PlaybackCatalogVideo } from '~/modules/playback/application/ports/video-catalog.port';
 import { requireProtectedPageSession } from '~/composition/server/auth';
-import type { Video } from '~/legacy/types/video';
-import { RouteErrorView } from '~/legacy/components/RouteErrorView';
-import { VideoPlayerPage } from '~/legacy/pages/video-player/ui/VideoPlayerPage';
-import { getVideoRepository } from '~/legacy/repositories';
+import { getServerPlaybackServices } from '~/composition/server/playback';
+import { PlayerPage } from '~/pages/player/ui/PlayerPage';
+import { Button } from '~/shared/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/shared/ui/card';
 
-interface SerializedVideo extends Omit<Video, 'createdAt'> {
+interface SerializedVideo extends Omit<PlaybackCatalogVideo, 'createdAt'> {
   createdAt: string;
 }
 
-function serializeVideo(video: Video): SerializedVideo {
+function serializeVideo(video: PlaybackCatalogVideo): SerializedVideo {
   return {
     ...video,
     createdAt: video.createdAt.toISOString(),
   };
 }
 
-function deserializeVideo(serialized: SerializedVideo): Video {
+function deserializeVideo(serialized: SerializedVideo): PlaybackCatalogVideo {
   return {
     ...serialized,
     createdAt: new Date(serialized.createdAt),
   };
-}
-
-function findRelatedVideos(current: Video, allVideos: Video[]): Video[] {
-  if (current.tags.length === 0) {
-    return [];
-  }
-
-  const currentTags = new Set(current.tags.map(tag => tag.toLowerCase()));
-
-  return allVideos
-    .filter(candidate => candidate.id !== current.id)
-    .filter(candidate => candidate.tags.some(tag => currentTags.has(tag.toLowerCase())))
-    .slice(0, 10);
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
@@ -47,19 +35,18 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response('Video ID is required', { status: 400 });
   }
 
-  const videoRepository = getVideoRepository();
-  const videos = await videoRepository.findAll();
-  const currentVideo = videos.find(video => video.id === videoId);
+  const playbackServices = getServerPlaybackServices();
+  const result = await playbackServices.resolvePlayerVideo.execute({
+    videoId,
+  });
 
-  if (!currentVideo) {
+  if (!result.ok) {
     throw new Response('Video not found', { status: 404 });
   }
 
-  const relatedVideos = findRelatedVideos(currentVideo, videos);
-
   return {
-    video: serializeVideo(currentVideo),
-    relatedVideos: relatedVideos.map(serializeVideo),
+    relatedVideos: result.relatedVideos.map(serializeVideo),
+    video: serializeVideo(result.video),
   };
 }
 
@@ -77,15 +64,15 @@ export const meta: MetaFunction<typeof loader> = ({ data }) => {
   ];
 };
 
-export default function VideoPlayerRoute() {
+export default function PlayerRoute() {
   const data = useLoaderData<typeof loader>();
   const video = deserializeVideo(data.video);
   const relatedVideos = data.relatedVideos.map(deserializeVideo);
 
   return (
-    <VideoPlayerPage
-      video={video}
+    <PlayerPage
       relatedVideos={relatedVideos}
+      video={video}
     />
   );
 }
@@ -96,48 +83,62 @@ export function ErrorBoundary() {
   if (isRouteErrorResponse(error)) {
     if (error.status === 404) {
       return (
-        <RouteErrorView
+        <RouteStatusCard
+          description="The video might have been removed or the link could be incorrect."
           icon={<VideoOff className="h-6 w-6" aria-hidden />}
           title="We can’t find that video"
-          description={<p>The video might have been removed or the link could be incorrect. Try another option instead.</p>}
-          actions={[
-            { label: 'Go to library', to: '/' },
-            { label: 'Browse playlists', to: '/playlists', variant: 'outline' },
-          ]}
         />
       );
     }
 
     if (error.status === 400) {
       return (
-        <RouteErrorView
-          tone="warning"
+        <RouteStatusCard
+          description="The link is missing some information. Check the address and try again."
           icon={<ShieldAlert className="h-6 w-6" aria-hidden />}
           title="Invalid video request"
-          description={<p>The link is missing some information. Check the address and try again.</p>}
-          actions={[
-            { label: 'Go to library', to: '/' },
-            { label: 'Browse playlists', to: '/playlists', variant: 'outline' },
-          ]}
         />
       );
     }
   }
 
   return (
-    <RouteErrorView
-      tone="critical"
+    <RouteStatusCard
+      description={error instanceof Error ? error.message : 'Something unexpected happened while loading the video.'}
       icon={<AlertTriangle className="h-6 w-6" aria-hidden />}
       title="We couldn’t load the player"
-      description={
-        error instanceof Error
-          ? error.message
-          : 'Something unexpected happened while loading the video. Please try again shortly.'
-      }
-      actions={[
-        { label: 'Go to library', to: '/' },
-        { label: 'Browse playlists', to: '/playlists', variant: 'outline' },
-      ]}
     />
+  );
+}
+
+function RouteStatusCard({
+  description,
+  icon,
+  title,
+}: {
+  description: string;
+  icon: ReactNode;
+  title: string;
+}) {
+  return (
+    <main className="flex min-h-screen items-center justify-center px-4">
+      <Card className="w-full max-w-lg">
+        <CardHeader className="space-y-3 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            {icon}
+          </div>
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center gap-3">
+          <Button asChild variant="default">
+            <a href="/">Go to library</a>
+          </Button>
+          <Button asChild variant="outline">
+            <a href="/playlists">Browse playlists</a>
+          </Button>
+        </CardContent>
+      </Card>
+    </main>
   );
 }

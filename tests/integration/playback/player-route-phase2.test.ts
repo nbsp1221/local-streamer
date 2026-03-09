@@ -1,0 +1,77 @@
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
+const fakePlaybackServices = {
+  resolvePlayerVideo: {
+    execute: vi.fn(),
+  },
+};
+
+async function importPlayerRoute() {
+  return import('../../../app/routes/player.$id');
+}
+
+describe('Phase 2 player route', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    fakePlaybackServices.resolvePlayerVideo.execute.mockReset();
+
+    vi.doMock('../../../app/composition/server/auth', () => ({
+      requireProtectedPageSession: async () => ({ id: 'session-1' }),
+    }));
+    vi.doMock('../../../app/composition/server/playback', () => ({
+      getServerPlaybackServices: () => fakePlaybackServices,
+    }));
+  });
+
+  test('loads player data through the playback composition root instead of the legacy repository', async () => {
+    fakePlaybackServices.resolvePlayerVideo.execute.mockResolvedValue({
+      ok: true,
+      relatedVideos: [],
+      video: {
+        createdAt: new Date('2026-03-09T00:00:00.000Z'),
+        duration: 120,
+        id: 'video-1',
+        tags: ['vault'],
+        title: 'Phase 2 Player',
+        videoUrl: '/videos/video-1/manifest.mpd',
+      },
+    });
+    const { loader } = await importPlayerRoute();
+
+    const data = await loader({
+      params: { id: 'video-1' },
+      request: new Request('http://localhost/player/video-1'),
+    } as never);
+
+    expect(fakePlaybackServices.resolvePlayerVideo.execute).toHaveBeenCalledWith({
+      videoId: 'video-1',
+    });
+    expect(data).toEqual({
+      relatedVideos: [],
+      video: {
+        createdAt: '2026-03-09T00:00:00.000Z',
+        duration: 120,
+        id: 'video-1',
+        tags: ['vault'],
+        title: 'Phase 2 Player',
+        videoUrl: '/videos/video-1/manifest.mpd',
+      },
+    });
+  });
+
+  test('returns a 404 response when the playback composition cannot resolve the video', async () => {
+    fakePlaybackServices.resolvePlayerVideo.execute.mockResolvedValue({
+      ok: false,
+      reason: 'VIDEO_NOT_FOUND',
+    });
+    const { loader } = await importPlayerRoute();
+
+    await expect(loader({
+      params: { id: 'missing-video' },
+      request: new Request('http://localhost/player/missing-video'),
+    } as never)).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+});

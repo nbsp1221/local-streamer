@@ -1,67 +1,11 @@
-import jwt from 'jsonwebtoken';
 import { type LoaderFunctionArgs } from 'react-router';
 import { requireProtectedMediaSession } from '~/composition/server/auth';
-import { config } from '~/legacy/configs';
-import { getManifestUseCase } from '~/legacy/modules/video/manifest/get-manifest.usecase';
-import { ExtractVideoTokenUseCase } from '~/legacy/modules/video/security/validate-token/extract-video-token.usecase';
-import { IpExtractorAdapter } from '~/legacy/modules/video/security/validate-token/ip-extractor.adapter';
-import { ValidateVideoTokenUseCase } from '~/legacy/modules/video/security/validate-token/validate-token.usecase';
-import { ValidateVideoRequestUseCase } from '~/legacy/modules/video/security/validate-token/validate-video-request.usecase';
-
-/**
- * Create ValidateVideoRequestUseCase with dependencies
- */
-function createValidateVideoRequestUseCase() {
-  const ipExtractor = new IpExtractorAdapter();
-  const extractTokenUseCase = new ExtractVideoTokenUseCase();
-  const validateTokenUseCase = new ValidateVideoTokenUseCase({
-    jwt: {
-      verify: jwt.verify,
-      TokenExpiredError: jwt.TokenExpiredError,
-      JsonWebTokenError: jwt.JsonWebTokenError,
-    },
-    config: {
-      jwtSecret: config.security.video.auth.secret,
-      jwtIssuer: 'local-streamer',
-      jwtAudience: 'video-streaming',
-    },
-    logger: console,
-  });
-
-  return new ValidateVideoRequestUseCase({
-    tokenExtractor: {
-      extractVideoToken: (request: Request) => {
-        const result = extractTokenUseCase.execute({ request });
-        return result.success ? result.data.token : null;
-      },
-    },
-    tokenValidator: {
-      validateVideoToken: async (token: string, expectedVideoId?: string, ip?: string, userAgent?: string) => {
-        const result = await validateTokenUseCase.execute({
-          token,
-          expectedVideoId,
-          ipAddress: ip,
-          userAgent,
-        });
-
-        if (result.success) {
-          return {
-            valid: true,
-            payload: result.data.payload,
-          };
-        }
-
-        return {
-          valid: false,
-          error: result.error.message,
-        };
-      },
-    },
-    ipExtractor: {
-      getClientIP: ipExtractor.getClientIP.bind(ipExtractor),
-    },
-  });
-}
+import { getServerPlaybackServices } from '~/composition/server/playback';
+import {
+  createPlaybackDeniedResponse,
+  createPlaybackUnexpectedRouteResponse,
+  extractPlaybackToken,
+} from './playback-route-utils';
 
 /**
  * Handle DASH manifest (manifest.mpd)
@@ -76,55 +20,25 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     throw new Response('Video ID required', { status: 400 });
   }
 
-  // Validate JWT token using UseCase
-  const validateRequestUseCase = createValidateVideoRequestUseCase();
-  const validation = await validateRequestUseCase.execute({
-    request,
-    expectedVideoId: videoId,
-  });
-
-  if (!validation.success) {
-    console.warn(`DASH manifest access denied for ${videoId}: ${validation.error.message}`);
-    throw new Response(validation.error.message, { status: 401 });
-  }
-
   try {
-    // Use the new GetManifestUseCase
-    const result = await getManifestUseCase.execute({ videoId });
+    const playbackServices = getServerPlaybackServices();
+    const result = await playbackServices.servePlaybackManifest.execute({
+      token: extractPlaybackToken(request),
+      videoId,
+    });
 
-    if (!result.success) {
-      const error = result.error;
-      console.error(`GetManifest UseCase failed for ${videoId}:`, error);
-
-      // Map error types to HTTP status codes
-      if (error.name === 'NotFoundError') {
-        throw new Response(error.message, { status: 404 });
-      }
-      if (error.name === 'ValidationError') {
-        throw new Response(error.message, { status: 400 });
-      }
-      if (error.name === 'UnauthorizedError') {
-        throw new Response(error.message, { status: 401 });
-      }
-
-      // Default to 500 for internal errors
-      throw new Response('Failed to load DASH manifest', { status: 500 });
+    if (!result.ok) {
+      return createPlaybackDeniedResponse(result.reason);
     }
 
-    const { manifestContent, headers } = result.data;
-
-    console.log(`📽️ DASH manifest served: ${videoId}/manifest.mpd`);
-
-    return new Response(manifestContent, {
-      headers,
+    return new Response(result.body, {
+      headers: result.headers,
     });
   }
   catch (error) {
-    if (error instanceof Response) {
-      throw error;
-    }
-
-    console.error(`Failed to serve DASH manifest for ${videoId}:`, error);
-    throw new Response('Failed to load DASH manifest', { status: 500 });
+    return createPlaybackUnexpectedRouteResponse(error, {
+      fallbackMessage: 'Failed to load DASH manifest',
+      fallbackStatus: 500,
+    });
   }
 }

@@ -1,0 +1,123 @@
+import { afterEach, describe, expect, test, vi } from 'vitest';
+
+describe('server playback composition root', () => {
+  afterEach(() => {
+    vi.resetModules();
+    delete process.env.VIDEO_JWT_SECRET;
+  });
+
+  test('creates prewired playback use cases from injected playback adapters', async () => {
+    const { createServerPlaybackServices } = await import('./playback');
+    const issue = vi.fn(async () => 'signed-token');
+    const validate = vi.fn(async (token: string) => (token === 'signed-token'
+      ? { videoId: 'video-1' }
+      : null));
+    const services = createServerPlaybackServices({
+      clearKeyService: {
+        serveLicense: async () => ({
+          body: '{"keys":[]}',
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      },
+      manifestService: {
+        getManifest: async () => ({
+          body: '<MPD />',
+          headers: { 'Content-Type': 'application/dash+xml' },
+        }),
+      },
+      mediaSegmentService: {
+        serveSegment: async () => ({
+          headers: { 'Content-Length': '64' },
+          isRangeResponse: false,
+          stream: new ReadableStream<Uint8Array>(),
+        }),
+      },
+      tokenService: {
+        issue,
+        validate,
+      },
+      videoCatalog: {
+        getPlayerVideo: async () => ({
+          relatedVideos: [],
+          video: {
+            createdAt: new Date('2026-03-09T00:00:00.000Z'),
+            duration: 60,
+            id: 'video-1',
+            tags: ['vault'],
+            title: 'Player video',
+            videoUrl: '/videos/video-1/manifest.mpd',
+          },
+        }),
+      },
+    });
+
+    await expect(services.issuePlaybackToken.execute({
+      hasSiteSession: true,
+      videoId: 'video-1',
+    })).resolves.toEqual({
+      success: true,
+      token: 'signed-token',
+      urls: {
+        clearkey: '/videos/video-1/clearkey?token=signed-token',
+        manifest: '/videos/video-1/manifest.mpd?token=signed-token',
+      },
+    });
+    await expect(services.resolvePlayerVideo.execute({
+      videoId: 'video-1',
+    })).resolves.toEqual({
+      ok: true,
+      relatedVideos: [],
+      video: expect.objectContaining({
+        id: 'video-1',
+        title: 'Player video',
+      }),
+    });
+    await expect(services.servePlaybackManifest.execute({
+      token: 'signed-token',
+      videoId: 'video-1',
+    })).resolves.toEqual({
+      body: '<MPD />',
+      headers: { 'Content-Type': 'application/dash+xml' },
+      ok: true,
+    });
+    await expect(services.servePlaybackMediaSegment.execute({
+      filename: 'init.mp4',
+      mediaType: 'video',
+      rangeHeader: null,
+      token: 'signed-token',
+      videoId: 'video-1',
+    })).resolves.toEqual({
+      headers: { 'Content-Length': '64' },
+      isRangeResponse: false,
+      ok: true,
+      statusCode: undefined,
+      stream: expect.any(ReadableStream),
+    });
+    await expect(services.servePlaybackClearKeyLicense.execute({
+      token: 'signed-token',
+      videoId: 'video-1',
+    })).resolves.toEqual({
+      body: '{"keys":[]}',
+      headers: { 'Content-Type': 'application/json' },
+      ok: true,
+    });
+
+    expect(issue).toHaveBeenCalledOnce();
+    expect(validate).toHaveBeenCalledTimes(3);
+  });
+
+  test('returns a cached default playback composition that stays ready for route usage', async () => {
+    process.env.VIDEO_JWT_SECRET = 'phase-2-secret';
+    const { getServerPlaybackServices } = await import('./playback');
+
+    const first = getServerPlaybackServices();
+    const second = getServerPlaybackServices();
+
+    expect(first).toBe(second);
+    expect(first.issuePlaybackToken).toBeDefined();
+    expect(first.resolvePlayerVideo).toBeDefined();
+    expect(first.servePlaybackManifest).toBeDefined();
+    expect(first.servePlaybackMediaSegment).toBeDefined();
+    expect(first.servePlaybackClearKeyLicense).toBeDefined();
+  });
+});

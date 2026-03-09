@@ -1,6 +1,6 @@
 import type { AuthSession } from '../../domain/auth-session';
-import { SessionPolicy } from '../../domain/policies/SessionPolicy';
 import type { AuthSessionRepository } from '../ports/auth-session-repository.port';
+import { SessionPolicy } from '../../domain/policies/SessionPolicy';
 
 interface ResolveAuthSessionUseCaseDependencies {
   sessionRepository: Pick<AuthSessionRepository, 'findById' | 'touch'>;

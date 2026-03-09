@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs } from 'react-router';
-import { requireProtectedApiSession } from '~/composition/server/auth';
 import type { UpdateVideoRequest } from '~/legacy/modules/video/update-video/update-video.types';
+import { requireProtectedApiSession } from '~/composition/server/auth';
 import { UpdateVideoUseCase } from '~/legacy/modules/video/update-video/update-video.usecase';
 import { getVideoRepository } from '~/legacy/repositories';
 import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';

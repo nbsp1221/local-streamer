@@ -1,6 +1,6 @@
 import { mkdtemp, rm } from 'node:fs/promises';
-import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { SessionPolicy } from '../../domain/policies/SessionPolicy';
 import { SqliteSessionRepository } from './sqlite-session.repository';

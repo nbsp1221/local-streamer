@@ -1,6 +1,6 @@
+import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { spawnSync } from 'node:child_process';
 
 function runCommand(args: string[]) {
   const result = spawnSync('bun', args, {

@@ -1,28 +1,7 @@
-import jwt from 'jsonwebtoken';
 import { type LoaderFunctionArgs } from 'react-router';
 import { requireProtectedMediaSession } from '~/composition/server/auth';
-import { config } from '~/legacy/configs';
-import { DomainError } from '~/legacy/lib/errors';
-import { GenerateVideoTokenUseCase } from '~/legacy/modules/video/security/generate-token/generate-token.usecase';
-import { IpExtractorAdapter } from '~/legacy/modules/video/security/validate-token/ip-extractor.adapter';
-
-/**
- * Create GenerateVideoTokenUseCase with dependencies
- */
-function createGenerateVideoTokenUseCase() {
-  return new GenerateVideoTokenUseCase({
-    jwt: {
-      sign: jwt.sign,
-    },
-    config: {
-      jwtSecret: config.security.video.auth.secret,
-      jwtIssuer: 'local-streamer',
-      jwtAudience: 'video-streaming',
-      jwtExpiry: '15m',
-    },
-    logger: console,
-  });
-}
+import { getServerPlaybackServices } from '~/composition/server/playback';
+import { getPlaybackRequestIp } from './playback-route-utils';
 
 /**
  * Generate JWT token for video streaming access
@@ -37,45 +16,20 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     return Response.json({ success: false, error: 'Video ID is required' }, { status: 400 });
   }
 
-  try {
-    // Extract user info from request (IP, User-Agent)
-    const ipExtractor = new IpExtractorAdapter();
-    const ip = ipExtractor.getClientIP(request) || 'unknown';
-    const userAgent = request.headers.get('user-agent') || 'unknown';
+  const playbackServices = getServerPlaybackServices();
+  const result = await playbackServices.issuePlaybackToken.execute({
+    hasSiteSession: true,
+    ipAddress: getPlaybackRequestIp(request),
+    userAgent: request.headers.get('user-agent') || 'unknown',
+    videoId,
+  });
 
-    // Create UseCase and execute
-    const generateTokenUseCase = createGenerateVideoTokenUseCase();
-    const result = await generateTokenUseCase.execute({
-      videoId,
-      userId: 'system', // Using 'system' as user ID for now
-      ipAddress: ip,
-      userAgent,
-    });
-
-    if (result.success) {
-      return Response.json({
-        success: true,
-        token: result.data.token,
-        urls: {
-          manifest: `/videos/${videoId}/manifest.mpd?token=${result.data.token}`,
-          clearkey: `/videos/${videoId}/clearkey?token=${result.data.token}`,
-        },
-      });
-    }
-    else {
-      // Handle UseCase errors
-      const statusCode = result.error instanceof DomainError ? result.error.statusCode : 500;
-      return Response.json({
-        success: false,
-        error: result.error.message,
-      }, { status: statusCode });
-    }
-  }
-  catch (error) {
-    console.error(`Failed to generate video token for ${videoId}:`, error);
+  if (!result.success) {
     return Response.json({
+      error: 'Authentication required',
       success: false,
-      error: 'Failed to generate video token',
-    }, { status: 500 });
+    }, { status: 401 });
   }
+
+  return Response.json(result);
 }

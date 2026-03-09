@@ -1,0 +1,93 @@
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
+const fakePlaybackServices = {
+  servePlaybackClearKeyLicense: {
+    execute: vi.fn(),
+  },
+  servePlaybackManifest: {
+    execute: vi.fn(),
+  },
+  servePlaybackMediaSegment: {
+    execute: vi.fn(),
+  },
+};
+
+async function importManifestRoute() {
+  return import('../../../app/routes/videos.$videoId.manifest[.]mpd');
+}
+
+async function importVideoSegmentRoute() {
+  return import('../../../app/routes/videos.$videoId.video.$filename');
+}
+
+async function importClearKeyRoute() {
+  return import('../../../app/routes/videos.$videoId.clearkey');
+}
+
+describe('Phase 2 playback resource route error mapping', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    fakePlaybackServices.servePlaybackClearKeyLicense.execute.mockReset();
+    fakePlaybackServices.servePlaybackManifest.execute.mockReset();
+    fakePlaybackServices.servePlaybackMediaSegment.execute.mockReset();
+
+    vi.doMock('../../../app/composition/server/auth', () => ({
+      requireProtectedMediaSession: async () => null,
+    }));
+    vi.doMock('../../../app/composition/server/playback', () => ({
+      getServerPlaybackServices: () => fakePlaybackServices,
+    }));
+  });
+
+  test('manifest route maps validation errors back to a 400 response', async () => {
+    fakePlaybackServices.servePlaybackManifest.execute.mockRejectedValue(
+      Object.assign(new Error('Invalid video ID format'), {
+        name: 'ValidationError',
+        statusCode: 400,
+      }),
+    );
+    const { loader } = await importManifestRoute();
+
+    const response = await loader({
+      params: { videoId: 'not-a-uuid' },
+      request: new Request('http://localhost/videos/not-a-uuid/manifest.mpd?token=signed-token'),
+    } as never);
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe('Invalid video ID format');
+  });
+
+  test('video segment route maps not-found errors back to a 404 response', async () => {
+    fakePlaybackServices.servePlaybackMediaSegment.execute.mockRejectedValue(
+      Object.assign(new Error('video segment'), {
+        name: 'NotFoundError',
+        statusCode: 404,
+      }),
+    );
+    const { loader } = await importVideoSegmentRoute();
+
+    const response = await loader({
+      params: { filename: 'segment-9999.m4s', videoId: 'video-1' },
+      request: new Request('http://localhost/videos/video-1/video/segment-9999.m4s?token=signed-token'),
+    } as never);
+
+    expect(response.status).toBe(404);
+    await expect(response.text()).resolves.toBe('video segment');
+  });
+
+  test('clearkey route maps unexpected upstream errors to the old 403 fallback contract', async () => {
+    fakePlaybackServices.servePlaybackClearKeyLicense.execute.mockRejectedValue(
+      new Error('upstream clearkey failure'),
+    );
+    const { loader } = await importClearKeyRoute();
+
+    const response = await loader({
+      params: { videoId: 'video-1' },
+      request: new Request('http://localhost/videos/video-1/clearkey?token=signed-token'),
+    } as never);
+
+    expect(response.status).toBe(403);
+    await expect(response.text()).resolves.toBe('Clear Key license access denied');
+  });
+});

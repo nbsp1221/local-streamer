@@ -4,6 +4,8 @@
 # React Router
 /.react-router/
 /build/
+/playwright-report/
+/test-results/
 
 # User data
 /storage/
