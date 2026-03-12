@@ -2,7 +2,7 @@ import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import crypto from 'node:crypto';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { ThumbnailCryptoUtils } from '~/legacy/modules/thumbnail/shared/thumbnail-crypto.utils';
 import { backfillBrowserCompatiblePlayback } from '../../../scripts/backfill-browser-compatible-playback';
 
@@ -53,10 +53,24 @@ async function seedStagedPlaybackPackage(input: {
 
 describe('backfillBrowserCompatiblePlayback', () => {
   const tempDirs: string[] = [];
+  const originalVideoMasterSeed = process.env.VIDEO_MASTER_ENCRYPTION_SEED;
+
+  beforeAll(() => {
+    process.env.VIDEO_MASTER_ENCRYPTION_SEED = 'browser-backfill-test-master-seed';
+  });
 
   afterEach(async () => {
     await Promise.all(tempDirs.map(dir => rm(dir, { force: true, recursive: true })));
     tempDirs.length = 0;
+  });
+
+  afterAll(() => {
+    if (originalVideoMasterSeed === undefined) {
+      delete process.env.VIDEO_MASTER_ENCRYPTION_SEED;
+      return;
+    }
+
+    process.env.VIDEO_MASTER_ENCRYPTION_SEED = originalVideoMasterSeed;
   });
 
   it('rebuilds HEVC-only manifests in a temporary workspace and promotes the browser-compatible package in place', async () => {
