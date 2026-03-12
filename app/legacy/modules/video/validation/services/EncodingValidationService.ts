@@ -97,7 +97,7 @@ export class EncodingValidationServiceImpl implements EncodingValidationService 
       warnings.push({
         field: 'encoder',
         message: 'CPU encoding may be slower than GPU encoding',
-        suggested: 'gpu-h265',
+        suggested: legacyOptions.encoder === 'cpu-h265' ? 'gpu-h265' : 'gpu-h264',
       });
     }
 

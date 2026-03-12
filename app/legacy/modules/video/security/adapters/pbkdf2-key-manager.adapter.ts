@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { config } from '~/legacy/configs';
 import { type KeyGenerationResult, type KeyManagementPort } from '../ports/key-management.port';
+import { deriveVideoEncryptionKey } from '../lib/derive-video-encryption-key';
 
 /**
  * PBKDF2-based implementation of KeyManagementPort
@@ -85,11 +86,12 @@ export class Pbkdf2KeyManagerAdapter implements KeyManagementPort {
    * CRITICAL: This logic must remain identical to maintain compatibility
    */
   private generateVideoKey(videoId: string): Buffer {
-    const salt = crypto.createHash('sha256')
-      .update(this.saltPrefix + videoId)
-      .digest();
-
-    return crypto.pbkdf2Sync(this.masterSeed, salt, this.rounds, 16, 'sha256');
+    return deriveVideoEncryptionKey({
+      masterSeed: this.masterSeed,
+      rounds: this.rounds,
+      saltPrefix: this.saltPrefix,
+      videoId,
+    });
   }
 
   /**

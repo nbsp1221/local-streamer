@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { join } from 'path';
 import type { ThumbnailGenerationPort } from '~/legacy/modules/thumbnail/application/ports/thumbnail-generation.port';
 import type { KeyManagementPort } from '~/legacy/modules/video/security/ports/key-management.port';
@@ -19,6 +18,7 @@ import { encodingValidationService } from '../../validation/services/EncodingVal
 import { ffmpegTranscodingService } from './FFmpegTranscodingService';
 import { processExecutionService } from './ProcessExecutionService';
 import { shakaPackagerService } from './ShakaPackagerService';
+import { generateVideoKeyId } from '../../security/lib/generate-video-key-id';
 
 export interface TranscodingOrchestratorServiceDependencies {
   keyManager: KeyManagementPort;
@@ -362,10 +362,7 @@ export class TranscodingOrchestratorServiceImpl implements TranscodingOrchestrat
    * Generate consistent key ID from video ID
    */
   private generateKeyId(videoId: string): string {
-    const hash = crypto.createHash('sha256');
-    hash.update(videoId);
-    const digest = hash.digest();
-    return digest.subarray(0, 16).toString('hex');
+    return generateVideoKeyId(videoId);
   }
 
   /**

@@ -55,6 +55,48 @@ export function EncodingOptionsComponent({
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
   };
 
+  const encoderOptions: Array<{
+    badge?: { label: string; variant: 'default' | 'secondary' | 'outline' };
+    description: string;
+    encoder: EncodingOptions['encoder'];
+    icon: typeof Cpu;
+    technicalHint: string;
+    title: string;
+  }> = [
+    {
+      badge: { label: 'Recommended', variant: 'default' },
+      description: 'Browser-safe default with balanced compression',
+      encoder: 'cpu-h264',
+      icon: Cpu,
+      technicalHint: 'Auto: CRF 20, Slow preset',
+      title: 'CPU H.264',
+    },
+    {
+      badge: { label: 'Fast', variant: 'secondary' },
+      description: 'Browser-safe default with faster hardware encoding',
+      encoder: 'gpu-h264',
+      icon: Zap,
+      technicalHint: 'Auto: CQ 21, P6 preset',
+      title: 'GPU H.264',
+    },
+    {
+      badge: { label: 'Archive', variant: 'outline' },
+      description: 'Better compression when HEVC playback support is acceptable',
+      encoder: 'cpu-h265',
+      icon: Cpu,
+      technicalHint: 'Auto: CRF 18, Slow preset',
+      title: 'CPU H.265',
+    },
+    {
+      badge: { label: 'HEVC Fast', variant: 'outline' },
+      description: 'Hardware HEVC option for explicit archival workflows',
+      encoder: 'gpu-h265',
+      icon: Zap,
+      technicalHint: 'Auto: CQ 19, P6 preset',
+      title: 'GPU H.265',
+    },
+  ];
+
   return (
     <Card className={className}>
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -64,7 +106,7 @@ export function EncodingOptionsComponent({
               <div className="flex items-center gap-3">
                 <Settings className="h-5 w-5 text-muted-foreground" />
                 <div>
-                  <CardTitle className="text-lg">H.265 Encoding</CardTitle>
+                  <CardTitle className="text-lg">Browser Playback Encoding</CardTitle>
                   <CardDescription>
                     {currentDescription.title} • {currentDescription.estimatedSpeed}
                   </CardDescription>
@@ -116,57 +158,38 @@ export function EncodingOptionsComponent({
                 <RadioGroup
                   value={value.encoder}
                   onValueChange={handleEncoderChange}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                  className="grid grid-cols-1 gap-4 md:grid-cols-2"
                 >
-                  {/* CPU Option */}
-                  <div className="relative">
-                    <RadioGroupItem value="cpu-h265" id={`cpu-h265-${uniqueId}`} className="peer sr-only" />
-                    <Label
-                      htmlFor={`cpu-h265-${uniqueId}`}
-                      className="flex items-center justify-between rounded-lg border-2 border-muted bg-background p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Cpu className="h-5 w-5" />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">CPU H.265</span>
-                            <Badge variant="default" className="text-xs">Recommended</Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            Visually lossless • Best compression
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Auto: CRF 18, Slow preset
-                          </p>
-                        </div>
-                      </div>
-                    </Label>
-                  </div>
+                  {encoderOptions.map((option) => {
+                    const Icon = option.icon;
+                    const optionId = `${option.encoder}-${uniqueId}`;
 
-                  {/* GPU Option */}
-                  <div className="relative">
-                    <RadioGroupItem value="gpu-h265" id={`gpu-h265-${uniqueId}`} className="peer sr-only" />
-                    <Label
-                      htmlFor={`gpu-h265-${uniqueId}`}
-                      className="flex items-center justify-between rounded-lg border-2 border-muted bg-background p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Zap className="h-5 w-5" />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">GPU H.265</span>
-                            <Badge variant="secondary" className="text-xs">Fast</Badge>
+                    return (
+                      <div key={option.encoder} className="relative">
+                        <RadioGroupItem value={option.encoder} id={optionId} className="peer sr-only" />
+                        <Label
+                          htmlFor={optionId}
+                          className="flex items-center justify-between rounded-lg border-2 border-muted bg-background p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Icon className="h-5 w-5" />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">{option.title}</span>
+                                {option.badge ? <Badge variant={option.badge.variant} className="text-xs">{option.badge.label}</Badge> : null}
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {option.description}
+                              </p>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                {option.technicalHint}
+                              </p>
+                            </div>
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            Near lossless • Fast encoding
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Auto: CQ 19, P6 preset
-                          </p>
-                        </div>
+                        </Label>
                       </div>
-                    </Label>
-                  </div>
+                    );
+                  })}
                 </RadioGroup>
               </div>
 
@@ -193,23 +216,41 @@ export function EncodingOptionsComponent({
                     <code>{value.encoder.includes('gpu') ? 'Hardware (NVENC)' : 'Software (CPU)'}</code>
                   </div>
                 </div>
-                {value.encoder === 'gpu-h265' && (
-                  <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/50 rounded text-xs">
+                {value.encoder === 'gpu-h264' && (
+                  <div className="mt-3 rounded bg-blue-50 p-2 text-xs dark:bg-blue-950/50">
                     <p className="text-blue-700 dark:text-blue-300">
                       <strong>GPU Acceleration:</strong>
                       {' '}
                       Requires NVIDIA GPU with NVENC support.
-                      Near lossless quality with P6 preset and high-quality tuning.
+                      This keeps the browser-safe H.264 path while reducing encode time.
+                    </p>
+                  </div>
+                )}
+                {value.encoder === 'cpu-h264' && (
+                  <div className="mt-3 rounded bg-green-50 p-2 text-xs dark:bg-green-950/50">
+                    <p className="text-green-700 dark:text-green-300">
+                      <strong>Browser-safe default:</strong>
+                      {' '}
+                      Recommended for the widest playback compatibility across Chromium-class browsers.
+                    </p>
+                  </div>
+                )}
+                {value.encoder === 'gpu-h265' && (
+                  <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/50 rounded text-xs">
+                    <p className="text-blue-700 dark:text-blue-300">
+                      <strong>HEVC Opt-in:</strong>
+                      {' '}
+                      Requires NVIDIA GPU with NVENC support.
+                      Use only when your playback targets can decode HEVC.
                     </p>
                   </div>
                 )}
                 {value.encoder === 'cpu-h265' && (
                   <div className="mt-3 p-2 bg-green-50 dark:bg-green-950/50 rounded text-xs">
                     <p className="text-green-700 dark:text-green-300">
-                      <strong>CPU Encoding:</strong>
+                      <strong>HEVC Archive:</strong>
                       {' '}
-                      Visually lossless quality with slow preset.
-                      Perfect for archival and premium streaming.
+                      Better compression efficiency, but browser playback support is less reliable than H.264.
                     </p>
                   </div>
                 )}

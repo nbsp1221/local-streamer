@@ -136,6 +136,14 @@ Smoke split:
 
 Browser verification remains a separate step for UI and playback flows. See [docs/E2E_TESTING_GUIDE.md](docs/E2E_TESTING_GUIDE.md).
 
+If Playwright playback fixtures were packaged before the browser-safe H.264 policy landed, refresh them with:
+
+```bash
+bun run backfill:browser-playback-fixtures
+```
+
+The script rebuilds only the known Playwright fixture video IDs and leaves already-compatible manifests untouched.
+
 ---
 
 Built with ❤️ using React Router and Bun.

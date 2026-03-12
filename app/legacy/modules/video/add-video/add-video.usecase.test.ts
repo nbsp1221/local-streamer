@@ -95,8 +95,44 @@ describe('AddVideoUseCase', () => {
       expect(mockVideoTranscoder.transcode).toHaveBeenCalledWith({
         videoId: expect.any(String),
         sourcePath: expect.any(String),
+        codecFamily: 'h264',
         quality: 'high',
         useGpu: false,
+      });
+    });
+
+    it('maps the GPU H.264 encoder to a GPU-backed browser-safe transcode request', async () => {
+      const request: AddVideoRequest = {
+        filename: 'test-video.mp4',
+        title: 'Test Video',
+        tags: ['test', 'sample'],
+        encodingOptions: {
+          encoder: 'gpu-h264',
+        },
+      };
+
+      const mockVideoId = 'video-123';
+      const mockVideoInfo = {
+        fileSize: 1000000,
+        duration: 120,
+      };
+      const mockWorkspace = { videoId: mockVideoId, rootDir: `/videos/${mockVideoId}` };
+
+      mockWorkspaceManager.createWorkspace.mockResolvedValue(mockWorkspace);
+      mockWorkspaceManager.moveToWorkspace.mockResolvedValue({ success: true, destination: `/videos/${mockVideoId}/video.mp4` });
+      mockVideoAnalysis.analyze.mockResolvedValue(mockVideoInfo);
+      mockVideoRepository.create.mockResolvedValue(undefined);
+      mockVideoTranscoder.transcode.mockResolvedValue({ success: true, data: { videoId: mockVideoId, manifestPath: '', thumbnailPath: '', duration: 120 } });
+
+      const result = await useCase.execute(request);
+
+      expect(result.success).toBe(true);
+      expect(mockVideoTranscoder.transcode).toHaveBeenCalledWith({
+        videoId: expect.any(String),
+        sourcePath: expect.any(String),
+        codecFamily: 'h264',
+        quality: 'high',
+        useGpu: true,
       });
     });
   });

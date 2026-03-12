@@ -15,6 +15,7 @@ import {
   EncryptionError,
   ManifestGenerationError,
 } from '../types/shaka-packager.types';
+import { normalizeClearKeyManifest } from './normalize-clearkey-manifest';
 import { processExecutionService } from './ProcessExecutionService';
 
 /**
@@ -62,6 +63,7 @@ export class ShakaPackagerServiceImpl implements ShakaPackagerService {
     try {
       // Execute Shaka Packager
       await this.executeShakaPackager(args, videoId);
+      await this.normalizeManifest(join(outputDir, 'manifest.mpd'));
 
       // Verify output files
       const result = await this.verifyPackagingResult(outputDir);
@@ -309,6 +311,15 @@ export class ShakaPackagerServiceImpl implements ShakaPackagerService {
       audioInitSegment,
       segmentCount,
     };
+  }
+
+  private async normalizeManifest(manifestPath: string): Promise<void> {
+    const manifest = await fs.readFile(manifestPath, 'utf8');
+    const normalizedManifest = normalizeClearKeyManifest(manifest);
+
+    if (normalizedManifest !== manifest) {
+      await fs.writeFile(manifestPath, normalizedManifest, 'utf8');
+    }
   }
 }
 

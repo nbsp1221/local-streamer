@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "react-router build",
+    "backfill:browser-playback-fixtures": "bun scripts/backfill-browser-compatible-playback.ts --video-id 68e5f819-15e8-41ef-90ee-8a96769311b7 --video-id 754c6828-621c-4df6-9cf8-a3d77297b85a",
     "dev": "react-router dev",
     "download:ffmpeg": "bash scripts/download-ffmpeg.sh",
     "download:shaka": "bash scripts/download-shaka-packager.sh",

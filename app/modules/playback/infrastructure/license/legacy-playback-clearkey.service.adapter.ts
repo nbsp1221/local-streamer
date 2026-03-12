@@ -1,10 +1,10 @@
-import crypto from 'node:crypto';
 import type {
   ClearKeyRequest,
   ClearKeyResponse,
 } from '~/legacy/modules/video/clear-key/clear-key.types';
 import { ClearKeyUseCase } from '~/legacy/modules/video/clear-key/clear-key.usecase';
 import { Pbkdf2KeyManagerAdapter } from '~/legacy/modules/video/security/adapters/pbkdf2-key-manager.adapter';
+import { generateVideoKeyId } from '~/legacy/modules/video/security/lib/generate-video-key-id';
 import type { PlaybackClearKeyService } from '../../application/ports/playback-clearkey-service.port';
 
 interface LegacyClearKeyUseCaseResult {
@@ -74,8 +74,5 @@ function hexToBase64Url(hex: string): string {
 }
 
 function generateKeyId(videoId: string): string {
-  const hash = crypto.createHash('sha256');
-  hash.update(videoId);
-
-  return hash.digest().subarray(0, 16).toString('hex');
+  return generateVideoKeyId(videoId);
 }

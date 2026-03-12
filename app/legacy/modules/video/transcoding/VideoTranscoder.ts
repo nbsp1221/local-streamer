@@ -33,6 +33,8 @@ export interface TranscodeRequest {
   videoId: string;
   /** The absolute path to the source video file. */
   sourcePath: string;
+  /** The requested output codec family for packaged playback. */
+  codecFamily?: 'h264' | 'h265';
   /** The desired quality level for the output. */
   quality: 'high' | 'medium' | 'fast';
   /** Whether to prioritize GPU for processing if available. */

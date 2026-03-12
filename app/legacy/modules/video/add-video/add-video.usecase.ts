@@ -204,10 +204,11 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
 
     try {
       // Map encoding options to business quality levels
-      const { quality, useGpu } = this.mapEncodingOptionsToQuality(encodingOptions);
+      const { codecFamily, quality, useGpu } = this.mapEncodingOptionsToQuality(encodingOptions);
 
       // Use VideoTranscoder with business-focused API
       const transcodeResult = await this.deps.videoTranscoder.transcode({
+        codecFamily,
         videoId,
         sourcePath: videoPath,
         quality,
@@ -235,18 +236,18 @@ export class AddVideoUseCase extends UseCase<AddVideoRequest, AddVideoResponse> 
    * Maps technical encoding options to business quality levels.
    * This preserves backwards compatibility during Phase 2.
    */
-  private mapEncodingOptionsToQuality(encodingOptions?: EncodingOptions): { quality: 'high' | 'medium' | 'fast'; useGpu: boolean } {
-    // Default to high quality for backwards compatibility
+  private mapEncodingOptionsToQuality(
+    encodingOptions?: EncodingOptions,
+  ): { codecFamily: 'h264' | 'h265'; quality: 'high' | 'medium' | 'fast'; useGpu: boolean } {
+    // Default to browser-safe high quality for backwards compatibility.
     if (!encodingOptions) {
-      return { quality: 'high', useGpu: false };
+      return { codecFamily: 'h264', quality: 'high', useGpu: false };
     }
 
-    // Map encoder types to business quality (Phase 2: simple mapping)
-    const useGpu = encodingOptions.encoder === 'gpu-h265';
+    const useGpu = encodingOptions.encoder.startsWith('gpu-');
+    const codecFamily = encodingOptions.encoder.endsWith('h265') ? 'h265' : 'h264';
 
-    // For Phase 2, all current encoding options map to 'high' quality
-    // This maintains current behavior while introducing the new interface
-    return { quality: 'high', useGpu };
+    return { codecFamily, quality: 'high', useGpu };
   }
 
   /**

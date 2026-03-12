@@ -97,7 +97,7 @@ export class VideoAnalysisAdapter implements VideoAnalysisPort {
       };
 
       // Use the encoder mapping based on GPU preference
-      const encoder = useGpu ? 'gpu-h265' : 'cpu-h265';
+      const encoder = useGpu ? 'gpu-h264' : 'cpu-h264';
       const bitrateCalc = this.analysisService.calculateOptimalBitrates(technicalAnalysis, encoder);
 
       // Create business-focused recommendation

@@ -5,7 +5,7 @@ import { type VideoTranscoder } from '../transcoding';
 
 export interface EncodingOptions {
   /** Encoder type selection - settings are automatically optimized */
-  encoder: 'cpu-h265' | 'gpu-h265';
+  encoder: 'cpu-h264' | 'gpu-h264' | 'cpu-h265' | 'gpu-h265';
 }
 
 /**

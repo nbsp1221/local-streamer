@@ -124,10 +124,6 @@ function PlaybackViewport({ video }: { video: PlaybackCatalogVideo }) {
     detail.onInstance(async (provider) => {
       await configureDashPlaybackProvider({
         drmConfig,
-        loadDashLibrary: async () => {
-          const dashjs = await import('dashjs');
-          return (dashjs as { default?: typeof import('dashjs') }).default ?? dashjs;
-        },
         provider,
         token,
       });

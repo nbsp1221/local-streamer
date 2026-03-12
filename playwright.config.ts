@@ -24,7 +24,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `bun run build && PORT=${port} bun run start`,
+    command: `bun run build && bun run backfill:browser-playback-fixtures && PORT=${port} bun run start`,
     reuseExistingServer: false,
     timeout: 180_000,
     url: `http://127.0.0.1:${port}`,

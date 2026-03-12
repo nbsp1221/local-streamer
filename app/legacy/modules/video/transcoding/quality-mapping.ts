@@ -19,6 +19,8 @@ export interface EncoderQualityMap {
   gpu: QualitySettings;
 }
 
+export type CodecFamily = 'h264' | 'h265';
+
 /**
  * Business quality levels mapped to technical parameters
  */
@@ -81,8 +83,12 @@ export function getQualitySettings(
 /**
  * Get FFmpeg codec name based on processing preference
  */
-export function getCodecForEncoder(useGpu: boolean): string {
-  return useGpu ? 'hevc_nvenc' : 'libx265';
+export function getCodecForEncoder(useGpu: boolean, codecFamily: CodecFamily = 'h264'): string {
+  if (codecFamily === 'h265') {
+    return useGpu ? 'hevc_nvenc' : 'libx265';
+  }
+
+  return useGpu ? 'h264_nvenc' : 'libx264';
 }
 
 /**

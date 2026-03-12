@@ -19,8 +19,9 @@ import { processExecutionService } from '../processing/services/ProcessExecution
 import { TranscodingOrchestratorServiceImpl } from '../processing/services/TranscodingOrchestratorService';
 import { ProcessExecutionError } from '../processing/types/process-execution.types';
 import { Pbkdf2KeyManagerAdapter } from '../security/adapters/pbkdf2-key-manager.adapter';
+import { createBrowserPlaybackEncodingOptions, resolveEncodingPreset } from './browser-playback-encoding-options';
 import type { TranscodeRequest, TranscodeResult, VideoMetadata, VideoTranscoder } from './VideoTranscoder';
-import { getCodecForEncoder, getQualityParamName, getQualitySettings } from './quality-mapping';
+import { getCodecForEncoder, type CodecFamily } from './quality-mapping';
 
 /**
  * FFmpeg-based implementation of the VideoTranscoder port.
@@ -104,9 +105,10 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
     request: TranscodeRequest,
   ): Promise<{ options: EnhancedEncodingOptions; useGpu: boolean }> {
     const useGpu = request.useGpu;
+    const codecFamily = request.codecFamily ?? 'h264';
 
     if (useGpu) {
-      const gpuCodec = getCodecForEncoder(true);
+      const gpuCodec = getCodecForEncoder(true, codecFamily);
       const availability = await this.isHardwareCodecAvailable(gpuCodec, request.videoId);
       if (!availability.available) {
         const reason = availability.reason?.trim();
@@ -118,7 +120,7 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
       }
     }
 
-    const options = await this.createEnhancedEncodingOptions(request.quality, useGpu, request.sourcePath);
+    const options = await this.createEnhancedEncodingOptions(request.quality, useGpu, request.sourcePath, codecFamily);
     return { options, useGpu };
   }
 
@@ -249,28 +251,20 @@ export class FFmpegVideoTranscoderAdapter implements VideoTranscoder {
     quality: 'high' | 'medium' | 'fast',
     useGpu: boolean,
     sourcePath: string,
+    codecFamily: CodecFamily,
   ): Promise<EnhancedEncodingOptions> {
     // Extract video analysis for bitrate calculation
     const analysis = await this.analysisService.analyze(sourcePath);
 
-    // Get quality settings from quality-mapping.ts
-    const qualitySettings = getQualitySettings(quality, useGpu);
-    const codec = getCodecForEncoder(useGpu);
-    const qualityParam = getQualityParamName(useGpu);
-
     // Calculate optimal bitrates using existing logic
-    const legacyEncoder = useGpu ? 'gpu-h265' : 'cpu-h265';
+    const legacyEncoder = resolveEncodingPreset(codecFamily, useGpu);
     const bitrateCalc = this.analysisService.calculateOptimalBitrates(analysis, legacyEncoder);
 
-    return {
-      codec,
-      preset: qualitySettings.preset,
-      qualityParam,
-      qualityValue: qualitySettings.qualityValue,
-      additionalFlags: qualitySettings.additionalFlags,
-      targetVideoBitrate: bitrateCalc.targetVideoBitrate,
+    return createBrowserPlaybackEncodingOptions({
       audioSettings: bitrateCalc.audioSettings,
-    };
+      encoder: legacyEncoder,
+      targetVideoBitrate: bitrateCalc.targetVideoBitrate,
+    });
   }
 
   /**

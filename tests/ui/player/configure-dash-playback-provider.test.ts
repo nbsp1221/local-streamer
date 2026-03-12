@@ -17,13 +17,6 @@ describe('configureDashPlaybackProvider', () => {
 
     await configureDashPlaybackProvider({
       drmConfig: null,
-      loadDashLibrary: async () => ({
-        MediaPlayer: {
-          events: {
-            STREAM_INITIALIZED: 'streamInitialized',
-          },
-        },
-      }),
       provider,
       token: 'playback-token',
     });
@@ -48,13 +41,6 @@ describe('configureDashPlaybackProvider', () => {
         key: 'clear-key',
         keyId: 'clear-key-id',
       },
-      loadDashLibrary: async () => ({
-        MediaPlayer: {
-          events: {
-            STREAM_INITIALIZED: 'streamInitialized',
-          },
-        },
-      }),
       provider: {
         addRequestInterceptor: vi.fn(),
         getProtectionController: () => ({}),
@@ -72,5 +58,37 @@ describe('configureDashPlaybackProvider', () => {
         },
       },
     });
+  });
+
+  test('attaches ClearKey protection immediately even when the protection controller is not ready yet', async () => {
+    const { configureDashPlaybackProvider } = await import('../../../app/widgets/player-surface/lib/configure-dash-playback-provider');
+    const setProtectionData = vi.fn();
+    const provider = {
+      addRequestInterceptor: vi.fn(),
+      getProtectionController: () => undefined,
+      off: vi.fn(),
+      on: vi.fn(),
+      setProtectionData,
+    };
+
+    await configureDashPlaybackProvider({
+      drmConfig: {
+        key: 'clear-key',
+        keyId: 'clear-key-id',
+      },
+      provider,
+      token: null,
+    });
+
+    expect(setProtectionData).toHaveBeenCalledTimes(1);
+    expect(setProtectionData).toHaveBeenCalledWith({
+      'org.w3.clearkey': {
+        clearkeys: {
+          'clear-key-id': 'clear-key',
+        },
+      },
+    });
+    expect(provider.on).not.toHaveBeenCalled();
+    expect(provider.off).not.toHaveBeenCalled();
   });
 });

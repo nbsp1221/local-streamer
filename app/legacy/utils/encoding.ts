@@ -1,46 +1,60 @@
 import type { EncodingOptions } from '~/legacy/modules/video/add-video/add-video.types';
 
 /**
- * Default encoding options - CPU H.265 for best quality
+ * Default encoding options - CPU H.264 for broad browser playback compatibility.
  */
 export const DEFAULT_ENCODING_OPTIONS: EncodingOptions = {
-  encoder: 'cpu-h265',
+  encoder: 'cpu-h264',
 };
 
 /**
- * Optimal encoding settings for each encoder type
+ * Optimal encoding settings for each encoder type.
  */
 export const OPTIMAL_ENCODING_SETTINGS = {
+  'cpu-h264': {
+    codec: 'libx264',
+    quality: 20,
+    preset: 'slow',
+    qualityParam: 'crf',
+    additionalFlags: ['-profile:v', 'high', '-level', '4.1', '-pix_fmt', 'yuv420p'],
+  },
+  'gpu-h264': {
+    codec: 'h264_nvenc',
+    quality: 21,
+    preset: 'p6',
+    qualityParam: 'cq',
+    additionalFlags: ['-profile:v', 'high', '-pix_fmt', 'yuv420p', '-rc', 'vbr'],
+  },
   'cpu-h265': {
     codec: 'libx265',
-    quality: 18, // CRF value - visually lossless quality
-    preset: 'slow', // Best compression efficiency for CPU
+    quality: 18,
+    preset: 'slow',
     qualityParam: 'crf',
-    additionalFlags: ['-tune', 'fastdecode'], // Optimize for streaming playback
+    additionalFlags: ['-tune', 'fastdecode'],
   },
   'gpu-h265': {
     codec: 'hevc_nvenc',
-    quality: 19, // CQ value - near lossless quality
-    preset: 'p6', // Optimal quality/speed balance for GPU
+    quality: 19,
+    preset: 'p6',
     qualityParam: 'cq',
-    additionalFlags: ['-tune', 'hq', '-rc', 'vbr'], // High quality tuning + variable bitrate
+    additionalFlags: ['-tune', 'hq', '-rc', 'vbr'],
   },
 } as const;
 
 /**
- * Supported encoder types
+ * Supported encoder types.
  */
-export const SUPPORTED_ENCODERS = ['cpu-h265', 'gpu-h265'] as const;
+export const SUPPORTED_ENCODERS = ['cpu-h264', 'gpu-h264', 'cpu-h265', 'gpu-h265'] as const;
 
 /**
- * Validate encoder type at runtime
+ * Validate encoder type at runtime.
  */
 export function isValidEncoder(encoder: string): encoder is EncodingOptions['encoder'] {
   return SUPPORTED_ENCODERS.includes(encoder as EncodingOptions['encoder']);
 }
 
 /**
- * Get optimal settings for an encoder with runtime validation
+ * Get optimal settings for an encoder with runtime validation.
  */
 export function getOptimalSettings(encoder: EncodingOptions['encoder']) {
   if (!isValidEncoder(encoder)) {
@@ -56,69 +70,70 @@ export function getOptimalSettings(encoder: EncodingOptions['encoder']) {
 }
 
 /**
- * Get codec name for FFmpeg
+ * Get codec name for FFmpeg.
  */
 export function getCodecName(encoder: EncodingOptions['encoder']): string {
   return getOptimalSettings(encoder).codec;
 }
 
 /**
- * Get quality parameter name (CRF for CPU, CQ for GPU)
+ * Get quality parameter name (CRF for CPU, CQ for GPU).
  */
 export function getQualityParam(encoder: EncodingOptions['encoder']): string {
   return getOptimalSettings(encoder).qualityParam;
 }
 
 /**
- * Get quality value for encoder
+ * Get quality value for encoder.
  */
 export function getQualityValue(encoder: EncodingOptions['encoder']): number {
   return getOptimalSettings(encoder).quality;
 }
 
 /**
- * Get preset value for encoder
+ * Get preset value for encoder.
  */
 export function getPresetValue(encoder: EncodingOptions['encoder']): string {
   return getOptimalSettings(encoder).preset;
 }
 
 /**
- * Get additional encoding flags for optimal quality
+ * Get additional encoding flags for optimal quality.
  */
 export function getAdditionalFlags(encoder: EncodingOptions['encoder']): string[] {
   return [...getOptimalSettings(encoder).additionalFlags];
 }
 
 /**
- * Get estimated file size multiplier based on encoder
+ * Get estimated file size multiplier based on encoder.
  */
 export function getEstimatedSizeMultiplier(encoder: EncodingOptions['encoder']): number {
-  // Base multipliers by encoder type (relative to original)
-  // Using the optimal settings for each encoder with higher quality (CRF 18/CQ 19)
   const multipliers = {
-    'cpu-h265': 0.12, // Higher quality (CRF 18) = larger files but excellent compression
-    'gpu-h265': 0.20, // Higher quality (CQ 19) = larger files with p6 preset
+    'cpu-h264': 0.24,
+    'gpu-h264': 0.28,
+    'cpu-h265': 0.12,
+    'gpu-h265': 0.20,
   };
 
   return multipliers[encoder];
 }
 
 /**
- * Get estimated encoding speed multiplier (relative to real-time)
+ * Get estimated encoding speed multiplier (relative to real-time).
  */
 export function getEstimatedSpeedMultiplier(encoder: EncodingOptions['encoder']): number {
-  // Speed estimates based on optimal settings
   const speeds = {
-    'cpu-h265': 1.8, // Slower with 'slow' preset but better quality
-    'gpu-h265': 30.0, // Very fast with p6 preset
+    'cpu-h264': 3.2,
+    'gpu-h264': 36.0,
+    'cpu-h265': 1.8,
+    'gpu-h265': 30.0,
   };
 
   return speeds[encoder];
 }
 
 /**
- * Get user-friendly description for encoding options
+ * Get user-friendly description for encoding options.
  */
 export function getEncodingDescription(options: EncodingOptions): {
   title: string;
@@ -130,13 +145,21 @@ export function getEncodingDescription(options: EncodingOptions): {
   const speedMultiplier = getEstimatedSpeedMultiplier(options.encoder);
 
   const descriptions = {
+    'cpu-h264': {
+      title: 'CPU H.264',
+      description: 'Browser-safe default • Balanced compression',
+    },
+    'gpu-h264': {
+      title: 'GPU H.264',
+      description: 'Browser-safe default • Fast encoding',
+    },
     'cpu-h265': {
       title: 'CPU H.265',
-      description: 'Visually Lossless • Slower Encoding',
+      description: 'Archive option • Better compression, weaker browser compatibility',
     },
     'gpu-h265': {
       title: 'GPU H.265',
-      description: 'Near Lossless • Fast Encoding',
+      description: 'Archive option • Fast HEVC encoding',
     },
   };
 
@@ -151,7 +174,7 @@ export function getEncodingDescription(options: EncodingOptions): {
 }
 
 /**
- * Validate encoding options with detailed error reporting
+ * Validate encoding options with detailed error reporting.
  */
 export function validateEncodingOptions(options: EncodingOptions): boolean {
   if (!options || typeof options !== 'object') {
@@ -166,7 +189,7 @@ export function validateEncodingOptions(options: EncodingOptions): boolean {
 }
 
 /**
- * Validate encoding options and throw descriptive errors
+ * Validate encoding options and throw descriptive errors.
  */
 export function validateEncodingOptionsStrict(options: EncodingOptions): void {
   if (!options || typeof options !== 'object') {
@@ -183,7 +206,7 @@ export function validateEncodingOptionsStrict(options: EncodingOptions): void {
 }
 
 /**
- * Get default options for a specific encoder with validation
+ * Get default options for a specific encoder with validation.
  */
 export function getDefaultOptionsForEncoder(encoder: EncodingOptions['encoder']): EncodingOptions {
   if (!isValidEncoder(encoder)) {
