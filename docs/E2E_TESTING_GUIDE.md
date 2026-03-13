@@ -8,6 +8,8 @@ This guide defines the current test layers for Local Streamer.
 - the dev auth smoke
 - the built Bun auth smoke
 
+The default `bun run test*` verification commands are env-scrubbed by design. Bun `.env` autoloading is disabled and Vite env-file loading is disabled for the test-facing entrypoints. Unit, integration, and Bun smoke tests must not depend on an ambient local `.env`; any required env must be seeded explicitly inside the test or the test-local helper.
+
 ## Prerequisites
 
 1. **Configure auth**
@@ -36,6 +38,7 @@ When debugging CI-only failures:
 - reproduce the exact failing command inside Docker before changing production code
 - assume host-only passing results are insufficient for runtime-sensitive work
 - treat host-specific absolute paths and leaked local env vars as test bugs
+- treat leaked ambient `.env` values as test bugs in unit, integration, and Bun smoke layers
 - prefer tests that seed their own temp storage and configuration explicitly
 
 ## Test Layers
@@ -140,9 +143,16 @@ Use:
 - Seeded library videos under `storage/data/videos/`
 - Upload fixtures under `storage/data/test-videos/`
 
+Before running Playwright playback checks against the built server, refresh the known playback fixtures so the test environment does not rely on stale HEVC-only packages:
+
+```bash
+bun run backfill:browser-playback-fixtures
+```
+
 ## Important Notes
 
 - **Security:** All video content is encrypted with AES-128
 - **Authentication:** Page access, token issuance, and thumbnail access must all be protected by the shared-password session
 - **Runtime split:** Node/Vitest passing does not prove Bun runtime correctness
 - **Browser checks:** Use Playwright for playback and UI flows after the lower layers pass
+- **Playback triage:** When `/player/:id` fails in-browser, inspect the browser console and confirm the request mix includes manifest, video, and audio segment requests. Missing video requests usually indicates a codec/package compatibility issue, while missing manifest or token requests points to auth/session wiring.

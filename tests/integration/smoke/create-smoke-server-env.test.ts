@@ -26,6 +26,7 @@ describe('createSmokeServerEnv', () => {
       expect(env.AUTH_SQLITE_PATH).toBe('/tmp/auth.sqlite');
       expect(env.PORT).toBe('3999');
       expect(env.STORAGE_DIR).toBe('/tmp/storage');
+      expect(env.LOCAL_STREAMER_DISABLE_VITE_ENV_FILES).toBe('true');
       expect(env.VIDEO_JWT_SECRET).toBe('smoke-video-jwt-secret');
       expect(env.VIDEO_MASTER_ENCRYPTION_SEED).toBe(
         '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',

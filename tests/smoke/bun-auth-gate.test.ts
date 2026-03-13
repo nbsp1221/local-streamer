@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import { createNoEnvFileBunCommand } from '../../scripts/no-env-file-bun';
 import { toRequestCookieHeader } from '../helpers/cookies';
 import { createSmokeServerEnv } from './support/create-smoke-server-env';
 
@@ -81,7 +82,7 @@ async function loginAndGetCookie() {
 beforeAll(async () => {
   seedSmokeStorage(storageDir);
 
-  server = Bun.spawn(['bun', './build/server/index.js'], {
+  server = Bun.spawn(createNoEnvFileBunCommand(['./build/server/index.js']), {
     cwd: repoRoot,
     env: createSmokeServerEnv({
       AUTH_SHARED_PASSWORD: 'vault-password',

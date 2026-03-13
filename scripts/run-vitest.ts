@@ -1,9 +1,10 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { prependNoEnvFile } from './no-env-file-bun';
 
 function runCommand(args: string[]) {
-  const result = spawnSync('bun', args, {
+  const result = spawnSync('bun', prependNoEnvFile(args), {
     cwd: process.cwd(),
     stdio: 'inherit',
   });

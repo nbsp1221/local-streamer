@@ -28,6 +28,7 @@ export function createSmokeServerEnv(overrides: SmokeServerEnvOverrides): Record
 
   return {
     ...forwardedEnv,
+    LOCAL_STREAMER_DISABLE_VITE_ENV_FILES: 'true',
     VIDEO_JWT_SECRET: SMOKE_VIDEO_JWT_SECRET,
     VIDEO_MASTER_ENCRYPTION_SEED: SMOKE_VIDEO_MASTER_ENCRYPTION_SEED,
     ...overrides,

@@ -3,6 +3,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { reactRouterHonoServer } from 'react-router-hono-server/dev';
 import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
+import { resolveViteEnvDir } from './scripts/vite-env-files';
 
 export default defineConfig(({ command }) => ({
   plugins: [
@@ -15,6 +16,7 @@ export default defineConfig(({ command }) => ({
   build: {
     target: 'es2022',
   },
+  envDir: resolveViteEnvDir(process.env),
   test: {
     globals: true,
     exclude: ['node_modules', 'build', 'public'],
