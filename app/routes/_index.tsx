@@ -1,27 +1,29 @@
 import type { LoaderFunctionArgs } from 'react-router';
 import { useLoaderData } from 'react-router';
-import type { PendingVideo, Video } from '~/legacy/types/video';
+import type { PendingVideo, SearchFilters, Video } from '~/legacy/types/video';
 import { requireProtectedPageSession } from '~/composition/server/auth';
+import { getHomeLibraryPageServices } from '~/composition/server/home-library-page';
 import { HomePage } from '~/legacy/pages/home/ui/HomePage';
-import { getPendingVideoRepository, getVideoRepository } from '~/legacy/repositories';
 
 interface LoaderData {
+  initialFilters: SearchFilters;
   videos: Video[];
   pendingVideos: PendingVideo[];
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireProtectedPageSession(request);
+  const url = new URL(request.url);
+  const result = await getHomeLibraryPageServices().loadHomeLibraryPageData.execute({
+    rawQuery: url.searchParams.get('q'),
+    rawTags: url.searchParams.getAll('tag'),
+  });
 
-  const [videos, pendingVideos] = await Promise.all([
-    getVideoRepository().findAll(),
-    getPendingVideoRepository().findAll(),
-  ]);
+  if (!result.ok) {
+    throw new Response('Unable to load home library', { status: 500 });
+  }
 
-  return {
-    videos,
-    pendingVideos,
-  } satisfies LoaderData;
+  return result.data satisfies LoaderData;
 }
 
 export function meta() {
@@ -36,6 +38,7 @@ export default function HomeRoute() {
 
   return (
     <HomePage
+      initialFilters={data.initialFilters}
       videos={data.videos}
       pendingVideos={data.pendingVideos}
     />

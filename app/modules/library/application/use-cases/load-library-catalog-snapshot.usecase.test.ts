@@ -1,0 +1,86 @@
+import { describe, expect, test, vi } from 'vitest';
+import type { LibraryVideo } from '../../domain/library-video';
+import { LoadLibraryCatalogSnapshotUseCase } from './load-library-catalog-snapshot.usecase';
+
+function createFixtureVideo(overrides: Partial<LibraryVideo> = {}): LibraryVideo {
+  return {
+    createdAt: new Date('2026-03-10T00:00:00.000Z'),
+    duration: 120,
+    id: 'video-1',
+    tags: ['Action'],
+    title: 'Library Fixture',
+    videoUrl: '/videos/video-1/manifest.mpd',
+    ...overrides,
+  };
+}
+
+describe('LoadLibraryCatalogSnapshotUseCase', () => {
+  test('returns the full video collection with canonical filters and no pre-filtering in this pass', async () => {
+    const listLibraryVideos = vi.fn(async () => [
+      createFixtureVideo(),
+      createFixtureVideo({
+        id: 'video-2',
+        tags: ['Drama'],
+        title: 'Second Fixture',
+      }),
+    ]);
+    const useCase = new LoadLibraryCatalogSnapshotUseCase({
+      videoSource: {
+        listLibraryVideos,
+      },
+    });
+
+    const result = await useCase.execute({
+      rawQuery: '  Action  ',
+      rawTags: ['Action', '', 'Drama'],
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        videos: [
+          expect.objectContaining({
+            id: 'video-1',
+            title: 'Library Fixture',
+          }),
+          expect.objectContaining({
+            id: 'video-2',
+            title: 'Second Fixture',
+          }),
+        ],
+        filters: {
+          displayQuery: '  Action  ',
+          normalizedQuery: 'action',
+          rawTags: ['Action', 'Drama'],
+          normalizedTags: ['action', 'drama'],
+        },
+      },
+    });
+    expect(listLibraryVideos).toHaveBeenCalledOnce();
+
+    if (!result.ok) {
+      throw new Error('Expected successful catalog result');
+    }
+
+    expect(result.data.videos).toHaveLength(2);
+    expect(result.data.videos[0]?.createdAt).toBeInstanceOf(Date);
+  });
+
+  test('returns an explicit unavailable result when the source port cannot provide catalog data', async () => {
+    const useCase = new LoadLibraryCatalogSnapshotUseCase({
+      videoSource: {
+        listLibraryVideos: vi.fn(async () => {
+          throw new Error('storage offline');
+        }),
+      },
+    });
+
+    await expect(useCase.execute({
+      rawQuery: 'Anything',
+      rawTags: [],
+    })).resolves.toEqual({
+      ok: false,
+      reason: 'CATALOG_SOURCE_UNAVAILABLE',
+    });
+  });
+});
