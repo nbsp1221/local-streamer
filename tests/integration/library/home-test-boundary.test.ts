@@ -1,14 +1,38 @@
-import { readFile } from 'node:fs/promises';
-import { glob } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
 
 const PROJECT_ROOT = resolve(__dirname, '../../..');
-const TEST_GLOBS = [
-  'tests/ui/home/**/*.test.tsx',
-  'tests/integration/library/home-*.test.ts',
-  'tests/e2e/home-*.spec.ts',
-];
+
+async function listFilesRecursively(directory: string): Promise<string[]> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(entries.map(async (entry) => {
+    const absolutePath = resolve(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      return listFilesRecursively(absolutePath);
+    }
+
+    return [absolutePath];
+  }));
+
+  return files.flat();
+}
+
+async function collectActiveHomeTestFiles() {
+  const uiHomeTests = (await listFilesRecursively(resolve(PROJECT_ROOT, 'tests/ui/home')))
+    .filter(file => file.endsWith('.test.tsx'));
+  const integrationHomeTests = (await listFilesRecursively(resolve(PROJECT_ROOT, 'tests/integration/library')))
+    .filter(file => file.endsWith('.test.ts') && file.includes('/home-'));
+  const e2eHomeSpecs = (await listFilesRecursively(resolve(PROJECT_ROOT, 'tests/e2e')))
+    .filter(file => file.endsWith('.spec.ts') && file.includes('/home-'));
+
+  return [
+    ...uiHomeTests,
+    ...integrationHomeTests,
+    ...e2eHomeSpecs,
+  ].map(file => file.replace(`${PROJECT_ROOT}/`, ''));
+}
 
 function includesLegacyImport(source: string) {
   return source.includes('~/legacy/') ||
@@ -22,11 +46,7 @@ function includesLegacyImport(source: string) {
 
 describe('home test boundary', () => {
   test('active home tests do not import app/legacy', async () => {
-    const files = (
-      await Promise.all(
-        TEST_GLOBS.map(async pattern => Array.fromAsync(glob(pattern, { cwd: PROJECT_ROOT }))),
-      )
-    ).flat();
+    const files = await collectActiveHomeTestFiles();
 
     expect(files.length).toBeGreaterThan(0);
 
@@ -41,11 +61,7 @@ describe('home test boundary', () => {
   });
 
   test('active home tests do not depend on screenshot baselines', async () => {
-    const files = (
-      await Promise.all(
-        TEST_GLOBS.map(async pattern => Array.fromAsync(glob(pattern, { cwd: PROJECT_ROOT }))),
-      )
-    ).flat();
+    const files = await collectActiveHomeTestFiles();
 
     expect(files.length).toBeGreaterThan(0);
     expect(files).not.toContain('tests/e2e/home-ui-parity.spec.ts');
