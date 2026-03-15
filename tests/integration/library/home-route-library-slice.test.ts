@@ -32,8 +32,8 @@ describe('home route library slice adapter', () => {
       ok: true,
       data: {
         initialFilters: {
-          query: ' Action ',
-          tags: ['Action', 'Drama'],
+          query: '',
+          tags: [],
         },
         pendingVideos: [
           {
@@ -63,15 +63,8 @@ describe('home route library slice adapter', () => {
 
     expect(requireProtectedPageSessionMock).toHaveBeenCalledOnce();
     expect(getHomeLibraryPageServicesMock).toHaveBeenCalledOnce();
-    expect(loadHomeLibraryPageDataExecuteMock).toHaveBeenCalledWith({
-      rawQuery: ' Action ',
-      rawTags: ['Action', '', 'Drama'],
-    });
+    expect(loadHomeLibraryPageDataExecuteMock).toHaveBeenCalledWith({});
     expect(result).toEqual({
-      initialFilters: {
-        query: ' Action ',
-        tags: ['Action', 'Drama'],
-      },
       pendingVideos: [
         {
           filename: 'pending.mp4',
@@ -82,6 +75,7 @@ describe('home route library slice adapter', () => {
       ],
       videos: [
         expect.objectContaining({
+          createdAt: '2026-03-11T00:00:00.000Z',
           id: 'video-1',
           title: 'Catalog Fixture',
         }),
@@ -95,7 +89,7 @@ describe('home route library slice adapter', () => {
       data: {
         initialFilters: {
           query: '',
-          tags: ['Action'],
+          tags: [],
         },
         pendingVideos: [],
         videos: [
@@ -116,18 +110,12 @@ describe('home route library slice adapter', () => {
       request: new Request('http://localhost/?tag=%20Action%20'),
     } as never);
 
-    expect(loadHomeLibraryPageDataExecuteMock).toHaveBeenCalledWith({
-      rawQuery: null,
-      rawTags: [' Action '],
-    });
+    expect(loadHomeLibraryPageDataExecuteMock).toHaveBeenCalledWith({});
     expect(result).toEqual({
-      initialFilters: {
-        query: '',
-        tags: ['Action'],
-      },
       pendingVideos: [],
       videos: [
         expect.objectContaining({
+          createdAt: '2026-03-11T00:00:00.000Z',
           id: 'video-1',
         }),
       ],
@@ -177,5 +165,33 @@ describe('home route library slice adapter', () => {
     catch (response) {
       expect((response as Response).headers.get('Location')).toBe('/login?redirectTo=%2F%3Fq%3DNeo%26tag%3DAction%26tag%3DDrama');
     }
+  });
+
+  test('does not revalidate the protected home loader for q/tag-only URL sync updates', async () => {
+    const { shouldRevalidate } = await importHomeRoute();
+
+    expect(shouldRevalidate({
+      currentParams: {},
+      currentUrl: new URL('http://localhost/?q=Action'),
+      defaultShouldRevalidate: true,
+      formAction: undefined,
+      formData: undefined,
+      formEncType: undefined,
+      formMethod: undefined,
+      nextParams: {},
+      nextUrl: new URL('http://localhost/?q=Action&tag=Drama'),
+    } as never)).toBe(false);
+
+    expect(shouldRevalidate({
+      currentParams: {},
+      currentUrl: new URL('http://localhost/?q=Action'),
+      defaultShouldRevalidate: true,
+      formAction: undefined,
+      formData: undefined,
+      formEncType: undefined,
+      formMethod: undefined,
+      nextParams: {},
+      nextUrl: new URL('http://localhost/playlists'),
+    } as never)).toBe(true);
   });
 });

@@ -1,29 +1,97 @@
 import type { LoaderFunctionArgs } from 'react-router';
-import { useLoaderData } from 'react-router';
-import type { PendingVideo, SearchFilters, Video } from '~/legacy/types/video';
+import { useMemo } from 'react';
+import { useLoaderData, useSearchParams } from 'react-router';
+import type { HomeLibraryVideo } from '~/entities/library-video/model/library-video';
+import type { PendingLibraryItem } from '~/entities/pending-video/model/pending-video';
 import { requireProtectedPageSession } from '~/composition/server/auth';
 import { getHomeLibraryPageServices } from '~/composition/server/home-library-page';
-import { HomePage } from '~/legacy/pages/home/ui/HomePage';
+import { HomePage } from '~/pages/home/ui/HomePage';
+import { createHomeLibraryFilters } from '~/widgets/home-library/model/home-library-filters';
 
 interface LoaderData {
-  initialFilters: SearchFilters;
-  videos: Video[];
-  pendingVideos: PendingVideo[];
+  videos: SerializedHomeLibraryVideo[];
+  pendingVideos: PendingLibraryItem[];
+}
+
+interface SerializedHomeLibraryVideo extends Omit<HomeLibraryVideo, 'createdAt'> {
+  createdAt: string;
+}
+
+function serializeHomeLibraryVideo(video: {
+  createdAt: Date;
+  description?: string;
+  duration: number;
+  id: string;
+  tags: string[];
+  thumbnailUrl?: string;
+  title: string;
+  videoUrl: string;
+}): SerializedHomeLibraryVideo {
+  return {
+    createdAt: video.createdAt.toISOString(),
+    description: video.description,
+    duration: video.duration,
+    id: video.id,
+    tags: [...video.tags],
+    thumbnailUrl: video.thumbnailUrl,
+    title: video.title,
+    videoUrl: video.videoUrl,
+  };
+}
+
+function deserializeHomeLibraryVideo(video: SerializedHomeLibraryVideo): HomeLibraryVideo {
+  return {
+    ...video,
+    createdAt: new Date(video.createdAt),
+  };
+}
+
+function toPendingLibraryItem(item: {
+  filename: string;
+  id: string;
+  size: number;
+  type: string;
+}): PendingLibraryItem {
+  return {
+    filename: item.filename,
+    id: item.id,
+    size: item.size,
+    type: item.type,
+  };
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireProtectedPageSession(request);
-  const url = new URL(request.url);
-  const result = await getHomeLibraryPageServices().loadHomeLibraryPageData.execute({
-    rawQuery: url.searchParams.get('q'),
-    rawTags: url.searchParams.getAll('tag'),
-  });
+  const result = await getHomeLibraryPageServices().loadHomeLibraryPageData.execute({});
 
   if (!result.ok) {
     throw new Response('Unable to load home library', { status: 500 });
   }
 
-  return result.data satisfies LoaderData;
+  return {
+    pendingVideos: result.data.pendingVideos.map(toPendingLibraryItem),
+    videos: result.data.videos.map(serializeHomeLibraryVideo),
+  } satisfies LoaderData;
+}
+
+export function shouldRevalidate({
+  currentUrl,
+  defaultShouldRevalidate,
+  nextUrl,
+}: {
+  currentUrl: URL;
+  defaultShouldRevalidate: boolean;
+  nextUrl: URL;
+}) {
+  if (
+    currentUrl.pathname === '/' &&
+    nextUrl.pathname === '/' &&
+    currentUrl.search !== nextUrl.search
+  ) {
+    return false;
+  }
+
+  return defaultShouldRevalidate;
 }
 
 export function meta() {
@@ -35,11 +103,17 @@ export function meta() {
 
 export default function HomeRoute() {
   const data = useLoaderData<typeof loader>();
+  const [searchParams] = useSearchParams();
+  const videos = useMemo(() => data.videos.map(deserializeHomeLibraryVideo), [data.videos]);
+  const initialFilters = useMemo(() => createHomeLibraryFilters({
+    query: searchParams.get('q') ?? '',
+    tags: searchParams.getAll('tag'),
+  }), [searchParams]);
 
   return (
     <HomePage
-      initialFilters={data.initialFilters}
-      videos={data.videos}
+      initialFilters={initialFilters}
+      videos={videos}
       pendingVideos={data.pendingVideos}
     />
   );

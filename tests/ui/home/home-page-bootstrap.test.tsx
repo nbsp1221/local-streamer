@@ -4,10 +4,19 @@ import { renderToString } from 'react-dom/server';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import type { PendingVideo, Video } from '../../../app/legacy/types/video';
-import { HomePage } from '../../../app/legacy/pages/home/ui/HomePage';
+import type { HomeLibraryVideo } from '../../../app/entities/library-video/model/library-video';
+import type { PendingLibraryItem } from '../../../app/entities/pending-video/model/pending-video';
+import { HomePage } from '../../../app/pages/home/ui/HomePage';
 
-function createVideo(overrides: Partial<Video> = {}): Video {
+vi.mock('~/shared/hooks/use-root-user', () => ({
+  useRootUser: () => ({
+    email: 'owner@example.com',
+    id: 'user-1',
+    role: 'admin',
+  }),
+}));
+
+function createVideo(overrides: Partial<HomeLibraryVideo> = {}): HomeLibraryVideo {
   return {
     createdAt: new Date('2026-03-11T00:00:00.000Z'),
     duration: 180,
@@ -19,7 +28,7 @@ function createVideo(overrides: Partial<Video> = {}): Video {
   };
 }
 
-function createPendingVideo(overrides: Partial<PendingVideo> = {}): PendingVideo {
+function createPendingVideo(overrides: Partial<PendingLibraryItem> = {}): PendingLibraryItem {
   return {
     filename: 'pending.mp4',
     id: 'pending-1',
@@ -55,7 +64,7 @@ describe('HomePage bootstrap compatibility', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText('My Library')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'My Library' })).toBeInTheDocument();
     expect(screen.getByText('Total 2 videos • Showing 1')).toBeInTheDocument();
     expect(screen.getAllByDisplayValue('Action')).toHaveLength(2);
     expect(screen.getByText('Active filters:')).toBeInTheDocument();

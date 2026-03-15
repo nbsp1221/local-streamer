@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
+import { getE2ESharedPassword } from './shared-password';
 
-const sharedPassword = process.env.AUTH_SHARED_PASSWORD ?? '1q2w3e4r!qwerty';
+const sharedPassword = getE2ESharedPassword();
 
 export async function loginToPlayer(page: Page, videoId: string) {
   await page.goto(`/login?redirectTo=%2Fplayer%2F${videoId}`);

@@ -1,0 +1,91 @@
+import { useCallback } from 'react';
+import type { HomeLibraryVideo } from '~/entities/library-video/model/library-video';
+
+interface UpdateVideoPayload {
+  title: string;
+  tags: string[];
+  description?: string;
+}
+
+interface VideoActionResult {
+  error?: string;
+  success?: boolean;
+  video?: SerializedHomeLibraryVideo;
+}
+
+export interface HomeLibraryVideoActions {
+  deleteVideo(videoId: string): Promise<void>;
+  updateVideo(videoId: string, updates: UpdateVideoPayload): Promise<HomeLibraryVideo>;
+}
+
+interface SerializedHomeLibraryVideo extends Omit<HomeLibraryVideo, 'createdAt'> {
+  createdAt: string | Date;
+}
+
+async function readActionError(response: Response, fallbackMessage: string) {
+  try {
+    const result = await response.json() as VideoActionResult;
+
+    return result.error || fallbackMessage;
+  }
+  catch {
+    return fallbackMessage;
+  }
+}
+
+async function assertSuccessfulAction(response: Response, fallbackMessage: string) {
+  if (!response.ok) {
+    throw new Error(await readActionError(response, fallbackMessage));
+  }
+
+  const result = await response.json() as VideoActionResult;
+
+  if (!result.success) {
+    throw new Error(result.error || fallbackMessage);
+  }
+
+  return result;
+}
+
+async function executeVideoAction(url: string, init: RequestInit, fallbackMessage: string) {
+  const response = await fetch(url, init);
+  return assertSuccessfulAction(response, fallbackMessage);
+}
+
+function deserializeUpdatedVideo(result: VideoActionResult, fallbackMessage: string): HomeLibraryVideo {
+  if (!result.video) {
+    throw new Error(fallbackMessage);
+  }
+
+  return {
+    ...result.video,
+    createdAt: result.video.createdAt instanceof Date
+      ? result.video.createdAt
+      : new Date(result.video.createdAt),
+  };
+}
+
+export function useHomeLibraryVideoActions(): HomeLibraryVideoActions {
+  const deleteVideo = useCallback(async (videoId: string) => {
+    await executeVideoAction(`/api/delete/${videoId}`, {
+      method: 'DELETE',
+    }, 'Failed to delete video');
+  }, []);
+
+  const updateVideo = useCallback(async (videoId: string, updates: UpdateVideoPayload) => {
+    const result = await executeVideoAction(`/api/update/${videoId}`, {
+      body: JSON.stringify(updates),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'PUT',
+    }, 'Failed to update video');
+
+    return deserializeUpdatedVideo(result, 'Updated video response was incomplete');
+  }, []);
+
+  return {
+    deleteVideo,
+    updateVideo,
+  };
+}
