@@ -12,13 +12,21 @@ TypeScript operates in strict mode, so prefer explicit interfaces and avoid `any
 ## Testing Guidelines
 Vitest drives unit and integration coverage. Name files `*.test.ts`, keep arrange/act/assert sections clear, and maintain ≥75% coverage with `bun run test:run -- --coverage` as noted in `CLAUDE.md`. Use `bun run test:run`, `bun run test:modules`, `bun run test:integration`, `bun run test:ui-dom`, and `bun run test:legacy` for focused Vitest work. Prefer `jsdom + React Testing Library + jest-dom + user-event` for new component-level UI tests instead of string-based markup assertions. Use `bun run test` before handoff so the Bun smoke layers run too. For end-to-end work, follow `docs/E2E_TESTING_GUIDE.md`: start the dev server, cover API flows with cURL, and escalate to Playwright for UI, playback, or DRM checks.
 
-When a change touches runtime-sensitive auth, playback, or route wiring, verify it in a GitHub Actions-like Docker environment before claiming it is CI-safe. Prefer:
+When a change touches runtime-sensitive auth, playback, or route wiring, verify it in a GitHub Actions-like Docker environment before claiming it is CI-safe. Use a Bun image matching the repo `packageManager` Bun version instead of a hardcoded tag. Prefer:
 
 ```bash
-docker run --rm --user "$(id -u):$(id -g)" -e CI=true -e GITHUB_ACTIONS=true -v "$PWD":/workspace -w /workspace oven/bun:1.3.10 bash -lc 'bun install && bun run test'
+docker run --rm --user "$(id -u):$(id -g)" -e CI=true -e GITHUB_ACTIONS=true -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -e TZ=Etc/UTC -v "$PWD":/workspace -w /workspace oven/bun:<matching-packageManager-version> bash -lc 'bun install --frozen-lockfile && bun run lint && bun run typecheck && bun run test && bun run build'
 ```
 
 Do not run CI-style Docker verification as root against the bind-mounted workspace. Root-owned files under `.react-router/`, `build/`, or `node_modules/.vite/` will break local `bun run dev`, `bun run typecheck`, and `bun run build` until ownership is repaired.
+
+For runtime-sensitive browser flows, the required browser smoke path is separate from the non-browser Docker gate. Run:
+
+```bash
+bun run test:e2e -- tests/e2e/home-library-owner-smoke.spec.ts tests/e2e/player-layout.spec.ts
+```
+
+with a `bun` matching the repo `packageManager` contract.
 
 Keep tests environment-independent:
 - mock the same module specifier the production file imports, especially when route code uses `~/*` aliases

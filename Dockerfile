@@ -1,5 +1,5 @@
 # Stage 1: Base image with Bun
-FROM oven/bun:1.2.17 AS base
+FROM oven/bun:1.3.5 AS base
 WORKDIR /app
 
 # Install dependencies needed for native modules and FFmpeg download
@@ -39,7 +39,7 @@ RUN bash scripts/download-ffmpeg.sh
 RUN bun run build
 
 # Stage 5: Production image  
-FROM oven/bun:1.2.17 AS production
+FROM oven/bun:1.3.5 AS production
 
 # Note: Using existing 'bun' user (UID/GID 1000) from base image
 # This matches common host user configuration and avoids permission issues

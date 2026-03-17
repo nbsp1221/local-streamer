@@ -1,6 +1,7 @@
 import type { MouseEvent } from 'react';
 import { Clock3, Play } from 'lucide-react';
 import { Link } from 'react-router';
+import { formatDisplayDate } from '~/shared/lib/format-display-date';
 import { AspectRatio } from '~/shared/ui/aspect-ratio';
 import { Badge } from '~/shared/ui/badge';
 import type { PlayerSurfaceRelatedVideoItem } from '../model/usePlayerSurfaceView';
@@ -61,7 +62,7 @@ export function PlayerRelatedVideoItem({
               {video.title}
             </h3>
             <p className="text-xs text-muted-foreground">
-              {video.createdAt.toLocaleDateString()}
+              {formatDisplayDate(video.createdAt)}
             </p>
           </div>
         </div>

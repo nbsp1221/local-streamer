@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { getE2ESharedPassword } from './support/shared-password';
+import { getE2ESharedPassword } from '../support/shared-password';
 
-const sharedPassword = getE2ESharedPassword();
+const sharedPassword = getE2ESharedPassword(process.env.AUTH_SHARED_PASSWORD);
 
 test.describe('home library owner smoke', () => {
   test('boots the authenticated home route with loader bootstrap filters', async ({ page }) => {

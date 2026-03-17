@@ -1,8 +1,8 @@
 import { Clock, Eye, MoreVertical, Play } from 'lucide-react';
 import { Link } from 'react-router';
 import type { HomeLibraryVideo } from '~/entities/library-video/model/library-video';
+import { formatDisplayDate } from '~/shared/lib/format-display-date';
 import { formatDuration } from '~/shared/lib/format-duration';
-import { formatLibraryDate } from '~/shared/lib/format-library-date';
 import { AspectRatio } from '~/shared/ui/aspect-ratio';
 import { Badge } from '~/shared/ui/badge';
 import { Button } from '~/shared/ui/button';
@@ -70,7 +70,7 @@ export function LibraryVideoCard({ video, onQuickView, onTagClick }: LibraryVide
             </h3>
 
             <p className="text-xs text-muted-foreground">
-              {formatLibraryDate(video.createdAt)}
+              {formatDisplayDate(video.createdAt)}
             </p>
           </div>
         </div>

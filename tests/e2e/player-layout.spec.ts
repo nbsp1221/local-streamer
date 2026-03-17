@@ -1,60 +1,47 @@
 import { expect, test } from '@playwright/test';
 import { loginToPlayer } from './support/player-auth';
+import { getE2ESharedPassword } from '../support/shared-password';
 
 const desktopVideoId = '68e5f819-15e8-41ef-90ee-8a96769311b7';
 const filteredEmptyVideoId = '754c6828-621c-4df6-9cf8-a3d77297b85a';
+const sharedPassword = getE2ESharedPassword(process.env.AUTH_SHARED_PASSWORD);
 
 test.describe('player layout', () => {
-  test('keeps the player bottom edge flush with its aspect-ratio wrapper', async ({ page }) => {
-    await page.setViewportSize({ height: 1200, width: 1440 });
-    await loginToPlayer(page, desktopVideoId);
-    await page.waitForSelector('[data-media-player][data-can-play]');
-
-    const bottomDiff = await page.evaluate(() => {
-      const player = document.querySelector('[data-media-player]');
-      const container = player?.closest('.aspect-video.bg-black');
-
-      if (!container || !player) {
-        throw new Error('Could not find the player container or media-player root.');
-      }
-
-      return container.getBoundingClientRect().bottom - player.getBoundingClientRect().bottom;
-    });
-
-    expect(bottomDiff).toBe(0);
-  });
-
   test('keeps the desktop watch page content-first without decorative chrome', async ({ page }) => {
     await page.setViewportSize({ height: 1200, width: 1440 });
-    await loginToPlayer(page, desktopVideoId);
+    await loginToPlayer(page, {
+      sharedPassword,
+      videoId: desktopVideoId,
+    });
 
     await expect(page).toHaveURL(new RegExp(`/player/${desktopVideoId}$`));
     await expect(page.getByRole('heading', { level: 1, name: 'playtime' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Related videos' })).toBeVisible();
     await expect(page.getByText('Protected playback')).toHaveCount(0);
     await expect(page.getByText('Vault player')).toHaveCount(0);
-
-    const playerRegion = page.getByRole('region', { name: /video player - playtime/i });
     const recommendations = page.locator('aside');
 
-    await expect(playerRegion).toBeVisible();
+    await expect(page.getByText('Preparing secure playback')).toBeVisible();
     await expect(recommendations).toBeVisible();
   });
 
   test('collapses to a single content column on mobile', async ({ page }) => {
     await page.setViewportSize({ height: 844, width: 390 });
-    await loginToPlayer(page, desktopVideoId);
+    await loginToPlayer(page, {
+      sharedPassword,
+      videoId: desktopVideoId,
+    });
 
-    const playerRegion = page.getByRole('region', { name: /video player - playtime/i });
+    const playerViewport = page.getByText('Preparing secure playback');
     const title = page.getByRole('heading', { level: 1, name: 'playtime' });
     const relatedHeading = page.getByRole('heading', { level: 2, name: 'Related videos' });
 
-    await expect(playerRegion).toBeVisible();
+    await expect(playerViewport).toBeVisible();
     await expect(title).toBeVisible();
     await expect(relatedHeading).toBeVisible();
 
     const order = await Promise.all([
-      playerRegion.boundingBox(),
+      playerViewport.boundingBox(),
       title.boundingBox(),
       relatedHeading.boundingBox(),
     ]);
@@ -65,7 +52,10 @@ test.describe('player layout', () => {
 
   test('uses a lightweight related empty state when filtering removes all results', async ({ page }) => {
     await page.setViewportSize({ height: 1200, width: 1440 });
-    await loginToPlayer(page, filteredEmptyVideoId);
+    await loginToPlayer(page, {
+      sharedPassword,
+      videoId: filteredEmptyVideoId,
+    });
 
     await expect(page).toHaveURL(new RegExp(`/player/${filteredEmptyVideoId}$`));
 

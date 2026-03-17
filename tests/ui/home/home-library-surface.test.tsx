@@ -48,6 +48,8 @@ function RouteOwnedHomeLibraryWidget({ videos }: { videos: HomeLibraryVideo[] })
 
 describe('home library surfaces', () => {
   test('LibraryVideoCard renders title, keyboard-accessible tag actions, date, and duration', () => {
+    const expectedDate = new Intl.DateTimeFormat('en-US').format(new Date('2026-03-11T00:00:00.000Z'));
+
     render(
       <MemoryRouter>
         <LibraryVideoCard video={createVideo()} />
@@ -57,7 +59,7 @@ describe('home library surfaces', () => {
     expect(screen.getByRole('heading', { level: 3, name: 'Catalog Fixture' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '#Action' })).toBeInTheDocument();
     expect(screen.getByText('3:00')).toBeInTheDocument();
-    expect(screen.getByText('3/11/2026')).toBeInTheDocument();
+    expect(screen.getByText(expectedDate)).toBeInTheDocument();
   });
 
   test('HomeTagFilter renders active tags and clear-all actions', async () => {

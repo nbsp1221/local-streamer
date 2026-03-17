@@ -14,11 +14,14 @@ const FORWARDED_ENV_KEYS = [
   'TERM',
   'TMP',
   'TMPDIR',
+  'TZ',
 ] as const;
 
-type SmokeServerEnvOverrides = Record<string, string>;
+type RuntimeTestEnvOverrides = Record<string, string>;
 
-export function createSmokeServerEnv(overrides: SmokeServerEnvOverrides): Record<string, string> {
+export function createRuntimeTestEnv(
+  overrides: RuntimeTestEnvOverrides = {},
+): Record<string, string> {
   const forwardedEnv = Object.fromEntries(
     FORWARDED_ENV_KEYS.flatMap((key) => {
       const value = process.env[key];
@@ -28,7 +31,10 @@ export function createSmokeServerEnv(overrides: SmokeServerEnvOverrides): Record
 
   return {
     ...forwardedEnv,
+    LANG: 'C.UTF-8',
+    LC_ALL: 'C.UTF-8',
     LOCAL_STREAMER_DISABLE_VITE_ENV_FILES: 'true',
+    TZ: 'Etc/UTC',
     VIDEO_JWT_SECRET: SMOKE_VIDEO_JWT_SECRET,
     VIDEO_MASTER_ENCRYPTION_SEED: SMOKE_VIDEO_MASTER_ENCRYPTION_SEED,
     ...overrides,

@@ -49,6 +49,7 @@ function createPendingVideo(overrides: Partial<PendingLibraryItem> = {}): Pendin
 describe('Home library surface contract', () => {
   test('renders the approved heading, card surface, tags, and quick-view action menu affordances', async () => {
     const user = userEvent.setup();
+    const expectedDate = new Intl.DateTimeFormat('en-US').format(new Date('2026-03-11T00:00:00.000Z'));
 
     render(
       <MemoryRouter>
@@ -63,7 +64,7 @@ describe('Home library surface contract', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'My Library' })).toBeInTheDocument();
     expect(screen.getByText('Total 1 videos • Showing 1')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Catalog Fixture' })).toBeInTheDocument();
-    expect(screen.getByText('3/11/2026')).toBeInTheDocument();
+    expect(screen.getByText(expectedDate)).toBeInTheDocument();
     expect(screen.getByText('3:00')).toBeInTheDocument();
     expect(screen.getByText('#Action')).toBeInTheDocument();
     expect(screen.getByText('#Neo')).toBeInTheDocument();

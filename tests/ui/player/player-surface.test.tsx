@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, test, vi } from 'vitest';
@@ -215,6 +215,8 @@ describe('PlayerSurface', () => {
   });
 
   test('renders recommendation entries as thumbnail-first links with compact metadata', () => {
+    const expectedDate = new Intl.DateTimeFormat('en-US').format(new Date('2026-03-08T00:00:00.000Z'));
+
     renderPlayerSurface({
       relatedVideos: [
         createVideo({
@@ -230,8 +232,8 @@ describe('PlayerSurface', () => {
 
     const relatedLink = screen.getByRole('link', { name: /compact related row/i });
 
-    expect(relatedLink).toContainElement(screen.getByAltText('Compact related row'));
-    expect(relatedLink).toContainElement(screen.getByText('Compact related row'));
-    expect(relatedLink).toContainElement(screen.getByText('3/8/2026'));
+    expect(relatedLink).toContainElement(within(relatedLink).getByAltText('Compact related row'));
+    expect(relatedLink).toContainElement(within(relatedLink).getByText('Compact related row'));
+    expect(relatedLink).toContainElement(within(relatedLink).getByText(expectedDate));
   });
 });

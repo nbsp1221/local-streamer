@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { normalizeSharedPassword } from '../lib/normalize-shared-password';
 
 const DEFAULT_FAILED_LOGIN_BLOCK_DURATION_MS = 5 * 60 * 1000;
 const DEFAULT_FAILED_LOGIN_DELAY_MS = 750;
@@ -77,7 +78,7 @@ function readPositiveInteger(value: string | undefined, fallback: number): numbe
 }
 
 export function getAuthRuntimeState(): AuthRuntimeState {
-  const sharedPassword = process.env.AUTH_SHARED_PASSWORD?.trim();
+  const sharedPassword = normalizeSharedPassword(process.env.AUTH_SHARED_PASSWORD);
 
   if (!sharedPassword) {
     return {
@@ -128,7 +129,7 @@ export function getAuthConfig(): AuthConfig {
     failedLoginDelayMs: readPositiveInteger(process.env.AUTH_FAILED_LOGIN_DELAY_MS, DEFAULT_FAILED_LOGIN_DELAY_MS),
     failedLoginWindowMs: readPositiveInteger(process.env.AUTH_FAILED_LOGIN_WINDOW_MS, DEFAULT_FAILED_LOGIN_WINDOW_MS),
     maxFailedLoginAttempts: readPositiveInteger(process.env.AUTH_MAX_FAILED_LOGIN_ATTEMPTS, DEFAULT_MAX_FAILED_LOGIN_ATTEMPTS),
-    sharedPassword: process.env.AUTH_SHARED_PASSWORD!.trim(),
+    sharedPassword: normalizeSharedPassword(process.env.AUTH_SHARED_PASSWORD)!,
     trustProxyHeaders: getAuthRateLimitConfig().trustProxyHeaders,
   };
 }

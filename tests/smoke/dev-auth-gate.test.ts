@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
 import { createNoEnvFileBunCommand } from '../../scripts/no-env-file-bun';
 import { toRequestCookieHeader } from '../helpers/cookies';
-import { createSmokeServerEnv } from './support/create-smoke-server-env';
+import { createRuntimeTestEnv } from '../support/create-runtime-test-env';
 
 const repoRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), 'local-streamer-dev-smoke-'));
@@ -141,7 +141,7 @@ beforeAll(async () => {
 
   server = Bun.spawn(createNoEnvFileBunCommand(['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(port)]), {
     cwd: repoRoot,
-    env: createSmokeServerEnv({
+    env: createRuntimeTestEnv({
       AUTH_SHARED_PASSWORD: 'vault-password',
       AUTH_SQLITE_PATH: authDbPath,
       STORAGE_DIR: storageDir,

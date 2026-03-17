@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { PlaybackCatalogVideo } from '~/modules/playback/application/ports/video-catalog.port';
+import { formatDisplayDate } from '~/shared/lib/format-display-date';
 import { formatDuration } from '~/shared/lib/format-duration';
 
 export interface PlayerSurfaceTagItem {
@@ -75,7 +76,7 @@ export function usePlayerSurfaceView(input: UsePlayerSurfaceViewInput) {
   return {
     activeTag,
     clearTagFilter,
-    createdAtLabel: input.video.createdAt.toLocaleDateString(),
+    createdAtLabel: formatDisplayDate(input.video.createdAt),
     durationLabel: formatDuration(input.video.duration),
     filteredRelatedVideos: relatedVideoItems,
     hasTagFilter: Boolean(activeTag),

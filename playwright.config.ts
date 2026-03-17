@@ -1,42 +1,49 @@
 import { defineConfig, devices } from '@playwright/test';
-import { getE2ESharedPassword } from './tests/e2e/support/shared-password';
+import { createRuntimeTestEnv } from './tests/support/create-runtime-test-env';
+import { createRuntimeTestWorkspace } from './tests/support/create-runtime-test-workspace';
+import {
+  type PlaywrightRuntimeMode,
+  detectPlaywrightRuntimeMode,
+} from './tests/support/detect-playwright-runtime-mode';
+import { getE2ESharedPassword } from './tests/support/shared-password';
 
 const port = 4173;
-const sharedPassword = getE2ESharedPassword();
-const smokeVideoJwtSecret = 'smoke-video-jwt-secret';
-const smokeVideoMasterEncryptionSeed =
-  '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+const sharedPassword = getE2ESharedPassword(process.env.AUTH_SHARED_PASSWORD);
+const runtimeMode = detectPlaywrightRuntimeMode(process.argv);
+const runtimeWorkspace = runtimeMode === 'hermetic-smoke'
+  ? await createRuntimeTestWorkspace()
+  : null;
 
 function createPlaywrightWebServerEnv(portValue: number): Record<string, string> {
-  const forwardedKeys = [
-    'CI',
-    'FORCE_COLOR',
-    'GITHUB_ACTIONS',
-    'HOME',
-    'LANG',
-    'LC_ALL',
-    'PATH',
-    'TEMP',
-    'TERM',
-    'TMP',
-    'TMPDIR',
-  ] as const;
+  if (runtimeMode === 'hermetic-smoke' && runtimeWorkspace) {
+    return createRuntimeTestEnv({
+      AUTH_SHARED_PASSWORD: sharedPassword,
+      AUTH_SQLITE_PATH: runtimeWorkspace.authDbPath,
+      PORT: String(portValue),
+      STORAGE_DIR: runtimeWorkspace.storageDir,
+    });
+  }
 
-  const forwardedEnv = Object.fromEntries(
-    forwardedKeys.flatMap((key) => {
-      const value = process.env[key];
-      return value ? [[key, value]] : [];
-    }),
-  );
-
-  return {
-    ...forwardedEnv,
+  return createRuntimeTestEnv({
     AUTH_SHARED_PASSWORD: sharedPassword,
-    LOCAL_STREAMER_DISABLE_VITE_ENV_FILES: 'true',
     PORT: String(portValue),
-    VIDEO_JWT_SECRET: smokeVideoJwtSecret,
-    VIDEO_MASTER_ENCRYPTION_SEED: smokeVideoMasterEncryptionSeed,
-  };
+  });
+}
+
+if (runtimeWorkspace) {
+  for (const signal of ['SIGINT', 'SIGTERM', 'exit'] as const) {
+    process.on(signal, () => {
+      void runtimeWorkspace.cleanup();
+    });
+  }
+}
+
+function createPlaywrightWebServerCommand(mode: PlaywrightRuntimeMode): string {
+  if (mode === 'hermetic-smoke') {
+    return 'bun --no-env-file run build && bun --no-env-file ./build/server/index.js';
+  }
+
+  return 'bun --no-env-file run build && bun --no-env-file run backfill:browser-playback-fixtures && bun --no-env-file ./build/server/index.js';
 }
 
 export default defineConfig({
@@ -50,6 +57,8 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL: `http://127.0.0.1:${port}`,
+    locale: 'en-US',
+    timezoneId: 'UTC',
     trace: 'on-first-retry',
   },
   projects: [
@@ -61,7 +70,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'bun --no-env-file run build && bun --no-env-file run backfill:browser-playback-fixtures && bun --no-env-file run start',
+    command: createPlaywrightWebServerCommand(runtimeMode),
     env: createPlaywrightWebServerEnv(port),
     reuseExistingServer: false,
     timeout: 180_000,

@@ -1,32 +1,38 @@
 import { describe, expect, test } from 'vitest';
-import { createSmokeServerEnv } from '../../smoke/support/create-smoke-server-env';
+import { normalizeSharedPassword } from '../../../app/shared/lib/normalize-shared-password';
+import { createRuntimeTestEnv } from '../../support/create-runtime-test-env';
 
-describe('createSmokeServerEnv', () => {
-  test('builds a deterministic smoke server env without ambient local playback secrets', () => {
+describe('createRuntimeTestEnv', () => {
+  test('builds a deterministic runtime test env without ambient auth or playback secrets', () => {
     const originalPath = process.env.PATH;
+    const originalSharedPassword = process.env.AUTH_SHARED_PASSWORD;
     const originalVideoJwtSecret = process.env.VIDEO_JWT_SECRET;
     const originalVideoSeed = process.env.VIDEO_MASTER_ENCRYPTION_SEED;
-    const originalCustomValue = process.env.LOCAL_STREAMER_SMOKE_NOISE;
+    const originalNoise = process.env.LOCAL_STREAMER_SMOKE_NOISE;
 
     process.env.PATH = '/tmp/test-bin';
-    process.env.VIDEO_JWT_SECRET = 'ambient-secret-that-must-not-leak';
-    process.env.VIDEO_MASTER_ENCRYPTION_SEED = 'ambient-seed-that-must-not-leak';
+    process.env.AUTH_SHARED_PASSWORD = 'ambient-password';
+    process.env.VIDEO_JWT_SECRET = 'ambient-secret';
+    process.env.VIDEO_MASTER_ENCRYPTION_SEED = 'ambient-seed';
     process.env.LOCAL_STREAMER_SMOKE_NOISE = 'ambient-noise';
 
     try {
-      const env = createSmokeServerEnv({
+      const env = createRuntimeTestEnv({
         AUTH_SHARED_PASSWORD: 'vault-password',
         AUTH_SQLITE_PATH: '/tmp/auth.sqlite',
-        PORT: '3999',
+        PORT: '4173',
         STORAGE_DIR: '/tmp/storage',
       });
 
       expect(env.PATH).toBe('/tmp/test-bin');
       expect(env.AUTH_SHARED_PASSWORD).toBe('vault-password');
       expect(env.AUTH_SQLITE_PATH).toBe('/tmp/auth.sqlite');
-      expect(env.PORT).toBe('3999');
+      expect(env.PORT).toBe('4173');
       expect(env.STORAGE_DIR).toBe('/tmp/storage');
       expect(env.LOCAL_STREAMER_DISABLE_VITE_ENV_FILES).toBe('true');
+      expect(env.TZ).toBe('Etc/UTC');
+      expect(env.LANG).toBe('C.UTF-8');
+      expect(env.LC_ALL).toBe('C.UTF-8');
       expect(env.VIDEO_JWT_SECRET).toBe('smoke-video-jwt-secret');
       expect(env.VIDEO_MASTER_ENCRYPTION_SEED).toBe(
         '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
@@ -39,6 +45,13 @@ describe('createSmokeServerEnv', () => {
       }
       else {
         process.env.PATH = originalPath;
+      }
+
+      if (originalSharedPassword === undefined) {
+        delete process.env.AUTH_SHARED_PASSWORD;
+      }
+      else {
+        process.env.AUTH_SHARED_PASSWORD = originalSharedPassword;
       }
 
       if (originalVideoJwtSecret === undefined) {
@@ -55,12 +68,20 @@ describe('createSmokeServerEnv', () => {
         process.env.VIDEO_MASTER_ENCRYPTION_SEED = originalVideoSeed;
       }
 
-      if (originalCustomValue === undefined) {
+      if (originalNoise === undefined) {
         delete process.env.LOCAL_STREAMER_SMOKE_NOISE;
       }
       else {
-        process.env.LOCAL_STREAMER_SMOKE_NOISE = originalCustomValue;
+        process.env.LOCAL_STREAMER_SMOKE_NOISE = originalNoise;
       }
     }
+  });
+});
+
+describe('normalizeSharedPassword', () => {
+  test('trims a configured password and returns undefined when blank', () => {
+    expect(normalizeSharedPassword('  vault-password \n')).toBe('vault-password');
+    expect(normalizeSharedPassword('   \n\t')).toBeUndefined();
+    expect(normalizeSharedPassword(undefined)).toBeUndefined();
   });
 });
