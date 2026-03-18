@@ -34,17 +34,12 @@ describe('CI parity contract', () => {
     expect(packageJson).not.toContain('./scripts/verify-bun-version.ts && LANG=C.UTF-8 LC_ALL=C.UTF-8 TZ=Etc/UTC LOCAL_STREAMER_DISABLE_VITE_ENV_FILES=true bun --no-env-file x playwright test');
   });
 
-  test('keeps contributor guidance aligned with packageManager as the Bun source of truth', async () => {
-    const agentsGuide = await readFile('AGENTS.md', 'utf8');
-    const e2eGuide = await readFile('docs/E2E_TESTING_GUIDE.md', 'utf8');
-    const verificationContract = await readFile('docs/verification-contract.md', 'utf8');
+  test('keeps executable parity contracts on code and config surfaces only', async () => {
+    const playwrightConfig = await readFile('playwright.config.ts', 'utf8');
 
-    expect(agentsGuide).not.toContain('oven/bun:1.3.10');
-    expect(e2eGuide).not.toContain('oven/bun:1.3.10');
-    expect(agentsGuide).toContain('matching the repo `packageManager` Bun version');
-    expect(e2eGuide).toContain('matching the repo `packageManager` Bun version');
-    expect(e2eGuide).toContain('required browser smoke');
-    expect(verificationContract).not.toContain('- `bun run test:e2e`');
-    expect(verificationContract).toContain('broader developer browser suite');
+    expect(playwrightConfig).toContain('detectPlaywrightRuntimeMode(process.argv)');
+    expect(playwrightConfig).toContain('timezoneId: \'UTC\'');
+    expect(playwrightConfig).toContain('locale: \'en-US\'');
+    expect(playwrightConfig).toContain('bun --no-env-file run build && bun --no-env-file ./build/server/index.js');
   });
 });

@@ -59,7 +59,7 @@ export function PlayerSurface({ video, relatedVideos }: PlayerSurfaceProps) {
       <div className="container mx-auto px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8">
           <section className="flex flex-col gap-4 lg:col-span-2 lg:gap-6">
-            <div className="overflow-hidden rounded-lg bg-black">
+            <div className="overflow-hidden rounded-lg bg-black" data-testid="player-viewport">
               <PlaybackViewport video={video} />
             </div>
 

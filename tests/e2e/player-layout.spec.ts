@@ -19,9 +19,10 @@ test.describe('player layout', () => {
     await expect(page.getByRole('heading', { level: 2, name: 'Related videos' })).toBeVisible();
     await expect(page.getByText('Protected playback')).toHaveCount(0);
     await expect(page.getByText('Vault player')).toHaveCount(0);
+    const playerViewport = page.getByTestId('player-viewport');
     const recommendations = page.locator('aside');
 
-    await expect(page.getByText('Preparing secure playback')).toBeVisible();
+    await expect(playerViewport).toBeVisible();
     await expect(recommendations).toBeVisible();
   });
 
@@ -32,7 +33,7 @@ test.describe('player layout', () => {
       videoId: desktopVideoId,
     });
 
-    const playerViewport = page.getByText('Preparing secure playback');
+    const playerViewport = page.getByTestId('player-viewport');
     const title = page.getByRole('heading', { level: 1, name: 'playtime' });
     const relatedHeading = page.getByRole('heading', { level: 2, name: 'Related videos' });
 
