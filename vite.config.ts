@@ -16,6 +16,13 @@ export default defineConfig(({ command }) => ({
   build: {
     target: 'es2022',
   },
+  optimizeDeps: {
+    include: [
+      '@vidstack/react',
+      '@vidstack/react/player/layouts/default',
+      'dashjs',
+    ],
+  },
   envDir: resolveViteEnvDir(process.env),
   test: {
     globals: true,

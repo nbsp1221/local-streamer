@@ -6,9 +6,27 @@ import { describe, expect, test, vi } from 'vitest';
 import type { PlaybackCatalogVideo } from '../../../app/modules/playback/application/ports/video-catalog.port';
 import { PlayerSurface } from '../../../app/widgets/player-surface/ui/PlayerSurface';
 
+interface MockProtectedPlaybackSessionState {
+  drmConfig: null;
+  error: string | null;
+  isLoading: boolean;
+  manifestUrl: string | null;
+  token: string | null;
+}
+
+const protectedPlaybackSessionState = vi.hoisted<{ current: MockProtectedPlaybackSessionState }>(() => ({
+  current: {
+    drmConfig: null,
+    error: null,
+    isLoading: false,
+    manifestUrl: 'https://cdn.example.com/video-1.mpd',
+    token: null,
+  },
+}));
+
 vi.mock('@vidstack/react', () => ({
-  MediaPlayer: ({ children, title, src }: { children: ReactNode; title: string; src: string }) => (
-    <div data-player-src={src} data-testid="media-player">
+  MediaPlayer: ({ children, title, src }: { children: ReactNode; title: string; src?: string | null }) => (
+    <div data-player-src={src ?? ''} data-testid="media-player">
       {title}
       {children}
     </div>
@@ -20,6 +38,10 @@ vi.mock('@vidstack/react', () => ({
 vi.mock('@vidstack/react/player/layouts/default', () => ({
   defaultLayoutIcons: {},
   DefaultVideoLayout: () => <div data-testid="default-video-layout" />,
+}));
+
+vi.mock('../../../app/widgets/player-surface/model/useProtectedPlaybackSession', () => ({
+  useProtectedPlaybackSession: () => protectedPlaybackSessionState.current,
 }));
 
 function createVideo(overrides: Partial<PlaybackCatalogVideo> = {}): PlaybackCatalogVideo {
@@ -55,7 +77,34 @@ function renderPlayerSurface(props?: {
 }
 
 describe('PlayerSurface', () => {
+  test('keeps the player context tree mounted while protected playback is still bootstrapping', () => {
+    protectedPlaybackSessionState.current = {
+      drmConfig: null,
+      error: null,
+      isLoading: true,
+      manifestUrl: null,
+      token: null,
+    };
+
+    renderPlayerSurface({
+      video: createVideo({ videoUrl: '/videos/video-1/manifest.mpd' }),
+    });
+
+    expect(screen.getByTestId('media-player')).toBeInTheDocument();
+    expect(screen.getByTestId('media-provider')).toBeInTheDocument();
+    expect(screen.getByTestId('default-video-layout')).toBeInTheDocument();
+    expect(screen.getByText('Preparing secure playback')).toBeInTheDocument();
+  });
+
   test('keeps the watch page content-first without decorative product labels', () => {
+    protectedPlaybackSessionState.current = {
+      drmConfig: null,
+      error: null,
+      isLoading: false,
+      manifestUrl: 'https://cdn.example.com/video-1.mpd',
+      token: null,
+    };
+
     renderPlayerSurface({
       relatedVideos: [
         createVideo({
@@ -76,6 +125,14 @@ describe('PlayerSurface', () => {
   });
 
   test('formats fractional durations without leaking decimals', () => {
+    protectedPlaybackSessionState.current = {
+      drmConfig: null,
+      error: null,
+      isLoading: false,
+      manifestUrl: 'https://cdn.example.com/video-1.mpd',
+      token: null,
+    };
+
     renderPlayerSurface({
       relatedVideos: [
         createVideo({
@@ -97,6 +154,14 @@ describe('PlayerSurface', () => {
   });
 
   test('formats invalid durations as 0:00', () => {
+    protectedPlaybackSessionState.current = {
+      drmConfig: null,
+      error: null,
+      isLoading: false,
+      manifestUrl: 'https://cdn.example.com/video-1.mpd',
+      token: null,
+    };
+
     renderPlayerSurface({
       relatedVideos: [
         createVideo({
@@ -115,6 +180,14 @@ describe('PlayerSurface', () => {
   });
 
   test('shows a clear-filter affordance and explanatory empty state for tag filtering', async () => {
+    protectedPlaybackSessionState.current = {
+      drmConfig: null,
+      error: null,
+      isLoading: false,
+      manifestUrl: 'https://cdn.example.com/video-1.mpd',
+      token: null,
+    };
+
     const { user } = renderPlayerSurface({
       relatedVideos: [
         createVideo({
@@ -139,6 +212,14 @@ describe('PlayerSurface', () => {
   });
 
   test('resets the active tag filter when the current video changes', async () => {
+    protectedPlaybackSessionState.current = {
+      drmConfig: null,
+      error: null,
+      isLoading: false,
+      manifestUrl: 'https://cdn.example.com/video-1.mpd',
+      token: null,
+    };
+
     const user = userEvent.setup();
     const { rerender } = render(
       <MemoryRouter>
@@ -195,6 +276,14 @@ describe('PlayerSurface', () => {
   });
 
   test('renders related-video cards with thumbnails, duration badges, and tag chips', () => {
+    protectedPlaybackSessionState.current = {
+      drmConfig: null,
+      error: null,
+      isLoading: false,
+      manifestUrl: 'https://cdn.example.com/video-1.mpd',
+      token: null,
+    };
+
     renderPlayerSurface({
       relatedVideos: [
         createVideo({
@@ -215,6 +304,14 @@ describe('PlayerSurface', () => {
   });
 
   test('renders recommendation entries as thumbnail-first links with compact metadata', () => {
+    protectedPlaybackSessionState.current = {
+      drmConfig: null,
+      error: null,
+      isLoading: false,
+      manifestUrl: 'https://cdn.example.com/video-1.mpd',
+      token: null,
+    };
+
     const expectedDate = new Intl.DateTimeFormat('en-US').format(new Date('2026-03-08T00:00:00.000Z'));
 
     renderPlayerSurface({

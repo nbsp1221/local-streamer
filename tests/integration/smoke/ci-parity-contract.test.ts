@@ -42,4 +42,14 @@ describe('CI parity contract', () => {
     expect(playwrightConfig).toContain('locale: \'en-US\'');
     expect(playwrightConfig).toContain('bun --no-env-file run build && bun --no-env-file ./build/server/index.js');
   });
+
+  test('pre-bundles player-only dev dependencies before the first player navigation', async () => {
+    const viteConfig = await readFile('vite.config.ts', 'utf8');
+
+    expect(viteConfig).toContain('optimizeDeps: {');
+    expect(viteConfig).toContain('include: [');
+    expect(viteConfig).toContain('\'@vidstack/react\'');
+    expect(viteConfig).toContain('\'@vidstack/react/player/layouts/default\'');
+    expect(viteConfig).toContain('\'dashjs\'');
+  });
 });

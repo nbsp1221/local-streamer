@@ -141,32 +141,39 @@ function PlaybackViewport({ video }: { video: PlaybackCatalogVideo }) {
     );
   }
 
-  if (!isHydrated || isLoading || !manifestUrl) {
+  if (!isHydrated) {
     return <PlayerShell title={video.title} />;
   }
 
+  const showLoadingOverlay = isLoading || !manifestUrl;
+
   return (
-    <div className="aspect-video bg-black">
+    <div className="relative aspect-video bg-black">
       <MediaPlayer
         ref={playerRef}
         className="h-full w-full !align-top bg-black text-white"
         load="eager"
         onProviderChange={handleProviderChange}
         playsInline
-        src={manifestUrl}
+        src={manifestUrl ?? undefined}
         streamType="on-demand"
         title={video.title}
       >
         <MediaProvider />
         <DefaultVideoLayout icons={defaultLayoutIcons} />
       </MediaPlayer>
+      {showLoadingOverlay && (
+        <div className="absolute inset-0 z-10">
+          <PlayerShell title={video.title} />
+        </div>
+      )}
     </div>
   );
 }
 
 function PlayerShell({ title }: { title: string }) {
   return (
-    <div className="flex aspect-video items-center justify-center bg-black px-6 text-center">
+    <div className="flex h-full w-full items-center justify-center bg-black px-6 text-center">
       <div className="flex max-w-sm flex-col items-center gap-3">
         <div className="size-12 animate-spin rounded-full border-2 border-white/20 border-t-white" />
         <div className="text-xs uppercase tracking-[0.24em] text-slate-300">Preparing secure playback</div>
