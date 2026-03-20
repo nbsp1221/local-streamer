@@ -17,6 +17,13 @@ export default defineConfig(({ command }) => ({
     target: 'es2022',
   },
   optimizeDeps: {
+    entries: [
+      'app/entry.client.tsx',
+      'app/root.tsx',
+      'app/routes/**/*.{ts,tsx}',
+      '!app/routes/**/*.server.{ts,tsx}',
+      '!app/routes/**/*.test.{ts,tsx}',
+    ],
     include: [
       '@vidstack/react',
       '@vidstack/react/player/layouts/default',

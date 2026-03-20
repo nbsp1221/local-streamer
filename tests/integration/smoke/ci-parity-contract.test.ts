@@ -52,4 +52,18 @@ describe('CI parity contract', () => {
     expect(viteConfig).toContain('\'@vidstack/react/player/layouts/default\'');
     expect(viteConfig).toContain('\'dashjs\'');
   });
+
+  test('lets React Router pre-optimize route-level dev dependencies before first route navigation', async () => {
+    const reactRouterConfig = await readFile('react-router.config.ts', 'utf8');
+    const viteConfig = await readFile('vite.config.ts', 'utf8');
+
+    expect(reactRouterConfig).toContain('future: {');
+    expect(reactRouterConfig).toContain('unstable_optimizeDeps: true');
+    expect(viteConfig).toContain('entries: [');
+    expect(viteConfig).toContain('\'app/entry.client.tsx\'');
+    expect(viteConfig).toContain('\'app/root.tsx\'');
+    expect(viteConfig).toContain('\'app/routes/**/*.{ts,tsx}\'');
+    expect(viteConfig).toContain('\'!app/routes/**/*.server.{ts,tsx}\'');
+    expect(viteConfig).toContain('\'!app/routes/**/*.test.{ts,tsx}\'');
+  });
 });
