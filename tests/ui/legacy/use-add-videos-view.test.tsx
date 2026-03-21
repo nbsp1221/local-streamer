@@ -109,4 +109,110 @@ describe('useAddVideosView', () => {
       encoder: 'cpu-h264',
     });
   });
+
+  test('posts the preserved add-to-library request body and removes the processed file on success', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        count: 1,
+        files: [
+          {
+            createdAt: '2026-03-17T00:00:00.000Z',
+            filename: 'fixture-video.mp4',
+            id: 'pending-1',
+            size: 1_024,
+            thumbnailUrl: '/api/thumbnail-preview/fixture-video.jpg',
+            type: 'mp4',
+          },
+        ],
+        success: true,
+      })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        dashEnabled: true,
+        message: 'Video added to library successfully with video conversion',
+        success: true,
+        videoId: 'video-123',
+      })));
+
+    const { useAddVideosView } = await import('../../../app/legacy/widgets/add-videos-view/model/useAddVideosView');
+    const { result } = renderHook(() => useAddVideosView());
+
+    await waitFor(() => {
+      expect(result.current.pendingFiles).toHaveLength(1);
+    });
+
+    act(() => {
+      result.current.handleTitleChange('fixture-video.mp4', 'Custom title');
+      result.current.handleTagsChange('fixture-video.mp4', 'one, two');
+      result.current.handleDescriptionChange('fixture-video.mp4', 'Custom description');
+      result.current.handleEncodingOptionsChange('fixture-video.mp4', {
+        encoder: 'gpu-h264',
+      });
+    });
+
+    await act(async () => {
+      await result.current.handleAddToLibrary('fixture-video.mp4');
+    });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/add-to-library', expect.objectContaining({
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    }));
+    const addToLibraryRequest = fetchMock.mock.calls[1]?.[1];
+    expect(addToLibraryRequest).toBeDefined();
+    expect(JSON.parse(String(addToLibraryRequest?.body))).toEqual({
+      description: 'Custom description',
+      encodingOptions: {
+        encoder: 'gpu-h264',
+      },
+      filename: 'fixture-video.mp4',
+      tags: ['one', 'two'],
+      title: 'Custom title',
+    });
+    expect(result.current.successMessage).toBe('"Custom title" has been added to the library.');
+    expect(result.current.error).toBeNull();
+    expect(result.current.pendingFiles).toEqual([]);
+    expect(result.current.metadataByFilename['fixture-video.mp4']).toBeUndefined();
+  });
+
+  test('preserves the existing add-to-library failure handling when the API rejects the request', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        count: 1,
+        files: [
+          {
+            createdAt: '2026-03-17T00:00:00.000Z',
+            filename: 'fixture-video.mp4',
+            id: 'pending-1',
+            size: 1_024,
+            thumbnailUrl: '/api/thumbnail-preview/fixture-video.jpg',
+            type: 'mp4',
+          },
+        ],
+        success: true,
+      })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        error: 'Failed to add to library.',
+        success: false,
+      })));
+
+    const { useAddVideosView } = await import('../../../app/legacy/widgets/add-videos-view/model/useAddVideosView');
+    const { result } = renderHook(() => useAddVideosView());
+
+    await waitFor(() => {
+      expect(result.current.pendingFiles).toHaveLength(1);
+    });
+
+    await act(async () => {
+      await result.current.handleAddToLibrary('fixture-video.mp4');
+    });
+
+    expect(result.current.error).toBe('Failed to add to library.');
+    expect(result.current.successMessage).toBeNull();
+    expect(result.current.pendingFiles).toHaveLength(1);
+    expect(result.current.metadataByFilename['fixture-video.mp4']).toEqual(expect.objectContaining({
+      title: 'fixture-video',
+    }));
+  });
 });

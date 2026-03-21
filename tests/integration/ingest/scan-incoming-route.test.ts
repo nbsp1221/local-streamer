@@ -1,35 +1,11 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest';
-
-const requireProtectedApiSessionMock = vi.fn();
-const fakeIngestServices = {
-  scanIncomingVideos: {
-    execute: vi.fn(),
-  },
-};
-
-vi.mock('~/composition/server/auth', () => ({
-  requireProtectedApiSession: requireProtectedApiSessionMock,
-}));
-
-vi.mock('~/composition/server/ingest', () => ({
-  getServerIngestServices: () => fakeIngestServices,
-}));
-
-async function importScanIncomingRoute() {
-  return import('../../../app/routes/api.scan-incoming');
-}
+import { describe, expect, test, vi } from 'vitest';
+import { createScanIncomingLoader } from '../../../app/routes/api.scan-incoming';
 
 describe('scan incoming api route', () => {
-  beforeEach(() => {
-    vi.resetModules();
-    vi.clearAllMocks();
-    fakeIngestServices.scanIncomingVideos.execute.mockReset();
-  });
-
   test('loads pending files through the ingest composition root and preserves the response contract', async () => {
-    requireProtectedApiSessionMock.mockResolvedValue(null);
-    fakeIngestServices.scanIncomingVideos.execute.mockResolvedValue({
-      ok: true,
+    const requireProtectedApiSession = vi.fn(async () => null);
+    const execute = vi.fn(async () => ({
+      ok: true as const,
       data: {
         count: 1,
         files: [
@@ -43,14 +19,25 @@ describe('scan incoming api route', () => {
           },
         ],
       },
+    }));
+    const loader = createScanIncomingLoader({
+      getServerIngestServices: () => ({
+        addVideoToLibrary: {
+          execute: vi.fn(),
+        },
+        scanIncomingVideos: {
+          execute,
+        },
+      }),
+      requireProtectedApiSession,
     });
-    const { loader } = await importScanIncomingRoute();
 
     const response = await loader({
       request: new Request('http://localhost/api/scan-incoming'),
     } as never);
 
-    expect(fakeIngestServices.scanIncomingVideos.execute).toHaveBeenCalledOnce();
+    expect(requireProtectedApiSession).toHaveBeenCalledOnce();
+    expect(execute).toHaveBeenCalledOnce();
     expect(response).toBeInstanceOf(Response);
     await expect((response as Response).json()).resolves.toEqual({
       count: 1,
@@ -69,12 +56,21 @@ describe('scan incoming api route', () => {
   });
 
   test('returns the existing error contract when the ingest scan is unavailable', async () => {
-    requireProtectedApiSessionMock.mockResolvedValue(null);
-    fakeIngestServices.scanIncomingVideos.execute.mockResolvedValue({
-      ok: false,
-      reason: 'INCOMING_SCAN_UNAVAILABLE',
+    const execute = vi.fn(async () => ({
+      ok: false as const,
+      reason: 'INCOMING_SCAN_UNAVAILABLE' as const,
+    }));
+    const loader = createScanIncomingLoader({
+      getServerIngestServices: () => ({
+        addVideoToLibrary: {
+          execute: vi.fn(),
+        },
+        scanIncomingVideos: {
+          execute,
+        },
+      }),
+      requireProtectedApiSession: vi.fn(async () => null),
     });
-    const { loader } = await importScanIncomingRoute();
 
     const response = await loader({
       request: new Request('http://localhost/api/scan-incoming'),
@@ -90,15 +86,26 @@ describe('scan incoming api route', () => {
   });
 
   test('returns the auth gate response without touching ingest services when the request is unauthorized', async () => {
-    const unauthorizedResponse = new Response('unauthorized', { status: 401 });
-    requireProtectedApiSessionMock.mockResolvedValue(unauthorizedResponse);
-    const { loader } = await importScanIncomingRoute();
+    const requireProtectedApiSession = vi.fn(async () => new Response('unauthorized', { status: 401 }));
+    const execute = vi.fn();
+    const loader = createScanIncomingLoader({
+      getServerIngestServices: () => ({
+        addVideoToLibrary: {
+          execute: vi.fn(),
+        },
+        scanIncomingVideos: {
+          execute,
+        },
+      }),
+      requireProtectedApiSession,
+    });
 
     const response = await loader({
       request: new Request('http://localhost/api/scan-incoming'),
     } as never);
 
-    expect(response).toBe(unauthorizedResponse);
-    expect(fakeIngestServices.scanIncomingVideos.execute).not.toHaveBeenCalled();
+    expect((response as Response).status).toBe(401);
+    await expect((response as Response).text()).resolves.toBe('unauthorized');
+    expect(execute).not.toHaveBeenCalled();
   });
 });
