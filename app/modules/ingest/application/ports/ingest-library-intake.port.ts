@@ -10,6 +10,29 @@ export interface AddVideoToLibraryCommand {
   encodingOptions?: IngestEncodingOptions;
 }
 
+export interface PrepareVideoForLibraryCommand {
+  filename: string;
+  title: string;
+  videoId: string;
+}
+
+export interface PreparedVideoForLibraryData {
+  duration: number;
+  sourcePath: string;
+}
+
+export interface ProcessPreparedVideoCommand {
+  encodingOptions?: IngestEncodingOptions;
+  sourcePath: string;
+  title: string;
+  videoId: string;
+}
+
+export interface ProcessPreparedVideoResult {
+  dashEnabled: boolean;
+  message: string;
+}
+
 export interface AddVideoToLibrarySuccessData {
   videoId: string;
   message: string;
@@ -17,5 +40,6 @@ export interface AddVideoToLibrarySuccessData {
 }
 
 export interface IngestLibraryIntakePort {
-  addVideoToLibrary(command: AddVideoToLibraryCommand): Promise<AddVideoToLibrarySuccessData>;
+  prepareVideoForLibrary(command: PrepareVideoForLibraryCommand): Promise<PreparedVideoForLibraryData>;
+  processPreparedVideo(command: ProcessPreparedVideoCommand): Promise<ProcessPreparedVideoResult>;
 }

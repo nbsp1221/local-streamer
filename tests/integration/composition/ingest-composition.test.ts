@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const createIngestLegacyIncomingVideoSourceMock = vi.fn();
 const createIngestLegacyLibraryIntakeMock = vi.fn();
+const createIngestLegacyVideoMetadataWriterMock = vi.fn();
 
 vi.mock('~/composition/server/ingest-legacy-incoming-video-source', () => ({
   createIngestLegacyIncomingVideoSource: createIngestLegacyIncomingVideoSourceMock,
@@ -9,6 +10,10 @@ vi.mock('~/composition/server/ingest-legacy-incoming-video-source', () => ({
 
 vi.mock('~/composition/server/ingest-legacy-library-intake', () => ({
   createIngestLegacyLibraryIntake: createIngestLegacyLibraryIntakeMock,
+}));
+
+vi.mock('~/composition/server/ingest-legacy-video-metadata-writer', () => ({
+  createIngestLegacyVideoMetadataWriter: createIngestLegacyVideoMetadataWriterMock,
 }));
 
 describe('server ingest composition root', () => {
@@ -29,18 +34,26 @@ describe('server ingest composition root', () => {
         type: 'mp4',
       },
     ]);
-    const addVideoToLibrary = vi.fn(async () => ({
+    const prepareVideoForLibrary = vi.fn(async () => ({
+      duration: 120,
+      sourcePath: '/workspace/video.mp4',
+    }));
+    const processPreparedVideo = vi.fn(async () => ({
       dashEnabled: true,
       message: 'Video added to library successfully with video conversion',
-      videoId: 'video-123',
     }));
+    const writeVideoRecord = vi.fn(async () => undefined);
 
     const services = createServerIngestServices({
       libraryIntake: {
-        addVideoToLibrary,
+        prepareVideoForLibrary,
+        processPreparedVideo,
       },
       incomingVideoSource: {
         scanIncomingVideos,
+      },
+      videoMetadataWriter: {
+        writeVideoRecord,
       },
     });
     const result = await services.scanIncomingVideos.execute();
@@ -51,7 +64,9 @@ describe('server ingest composition root', () => {
     });
 
     expect(scanIncomingVideos).toHaveBeenCalledOnce();
-    expect(addVideoToLibrary).toHaveBeenCalledOnce();
+    expect(prepareVideoForLibrary).toHaveBeenCalledOnce();
+    expect(processPreparedVideo).toHaveBeenCalledOnce();
+    expect(writeVideoRecord).toHaveBeenCalledOnce();
     expect(result).toEqual({
       ok: true,
       data: {
@@ -69,7 +84,7 @@ describe('server ingest composition root', () => {
       data: {
         dashEnabled: true,
         message: 'Video added to library successfully with video conversion',
-        videoId: 'video-123',
+        videoId: expect.any(String),
       },
     });
   });
@@ -79,13 +94,21 @@ describe('server ingest composition root', () => {
     createIngestLegacyIncomingVideoSourceMock.mockReturnValue({
       scanIncomingVideos,
     });
-    const addVideoToLibrary = vi.fn(async () => ({
+    const prepareVideoForLibrary = vi.fn(async () => ({
+      duration: 120,
+      sourcePath: '/workspace/video.mp4',
+    }));
+    const processPreparedVideo = vi.fn(async () => ({
       dashEnabled: false,
       message: 'Video added to library but video conversion failed',
-      videoId: 'video-456',
     }));
     createIngestLegacyLibraryIntakeMock.mockReturnValue({
-      addVideoToLibrary,
+      prepareVideoForLibrary,
+      processPreparedVideo,
+    });
+    const writeVideoRecord = vi.fn(async () => undefined);
+    createIngestLegacyVideoMetadataWriterMock.mockReturnValue({
+      writeVideoRecord,
     });
 
     const { getServerIngestServices } = await import('../../../app/composition/server/ingest');
@@ -95,6 +118,7 @@ describe('server ingest composition root', () => {
     expect(first).toBe(second);
     expect(createIngestLegacyIncomingVideoSourceMock).toHaveBeenCalledOnce();
     expect(createIngestLegacyLibraryIntakeMock).toHaveBeenCalledOnce();
+    expect(createIngestLegacyVideoMetadataWriterMock).toHaveBeenCalledOnce();
     await expect(first.scanIncomingVideos.execute()).resolves.toEqual({
       ok: true,
       data: {
@@ -111,8 +135,9 @@ describe('server ingest composition root', () => {
       data: {
         dashEnabled: false,
         message: 'Video added to library but video conversion failed',
-        videoId: 'video-456',
+        videoId: expect.any(String),
       },
     });
+    expect(writeVideoRecord).toHaveBeenCalledOnce();
   });
 });

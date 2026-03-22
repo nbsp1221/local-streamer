@@ -1,4 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
+import { AddVideoToLibraryUseCase } from '../../../app/modules/ingest/application/use-cases/add-video-to-library.usecase';
 import { createAddToLibraryAction } from '../../../app/routes/api.add-to-library';
 
 describe('add to library api route', () => {
@@ -132,5 +133,101 @@ describe('add to library api route', () => {
     expect((response as Response).status).toBe(401);
     await expect((response as Response).text()).resolves.toBe('unauthorized');
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  test('normalizes omitted tags to an empty list instead of returning a 500', async () => {
+    const prepareVideoForLibrary = vi.fn(async () => ({
+      duration: 120,
+      sourcePath: '/workspace/video.mp4',
+    }));
+    const processPreparedVideo = vi.fn(async () => ({
+      dashEnabled: true,
+      message: 'Video added to library successfully with video conversion',
+    }));
+    const writeVideoRecord = vi.fn(async () => undefined);
+    const action = createAddToLibraryAction({
+      createErrorResponse: error => new Response(error instanceof Error ? error.message : 'Unknown error occurred', { status: 500 }),
+      getServerIngestServices: () => ({
+        addVideoToLibrary: new AddVideoToLibraryUseCase({
+          libraryIntake: {
+            prepareVideoForLibrary,
+            processPreparedVideo,
+          },
+          videoMetadataWriter: {
+            writeVideoRecord,
+          },
+        }),
+        scanIncomingVideos: {
+          execute: vi.fn(),
+        },
+      }),
+      requireProtectedApiSession: vi.fn(async () => null),
+    });
+
+    const response = await action({
+      request: new Request('http://localhost/api/add-to-library', {
+        body: JSON.stringify({
+          filename: 'fixture-video.mp4',
+          title: 'Fixture Video',
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
+      }),
+    } as never);
+
+    expect((response as Response).status).toBe(200);
+    await expect((response as Response).json()).resolves.toEqual({
+      dashEnabled: true,
+      message: 'Video added to library successfully with video conversion',
+      success: true,
+      videoId: expect.any(String),
+    });
+    expect(writeVideoRecord).toHaveBeenCalledWith(expect.objectContaining({
+      tags: [],
+      title: 'Fixture Video',
+    }));
+  });
+
+  test('maps non-array tags into the current failure contract instead of a 500', async () => {
+    const action = createAddToLibraryAction({
+      createErrorResponse: error => new Response(error instanceof Error ? error.message : 'Unknown error occurred', { status: 500 }),
+      getServerIngestServices: () => ({
+        addVideoToLibrary: new AddVideoToLibraryUseCase({
+          libraryIntake: {
+            prepareVideoForLibrary: vi.fn(),
+            processPreparedVideo: vi.fn(),
+          },
+          videoMetadataWriter: {
+            writeVideoRecord: vi.fn(),
+          },
+        }),
+        scanIncomingVideos: {
+          execute: vi.fn(),
+        },
+      }),
+      requireProtectedApiSession: vi.fn(async () => null),
+    });
+
+    const response = await action({
+      request: new Request('http://localhost/api/add-to-library', {
+        body: JSON.stringify({
+          filename: 'fixture-video.mp4',
+          tags: 'fixture',
+          title: 'Fixture Video',
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
+      }),
+    } as never);
+
+    expect((response as Response).status).toBe(400);
+    await expect((response as Response).json()).resolves.toEqual({
+      error: 'Tags must be an array',
+      success: false,
+    });
   });
 });
