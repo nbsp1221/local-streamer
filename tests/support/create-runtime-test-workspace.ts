@@ -7,6 +7,7 @@ interface RuntimeTestWorkspace {
   cleanup: () => Promise<void>;
   rootDir: string;
   storageDir: string;
+  videoMetadataDbPath: string;
 }
 
 const HOME_VIDEO_ID = '68e5f819-15e8-41ef-90ee-8a96769311b7';
@@ -61,6 +62,7 @@ export async function createRuntimeTestWorkspace(): Promise<RuntimeTestWorkspace
   const storageDir = join(rootDir, 'storage');
   const dataDir = join(storageDir, 'data');
   const authDbPath = join(rootDir, 'auth.sqlite');
+  const videoMetadataDbPath = join(dataDir, 'video-metadata.sqlite');
 
   await mkdir(join(storageDir, 'uploads', 'thumbnails'), { recursive: true });
   await mkdir(dataDir, { recursive: true });
@@ -81,5 +83,6 @@ export async function createRuntimeTestWorkspace(): Promise<RuntimeTestWorkspace
     },
     rootDir,
     storageDir,
+    videoMetadataDbPath,
   };
 }

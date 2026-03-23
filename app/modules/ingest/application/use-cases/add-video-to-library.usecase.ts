@@ -4,11 +4,18 @@ import type {
   AddVideoToLibraryCommand,
   AddVideoToLibrarySuccessData,
   IngestLibraryIntakePort,
+  RecoverFailedPreparedVideoResult,
 } from '../ports/ingest-library-intake.port';
 import type { IngestVideoMetadataWriterPort } from '../ports/ingest-video-metadata-writer.port';
 
 type ErrorWithStatusCode = {
   statusCode: number;
+};
+
+type AddToLibraryStage = 'finalize' | 'prepare' | 'process' | 'write';
+type RecoveryAwareError = {
+  addToLibraryStage?: AddToLibraryStage;
+  recoveryResult?: RecoverFailedPreparedVideoResult;
 };
 
 interface AddVideoToLibraryUseCaseDependencies {
@@ -33,6 +40,10 @@ export class AddVideoToLibraryUseCase {
   ) {}
 
   async execute(command: AddVideoToLibraryCommand): Promise<AddVideoToLibraryUseCaseResult> {
+    let currentStage: AddToLibraryStage = 'prepare';
+    let preparedVideo: { videoId: string } | null = null;
+    let normalizedFilename: string | null = null;
+
     try {
       const validationError = validateCommand(command);
       if (validationError) {
@@ -44,21 +55,48 @@ export class AddVideoToLibraryUseCase {
       }
 
       const normalizedCommand = normalizeCommand(command);
+      normalizedFilename = normalizedCommand.filename;
       const videoId = uuidv4();
-      const preparedVideo = await this.deps.libraryIntake.prepareVideoForLibrary({
+      const preparedAsset = await this.deps.libraryIntake.prepareVideoForLibrary({
         filename: normalizedCommand.filename,
         title: normalizedCommand.title,
         videoId,
       });
-      const videoRecord = createVideoRecord({
-        command: normalizedCommand,
-        duration: preparedVideo.duration,
+      const recoveryTarget = {
+        filename: normalizedCommand.filename,
         videoId,
-      });
-      await this.deps.videoMetadataWriter.writeVideoRecord(videoRecord);
+      };
+      preparedVideo = recoveryTarget;
+      currentStage = 'process';
       const processedVideo = await this.deps.libraryIntake.processPreparedVideo({
         encodingOptions: normalizedCommand.encodingOptions,
-        sourcePath: preparedVideo.sourcePath,
+        sourcePath: preparedAsset.sourcePath,
+        title: normalizedCommand.title,
+        videoId,
+      });
+
+      if (!processedVideo.dashEnabled) {
+        const recoveryResult = await this.deps.libraryIntake.recoverFailedPreparedVideo(recoveryTarget);
+
+        return {
+          ok: false,
+          message: buildRecoveryFailureMessage({
+            recoveryResult,
+            when: 'video conversion failed',
+          }),
+          reason: 'ADD_TO_LIBRARY_UNAVAILABLE',
+        };
+      }
+
+      const videoRecord = createVideoRecord({
+        command: normalizedCommand,
+        duration: preparedAsset.duration,
+        videoId,
+      });
+      currentStage = 'write';
+      await this.deps.videoMetadataWriter.writeVideoRecord(videoRecord);
+      currentStage = 'finalize';
+      await this.deps.libraryIntake.finalizeSuccessfulPreparedVideo({
         title: normalizedCommand.title,
         videoId,
       });
@@ -74,15 +112,101 @@ export class AddVideoToLibraryUseCase {
       };
     }
     catch (error) {
+      const reason = isErrorWithStatusCode(error) && error.statusCode < 500
+        ? 'ADD_TO_LIBRARY_REJECTED'
+        : 'ADD_TO_LIBRARY_UNAVAILABLE';
+      let message = error instanceof Error ? error.message : 'Failed to add video to library';
+      const errorStage = getRecoveryAwareErrorStage(error) ?? currentStage;
+
+      if (reason === 'ADD_TO_LIBRARY_UNAVAILABLE') {
+        const recoveryResult = await resolveRecoveryResult({
+          error,
+          errorStage,
+          libraryIntake: this.deps.libraryIntake,
+          normalizedFilename,
+          preparedVideo,
+        });
+
+        if (recoveryResult) {
+          message = buildRecoveryFailureMessage({
+            recoveryResult,
+            when: stageFailureLabel(errorStage),
+          });
+        }
+      }
+
       return {
         ok: false,
-        message: error instanceof Error ? error.message : 'Failed to add video to library',
-        reason: isErrorWithStatusCode(error) && error.statusCode < 500
-          ? 'ADD_TO_LIBRARY_REJECTED'
-          : 'ADD_TO_LIBRARY_UNAVAILABLE',
+        message,
+        reason,
       };
     }
   }
+}
+
+async function recoverPreparedVideo(
+  libraryIntake: IngestLibraryIntakePort,
+  command: { filename: string; videoId: string },
+): Promise<RecoverFailedPreparedVideoResult> {
+  try {
+    return await libraryIntake.recoverFailedPreparedVideo(command);
+  }
+  catch (recoveryError) {
+    console.error('Failed to recover prepared video after add-to-library error:', recoveryError);
+    return {
+      restoredThumbnail: false,
+      retryAvailability: 'unavailable',
+    };
+  }
+}
+
+async function resolveRecoveryResult(input: {
+  error: unknown;
+  errorStage: AddToLibraryStage;
+  libraryIntake: IngestLibraryIntakePort;
+  normalizedFilename: string | null;
+  preparedVideo: { videoId: string } | null;
+}): Promise<RecoverFailedPreparedVideoResult | null> {
+  const contextualRecovery = getRecoveryAwareErrorResult(input.error);
+  if (input.errorStage === 'prepare' && contextualRecovery) {
+    return contextualRecovery;
+  }
+
+  if (input.preparedVideo && input.normalizedFilename) {
+    return recoverPreparedVideo(input.libraryIntake, {
+      filename: input.normalizedFilename,
+      videoId: input.preparedVideo.videoId,
+    });
+  }
+
+  return null;
+}
+
+function buildRecoveryFailureMessage(input: {
+  recoveryResult: RecoverFailedPreparedVideoResult;
+  when: string;
+}): string {
+  if (input.recoveryResult.retryAvailability === 'restored' && input.recoveryResult.restoredThumbnail) {
+    return `${capitalize(input.when)}. The upload was restored so you can retry.`;
+  }
+
+  if (input.recoveryResult.retryAvailability === 'restored') {
+    return `${capitalize(input.when)}. The upload was restored, but the preview thumbnail could not be restored automatically.`;
+  }
+
+  if (input.recoveryResult.retryAvailability === 'already_available') {
+    return `${capitalize(input.when)}. The upload is still available so you can retry.`;
+  }
+
+  return `${capitalize(input.when)} and the upload could not be restored automatically.`;
+}
+
+function capitalize(value: string): string {
+  if (value.length === 0) {
+    return value;
+  }
+
+  return value[0].toUpperCase() + value.slice(1);
 }
 
 function validateCommand(command: AddVideoToLibraryCommand): string | null {
@@ -152,6 +276,41 @@ function isErrorWithStatusCode(error: unknown): error is ErrorWithStatusCode {
     error !== null &&
     'statusCode' in error &&
     typeof error.statusCode === 'number';
+}
+
+function getRecoveryAwareErrorResult(error: unknown): RecoverFailedPreparedVideoResult | null {
+  if (typeof error !== 'object' || error === null || !('recoveryResult' in error)) {
+    return null;
+  }
+
+  const recoveryResult = (error as RecoveryAwareError).recoveryResult;
+  if (!recoveryResult) {
+    return null;
+  }
+
+  return recoveryResult;
+}
+
+function getRecoveryAwareErrorStage(error: unknown): AddToLibraryStage | null {
+  if (typeof error !== 'object' || error === null || !('addToLibraryStage' in error)) {
+    return null;
+  }
+
+  const stage = (error as RecoveryAwareError).addToLibraryStage;
+  return stage ?? null;
+}
+
+function stageFailureLabel(stage: AddToLibraryStage): string {
+  switch (stage) {
+    case 'prepare':
+      return 'video preparation failed';
+    case 'process':
+      return 'video conversion failed';
+    case 'write':
+      return 'video metadata could not be saved';
+    case 'finalize':
+      return 'video finalization failed';
+  }
 }
 
 function isStringArray(value: unknown): value is string[] {

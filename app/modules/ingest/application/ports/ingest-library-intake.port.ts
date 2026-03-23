@@ -33,6 +33,26 @@ export interface ProcessPreparedVideoResult {
   message: string;
 }
 
+export interface RecoverFailedPreparedVideoCommand {
+  filename: string;
+  videoId: string;
+}
+
+export type RecoverFailedPreparedVideoRetryAvailability =
+  | 'already_available'
+  | 'restored'
+  | 'unavailable';
+
+export interface RecoverFailedPreparedVideoResult {
+  restoredThumbnail: boolean;
+  retryAvailability: RecoverFailedPreparedVideoRetryAvailability;
+}
+
+export interface FinalizeSuccessfulPreparedVideoCommand {
+  title: string;
+  videoId: string;
+}
+
 export interface AddVideoToLibrarySuccessData {
   videoId: string;
   message: string;
@@ -40,6 +60,10 @@ export interface AddVideoToLibrarySuccessData {
 }
 
 export interface IngestLibraryIntakePort {
+  finalizeSuccessfulPreparedVideo(command: FinalizeSuccessfulPreparedVideoCommand): Promise<void>;
   prepareVideoForLibrary(command: PrepareVideoForLibraryCommand): Promise<PreparedVideoForLibraryData>;
   processPreparedVideo(command: ProcessPreparedVideoCommand): Promise<ProcessPreparedVideoResult>;
+  recoverFailedPreparedVideo(
+    command: RecoverFailedPreparedVideoCommand,
+  ): Promise<RecoverFailedPreparedVideoResult>;
 }

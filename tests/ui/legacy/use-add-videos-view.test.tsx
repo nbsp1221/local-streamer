@@ -215,4 +215,42 @@ describe('useAddVideosView', () => {
       title: 'fixture-video',
     }));
   });
+
+  test('keeps the file pending when processing fails after preparation and the API returns the retryable failure contract', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        count: 1,
+        files: [
+          {
+            createdAt: '2026-03-17T00:00:00.000Z',
+            filename: 'fixture-video.mp4',
+            id: 'pending-1',
+            size: 1_024,
+            thumbnailUrl: '/api/thumbnail-preview/fixture-video.jpg',
+            type: 'mp4',
+          },
+        ],
+        success: true,
+      })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        error: 'Video conversion failed. The upload was restored so you can retry.',
+        success: false,
+      }), { status: 500 }));
+
+    const { useAddVideosView } = await import('../../../app/legacy/widgets/add-videos-view/model/useAddVideosView');
+    const { result } = renderHook(() => useAddVideosView());
+
+    await waitFor(() => {
+      expect(result.current.pendingFiles).toHaveLength(1);
+    });
+
+    await act(async () => {
+      await result.current.handleAddToLibrary('fixture-video.mp4');
+    });
+
+    expect(result.current.error).toBe('Video conversion failed. The upload was restored so you can retry.');
+    expect(result.current.successMessage).toBeNull();
+    expect(result.current.pendingFiles).toHaveLength(1);
+    expect(result.current.processingFiles.size).toBe(0);
+  });
 });

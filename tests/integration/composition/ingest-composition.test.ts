@@ -42,13 +42,20 @@ describe('server ingest composition root', () => {
       dashEnabled: true,
       message: 'Video added to library successfully with video conversion',
     }));
+    const finalizeSuccessfulPreparedVideo = vi.fn(async () => undefined);
+    const recoverFailedPreparedVideo = vi.fn(async () => ({
+      restoredThumbnail: true,
+      retryAvailability: 'restored' as const,
+    }));
     const writeVideoRecord = vi.fn(async () => undefined);
 
     const services = createServerIngestServices({
       libraryIntake: {
+        finalizeSuccessfulPreparedVideo,
         prepareVideoForLibrary,
         processPreparedVideo,
-      },
+        recoverFailedPreparedVideo,
+      } as never,
       incomingVideoSource: {
         scanIncomingVideos,
       },
@@ -66,7 +73,9 @@ describe('server ingest composition root', () => {
     expect(scanIncomingVideos).toHaveBeenCalledOnce();
     expect(prepareVideoForLibrary).toHaveBeenCalledOnce();
     expect(processPreparedVideo).toHaveBeenCalledOnce();
+    expect(recoverFailedPreparedVideo).not.toHaveBeenCalled();
     expect(writeVideoRecord).toHaveBeenCalledOnce();
+    expect(finalizeSuccessfulPreparedVideo).toHaveBeenCalledOnce();
     expect(result).toEqual({
       ok: true,
       data: {
@@ -89,7 +98,7 @@ describe('server ingest composition root', () => {
     });
   });
 
-  test('returns a cached default ingest composition and keeps legacy wiring outside the module boundary', async () => {
+  test('returns a cached default ingest composition and surfaces processing failures without persisting metadata', async () => {
     const scanIncomingVideos = vi.fn(async () => []);
     createIngestLegacyIncomingVideoSourceMock.mockReturnValue({
       scanIncomingVideos,
@@ -100,11 +109,18 @@ describe('server ingest composition root', () => {
     }));
     const processPreparedVideo = vi.fn(async () => ({
       dashEnabled: false,
-      message: 'Video added to library but video conversion failed',
+      message: 'Video conversion failed',
+    }));
+    const finalizeSuccessfulPreparedVideo = vi.fn(async () => undefined);
+    const recoverFailedPreparedVideo = vi.fn(async () => ({
+      restoredThumbnail: true,
+      retryAvailability: 'restored' as const,
     }));
     createIngestLegacyLibraryIntakeMock.mockReturnValue({
+      finalizeSuccessfulPreparedVideo,
       prepareVideoForLibrary,
       processPreparedVideo,
+      recoverFailedPreparedVideo,
     });
     const writeVideoRecord = vi.fn(async () => undefined);
     createCanonicalVideoMetadataLegacyStoreMock.mockReturnValue({
@@ -132,13 +148,15 @@ describe('server ingest composition root', () => {
       tags: [],
       title: 'Fixture Video',
     })).resolves.toEqual({
-      ok: true,
-      data: {
-        dashEnabled: false,
-        message: 'Video added to library but video conversion failed',
-        videoId: expect.any(String),
-      },
+      ok: false,
+      message: 'Video conversion failed. The upload was restored so you can retry.',
+      reason: 'ADD_TO_LIBRARY_UNAVAILABLE',
     });
-    expect(writeVideoRecord).toHaveBeenCalledOnce();
+    expect(writeVideoRecord).not.toHaveBeenCalled();
+    expect(recoverFailedPreparedVideo).toHaveBeenCalledWith({
+      filename: 'fixture-video.mp4',
+      videoId: expect.any(String),
+    });
+    expect(finalizeSuccessfulPreparedVideo).not.toHaveBeenCalled();
   });
 });

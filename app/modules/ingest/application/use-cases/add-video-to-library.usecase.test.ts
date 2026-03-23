@@ -9,7 +9,7 @@ class RejectedAddToLibraryError extends Error {
 }
 
 describe('AddVideoToLibraryUseCase', () => {
-  test('creates the canonical video record, writes metadata, and then returns the preserved add-to-library success payload', async () => {
+  test('processes the prepared video before writing metadata and then returns the preserved add-to-library success payload', async () => {
     const callOrder: string[] = [];
     const prepareVideoForLibrary = vi.fn(async () => {
       callOrder.push('prepare');
@@ -29,10 +29,18 @@ describe('AddVideoToLibraryUseCase', () => {
       callOrder.push('write');
       return record;
     });
+    const finalizeSuccessfulPreparedVideo = vi.fn(async () => {
+      callOrder.push('finalize');
+    });
     const useCase = new AddVideoToLibraryUseCase({
       libraryIntake: {
+        finalizeSuccessfulPreparedVideo,
         prepareVideoForLibrary,
         processPreparedVideo,
+        recoverFailedPreparedVideo: vi.fn(async () => ({
+          restoredThumbnail: true,
+          retryAvailability: 'restored' as const,
+        })),
       },
       videoMetadataWriter: {
         writeVideoRecord,
@@ -53,7 +61,8 @@ describe('AddVideoToLibraryUseCase', () => {
     expect(prepareVideoForLibrary).toHaveBeenCalledOnce();
     expect(writeVideoRecord).toHaveBeenCalledOnce();
     expect(processPreparedVideo).toHaveBeenCalledOnce();
-    expect(callOrder).toEqual(['prepare', 'write', 'process']);
+    expect(finalizeSuccessfulPreparedVideo).toHaveBeenCalledOnce();
+    expect(callOrder).toEqual(['prepare', 'process', 'write', 'finalize']);
     expect(writeVideoRecord).toHaveBeenCalledWith(expect.objectContaining({
       description: 'A test video',
       duration: 120,
@@ -76,10 +85,15 @@ describe('AddVideoToLibraryUseCase', () => {
   test('returns the explicit canonical failure payload from the source port without data loss', async () => {
     const useCase = new AddVideoToLibraryUseCase({
       libraryIntake: {
+        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
         prepareVideoForLibrary: vi.fn(async () => {
           throw new RejectedAddToLibraryError('Title cannot be empty', 400);
         }),
         processPreparedVideo: vi.fn(),
+        recoverFailedPreparedVideo: vi.fn(async () => ({
+          restoredThumbnail: true,
+          retryAvailability: 'restored' as const,
+        })),
       },
       videoMetadataWriter: {
         writeVideoRecord: vi.fn(),
@@ -103,8 +117,13 @@ describe('AddVideoToLibraryUseCase', () => {
     const writeVideoRecord = vi.fn();
     const useCase = new AddVideoToLibraryUseCase({
       libraryIntake: {
+        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
         prepareVideoForLibrary,
         processPreparedVideo,
+        recoverFailedPreparedVideo: vi.fn(async () => ({
+          restoredThumbnail: true,
+          retryAvailability: 'restored' as const,
+        })),
       },
       videoMetadataWriter: {
         writeVideoRecord,
@@ -137,8 +156,13 @@ describe('AddVideoToLibraryUseCase', () => {
     const writeVideoRecord = vi.fn(async () => undefined);
     const useCase = new AddVideoToLibraryUseCase({
       libraryIntake: {
+        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
         prepareVideoForLibrary,
         processPreparedVideo,
+        recoverFailedPreparedVideo: vi.fn(async () => ({
+          restoredThumbnail: true,
+          retryAvailability: 'restored' as const,
+        })),
       },
       videoMetadataWriter: {
         writeVideoRecord,
@@ -168,8 +192,13 @@ describe('AddVideoToLibraryUseCase', () => {
     const writeVideoRecord = vi.fn();
     const useCase = new AddVideoToLibraryUseCase({
       libraryIntake: {
+        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
         prepareVideoForLibrary,
         processPreparedVideo,
+        recoverFailedPreparedVideo: vi.fn(async () => ({
+          restoredThumbnail: true,
+          retryAvailability: 'restored' as const,
+        })),
       },
       videoMetadataWriter: {
         writeVideoRecord,
@@ -188,5 +217,214 @@ describe('AddVideoToLibraryUseCase', () => {
     expect(prepareVideoForLibrary).not.toHaveBeenCalled();
     expect(writeVideoRecord).not.toHaveBeenCalled();
     expect(processPreparedVideo).not.toHaveBeenCalled();
+  });
+
+  test('returns unavailable, skips metadata persistence, and restores the upload when video conversion reports a failed result', async () => {
+    const prepareVideoForLibrary = vi.fn(async () => ({
+      duration: 120,
+      sourcePath: '/workspace/video.mp4',
+    }));
+    const processPreparedVideo = vi.fn(async () => ({
+      dashEnabled: false,
+      message: 'Video conversion failed',
+    }));
+    const recoverFailedPreparedVideo = vi.fn(async () => ({
+      restoredThumbnail: true,
+      retryAvailability: 'restored' as const,
+    }));
+    const writeVideoRecord = vi.fn(async () => undefined);
+    const useCase = new AddVideoToLibraryUseCase({
+      libraryIntake: {
+        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
+        prepareVideoForLibrary,
+        processPreparedVideo,
+        recoverFailedPreparedVideo,
+      },
+      videoMetadataWriter: {
+        writeVideoRecord,
+      },
+    });
+
+    await expect(useCase.execute({
+      filename: 'fixture-video.mp4',
+      title: 'Fixture Video',
+      tags: [],
+    })).resolves.toEqual({
+      ok: false,
+      message: 'Video conversion failed. The upload was restored so you can retry.',
+      reason: 'ADD_TO_LIBRARY_UNAVAILABLE',
+    });
+    expect(writeVideoRecord).not.toHaveBeenCalled();
+    expect(recoverFailedPreparedVideo).toHaveBeenCalledWith({
+      filename: 'fixture-video.mp4',
+      videoId: expect.any(String),
+    });
+  });
+
+  test('returns a recovery-aware unavailable message when processing throws after preparation', async () => {
+    const prepareVideoForLibrary = vi.fn(async () => ({
+      duration: 120,
+      sourcePath: '/workspace/video.mp4',
+    }));
+    const processPreparedVideo = vi.fn(async () => {
+      throw new Error('ffmpeg failed');
+    });
+    const recoverFailedPreparedVideo = vi.fn(async () => ({
+      restoredThumbnail: true,
+      retryAvailability: 'restored' as const,
+    }));
+    const writeVideoRecord = vi.fn(async () => undefined);
+    const useCase = new AddVideoToLibraryUseCase({
+      libraryIntake: {
+        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
+        prepareVideoForLibrary,
+        processPreparedVideo,
+        recoverFailedPreparedVideo,
+      },
+      videoMetadataWriter: {
+        writeVideoRecord,
+      },
+    });
+
+    await expect(useCase.execute({
+      filename: 'fixture-video.mp4',
+      title: 'Fixture Video',
+      tags: [],
+    })).resolves.toEqual({
+      ok: false,
+      message: 'Video conversion failed. The upload was restored so you can retry.',
+      reason: 'ADD_TO_LIBRARY_UNAVAILABLE',
+    });
+    expect(writeVideoRecord).not.toHaveBeenCalled();
+    expect(recoverFailedPreparedVideo).toHaveBeenCalledWith({
+      filename: 'fixture-video.mp4',
+      videoId: expect.any(String),
+    });
+  });
+
+  test('returns an unavailable failure that does not claim retry restoration when recovery reports the upload could not be restored', async () => {
+    const prepareVideoForLibrary = vi.fn(async () => ({
+      duration: 120,
+      sourcePath: '/workspace/video.mp4',
+    }));
+    const processPreparedVideo = vi.fn(async () => ({
+      dashEnabled: false,
+      message: 'Video conversion failed',
+    }));
+    const recoverFailedPreparedVideo = vi.fn(async () => ({
+      restoredThumbnail: false,
+      retryAvailability: 'unavailable' as const,
+    }));
+    const writeVideoRecord = vi.fn(async () => undefined);
+    const useCase = new AddVideoToLibraryUseCase({
+      libraryIntake: {
+        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
+        prepareVideoForLibrary,
+        processPreparedVideo,
+        recoverFailedPreparedVideo,
+      },
+      videoMetadataWriter: {
+        writeVideoRecord,
+      },
+    });
+
+    await expect(useCase.execute({
+      filename: 'fixture-video.mp4',
+      title: 'Fixture Video',
+      tags: [],
+    })).resolves.toEqual({
+      ok: false,
+      message: 'Video conversion failed and the upload could not be restored automatically.',
+      reason: 'ADD_TO_LIBRARY_UNAVAILABLE',
+    });
+    expect(writeVideoRecord).not.toHaveBeenCalled();
+    expect(recoverFailedPreparedVideo).toHaveBeenCalledWith({
+      filename: 'fixture-video.mp4',
+      videoId: expect.any(String),
+    });
+  });
+
+  test('returns a preparation-specific recovery-aware unavailable message when prepare fails after preserving retry availability', async () => {
+    const prepareVideoForLibrary = vi.fn(async () => {
+      throw Object.assign(new Error('ffprobe failed'), {
+        recoveryResult: {
+          restoredThumbnail: true,
+          retryAvailability: 'already_available' as const,
+        },
+      });
+    });
+    const processPreparedVideo = vi.fn();
+    const writeVideoRecord = vi.fn(async () => undefined);
+    const useCase = new AddVideoToLibraryUseCase({
+      libraryIntake: {
+        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
+        prepareVideoForLibrary,
+        processPreparedVideo,
+        recoverFailedPreparedVideo: vi.fn(async () => ({
+          restoredThumbnail: true,
+          retryAvailability: 'restored' as const,
+        })),
+      },
+      videoMetadataWriter: {
+        writeVideoRecord,
+      },
+    });
+
+    await expect(useCase.execute({
+      filename: 'fixture-video.mp4',
+      title: 'Fixture Video',
+      tags: [],
+    })).resolves.toEqual({
+      ok: false,
+      message: 'Video preparation failed. The upload is still available so you can retry.',
+      reason: 'ADD_TO_LIBRARY_UNAVAILABLE',
+    });
+    expect(processPreparedVideo).not.toHaveBeenCalled();
+    expect(writeVideoRecord).not.toHaveBeenCalled();
+  });
+
+  test('returns a metadata-specific recovery-aware unavailable message when metadata persistence throws after processing succeeds', async () => {
+    const prepareVideoForLibrary = vi.fn(async () => ({
+      duration: 120,
+      sourcePath: '/workspace/video.mp4',
+    }));
+    const processPreparedVideo = vi.fn(async () => ({
+      dashEnabled: true,
+      message: 'Video added to library successfully with video conversion',
+    }));
+    const recoverFailedPreparedVideo = vi.fn(async () => ({
+      restoredThumbnail: true,
+      retryAvailability: 'restored' as const,
+    }));
+    const writeVideoRecord = vi.fn(async () => {
+      throw new Error('sqlite failed');
+    });
+    const finalizeSuccessfulPreparedVideo = vi.fn(async () => undefined);
+    const useCase = new AddVideoToLibraryUseCase({
+      libraryIntake: {
+        finalizeSuccessfulPreparedVideo,
+        prepareVideoForLibrary,
+        processPreparedVideo,
+        recoverFailedPreparedVideo,
+      },
+      videoMetadataWriter: {
+        writeVideoRecord,
+      },
+    });
+
+    await expect(useCase.execute({
+      filename: 'fixture-video.mp4',
+      title: 'Fixture Video',
+      tags: [],
+    })).resolves.toEqual({
+      ok: false,
+      message: 'Video metadata could not be saved. The upload was restored so you can retry.',
+      reason: 'ADD_TO_LIBRARY_UNAVAILABLE',
+    });
+    expect(recoverFailedPreparedVideo).toHaveBeenCalledWith({
+      filename: 'fixture-video.mp4',
+      videoId: expect.any(String),
+    });
+    expect(finalizeSuccessfulPreparedVideo).not.toHaveBeenCalled();
   });
 });

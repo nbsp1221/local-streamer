@@ -5,6 +5,7 @@ import type { VideoTranscoder } from '~/legacy/modules/video/transcoding';
 import type {
   IngestEncodingOptions,
   IngestLibraryIntakePort,
+  RecoverFailedPreparedVideoResult,
   ProcessPreparedVideoCommand,
 } from '~/modules/ingest/application/ports/ingest-library-intake.port';
 import { config } from '~/legacy/configs';
@@ -31,6 +32,14 @@ export function createIngestLegacyLibraryIntake(
   const deps = createDependencies(overrides);
 
   return {
+    async finalizeSuccessfulPreparedVideo(command) {
+      await encryptThumbnailAfterDASH({
+        logger: deps.logger,
+        title: command.title,
+        videoId: command.videoId,
+      });
+    },
+
     async prepareVideoForLibrary(command) {
       const workspace = await deps.workspaceManager.createWorkspace({
         videoId: command.videoId,
@@ -40,30 +49,42 @@ export function createIngestLegacyLibraryIntake(
       const sourcePath = path.join(config.paths.uploads, command.filename);
       const ext = path.extname(command.filename);
       const targetName = `video${ext}`;
-      const moveResult = await deps.workspaceManager.moveToWorkspace(
-        sourcePath,
-        workspace,
-        targetName,
-      );
 
-      if (!moveResult.success) {
-        throw new Error(`Failed to move file to workspace: ${moveResult.error}`);
+      try {
+        const moveResult = await deps.workspaceManager.moveToWorkspace(
+          sourcePath,
+          workspace,
+          targetName,
+        );
+
+        if (!moveResult.success) {
+          throw new Error(`Failed to move file to workspace: ${moveResult.error}`);
+        }
+
+        const videoAnalysis = await deps.videoAnalysis.analyze(moveResult.destination);
+        await moveThumbnailToWorkspace({
+          filename: command.filename,
+          logger: deps.logger,
+          title: command.title,
+          videoId: command.videoId,
+          workspaceManager: deps.workspaceManager,
+          workspace,
+        });
+
+        return {
+          duration: videoAnalysis.duration,
+          sourcePath: moveResult.destination,
+        };
       }
-
-      const videoAnalysis = await deps.videoAnalysis.analyze(moveResult.destination);
-      await moveThumbnailToWorkspace({
-        filename: command.filename,
-        logger: deps.logger,
-        title: command.title,
-        videoId: command.videoId,
-        workspaceManager: deps.workspaceManager,
-        workspace,
-      });
-
-      return {
-        duration: videoAnalysis.duration,
-        sourcePath: moveResult.destination,
-      };
+      catch (error) {
+        const recoveryResult = await restorePreparedVideoForRetry({
+          filename: command.filename,
+          logger: deps.logger,
+          videoId: command.videoId,
+          workspaceManager: deps.workspaceManager,
+        });
+        throw attachPrepareRecoveryContext(error, recoveryResult);
+      }
     },
 
     async processPreparedVideo(command) {
@@ -73,18 +94,21 @@ export function createIngestLegacyLibraryIntake(
         videoTranscoder: deps.videoTranscoder,
       });
 
-      await encryptThumbnailAfterDASH({
-        logger: deps.logger,
-        title: command.title,
-        videoId: command.videoId,
-      });
-
       return {
         dashEnabled: transcodeResult.success,
         message: transcodeResult.success
           ? 'Video added to library successfully with video conversion'
           : 'Video added to library but video conversion failed',
       };
+    },
+
+    async recoverFailedPreparedVideo(command) {
+      return restorePreparedVideoForRetry({
+        filename: command.filename,
+        logger: deps.logger,
+        videoId: command.videoId,
+        workspaceManager: deps.workspaceManager,
+      });
     },
   };
 }
@@ -188,6 +212,91 @@ async function encryptThumbnailAfterDASH(input: {
   catch (error) {
     input.logger.error(`❌ Failed to encrypt thumbnail for ${input.videoId}:`, error);
   }
+}
+
+async function restorePreparedVideoForRetry(input: {
+  filename: string;
+  logger: LoggerLike;
+  videoId: string;
+  workspaceManager: WorkspaceManagerService;
+}): Promise<RecoverFailedPreparedVideoResult> {
+  const targetVideoPath = path.join(config.paths.uploads, input.filename);
+  const targetThumbnailPath = path.join(
+    config.paths.thumbnails,
+    `${path.parse(input.filename).name}.jpg`,
+  );
+
+  try {
+    const workspace = await input.workspaceManager.getWorkspace(input.videoId);
+    const ext = path.extname(input.filename);
+    const sourceVideoPath = path.join(workspace.rootDir, `video${ext}`);
+    const sourceThumbnailPath = workspace.thumbnailPath;
+
+    const restoredUpload = await restoreFileIfPresent({
+      destinationPath: targetVideoPath,
+      logger: input.logger,
+      sourcePath: sourceVideoPath,
+      workspaceManager: input.workspaceManager,
+    });
+    const restoredThumbnail = await restoreFileIfPresent({
+      destinationPath: targetThumbnailPath,
+      logger: input.logger,
+      sourcePath: sourceThumbnailPath,
+      workspaceManager: input.workspaceManager,
+    });
+    await input.workspaceManager.cleanupWorkspace(input.videoId);
+    return {
+      restoredThumbnail: restoredThumbnail ||
+        await input.workspaceManager.fileExists(targetThumbnailPath),
+      retryAvailability: restoredUpload
+        ? 'restored'
+        : await input.workspaceManager.fileExists(targetVideoPath)
+          ? 'already_available'
+          : 'unavailable',
+    };
+  }
+  catch (error) {
+    input.logger.error(`Failed to restore upload artifacts for ${input.videoId}:`, error);
+    return {
+      restoredThumbnail: false,
+      retryAvailability: await input.workspaceManager.fileExists(targetVideoPath)
+        ? 'already_available'
+        : 'unavailable',
+    };
+  }
+}
+
+function attachPrepareRecoveryContext(
+  error: unknown,
+  recoveryResult: RecoverFailedPreparedVideoResult,
+): Error & { addToLibraryStage: 'prepare'; recoveryResult: RecoverFailedPreparedVideoResult } {
+  const preparedError = error instanceof Error
+    ? error
+    : new Error('Failed to prepare video for library');
+
+  return Object.assign(preparedError, {
+    addToLibraryStage: 'prepare' as const,
+    recoveryResult,
+  });
+}
+
+async function restoreFileIfPresent(input: {
+  destinationPath: string;
+  logger: LoggerLike;
+  sourcePath: string;
+  workspaceManager: WorkspaceManagerService;
+}): Promise<boolean> {
+  const fs = await import('node:fs');
+
+  if (!await input.workspaceManager.fileExists(input.sourcePath)) {
+    return false;
+  }
+
+  await fs.promises.mkdir(path.dirname(input.destinationPath), { recursive: true });
+  await fs.promises.rm(input.destinationPath, { force: true });
+  await fs.promises.rename(input.sourcePath, input.destinationPath);
+  input.logger.info(`Restored upload artifact: ${input.destinationPath}`);
+  return true;
 }
 
 function mapEncodingOptionsToQuality(

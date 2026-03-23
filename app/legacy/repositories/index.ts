@@ -8,6 +8,7 @@ export { JsonUserRepository } from './JsonUserRepository';
 
 // Repository implementations
 export { JsonPendingVideoRepository, JsonVideoRepository } from './JsonVideoRepository';
+export { SqliteVideoRepository } from './SqliteVideoRepository';
 // Repository factory
 export {
   getPendingVideoRepository,

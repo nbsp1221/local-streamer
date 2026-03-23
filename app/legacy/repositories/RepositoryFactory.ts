@@ -5,7 +5,8 @@ import type { UserRepository } from './interfaces/UserRepository';
 import type { PendingVideoRepository, VideoRepository } from './interfaces/VideoRepository';
 import { JsonSessionRepository } from './JsonSessionRepository';
 import { JsonUserRepository } from './JsonUserRepository';
-import { JsonPendingVideoRepository, JsonVideoRepository } from './JsonVideoRepository';
+import { JsonPendingVideoRepository } from './JsonVideoRepository';
+import { SqliteVideoRepository } from './SqliteVideoRepository';
 
 /**
  * Repository factory for creating and managing repository instances
@@ -23,7 +24,7 @@ class RepositoryFactory {
    */
   getVideoRepository(): VideoRepository {
     if (!this.videoRepository) {
-      this.videoRepository = new JsonVideoRepository();
+      this.videoRepository = new SqliteVideoRepository();
     }
     return this.videoRepository;
   }

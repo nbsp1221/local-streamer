@@ -22,6 +22,7 @@ describe('createRuntimeTestEnv', () => {
         AUTH_SQLITE_PATH: '/tmp/auth.sqlite',
         PORT: '4173',
         STORAGE_DIR: '/tmp/storage',
+        VIDEO_METADATA_SQLITE_PATH: '/tmp/video-metadata.sqlite',
       });
 
       expect(env.PATH).toBe('/tmp/test-bin');
@@ -29,6 +30,7 @@ describe('createRuntimeTestEnv', () => {
       expect(env.AUTH_SQLITE_PATH).toBe('/tmp/auth.sqlite');
       expect(env.PORT).toBe('4173');
       expect(env.STORAGE_DIR).toBe('/tmp/storage');
+      expect(env.VIDEO_METADATA_SQLITE_PATH).toBe('/tmp/video-metadata.sqlite');
       expect(env.LOCAL_STREAMER_DISABLE_VITE_ENV_FILES).toBe('true');
       expect(env.TZ).toBe('Etc/UTC');
       expect(env.LANG).toBe('C.UTF-8');
