@@ -12,28 +12,15 @@ TypeScript operates in strict mode, so prefer explicit interfaces and avoid `any
 ## Testing Guidelines
 Vitest drives unit and integration coverage. Name files `*.test.ts`, keep arrange/act/assert sections clear, and maintain ≥75% coverage with `bun run test:run -- --coverage` as noted in `CLAUDE.md`. Use `bun run test:run`, `bun run test:modules`, `bun run test:integration`, `bun run test:ui-dom`, and `bun run test:legacy` for focused Vitest work. Prefer `jsdom + React Testing Library + jest-dom + user-event` for new component-level UI tests instead of string-based markup assertions. Use `bun run test` before handoff so the Bun smoke layers run too. For end-to-end work, follow `docs/E2E_TESTING_GUIDE.md`: start the dev server, cover API flows with cURL, and escalate to Playwright for UI, playback, or DRM checks.
 
-When a change touches runtime-sensitive auth, playback, or route wiring, verify it in a GitHub Actions-like Docker environment before claiming it is CI-safe. Use a Bun image matching the repo `packageManager` Bun version instead of a hardcoded tag. Prefer:
+Treat `docs/verification-contract.md` as the source of truth for required verification and escalation rules.
+Treat `docs/browser-qa-contract.md` as the source of truth for when Playwright MCP or equivalent isolated browser QA is required.
+Use `docs/E2E_TESTING_GUIDE.md` for the practical workflow and test-layer guidance.
 
-```bash
-docker run --rm --user "$(id -u):$(id -g)" -e CI=true -e GITHUB_ACTIONS=true -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -e TZ=Etc/UTC -v "$PWD":/workspace -w /workspace oven/bun:<matching-packageManager-version> bash -lc 'bun install --frozen-lockfile && bun run lint && bun run typecheck && bun run test && bun run build'
-```
-
-Do not run CI-style Docker verification as root against the bind-mounted workspace. Root-owned files under `.react-router/`, `build/`, or `node_modules/.vite/` will break local `bun run dev`, `bun run typecheck`, and `bun run build` until ownership is repaired.
-
-For runtime-sensitive browser flows, the required browser smoke path is separate from the non-browser Docker gate. Run:
-
-```bash
-bun run test:e2e -- tests/e2e/home-library-owner-smoke.spec.ts tests/e2e/player-layout.spec.ts
-```
-
-with a `bun` matching the repo `packageManager` contract.
-
-Keep tests environment-independent:
-- mock the same module specifier the production file imports, especially when route code uses `~/*` aliases
-- do not hard-code host-specific absolute paths such as `/usr/bin/...` when the code reads from config
-- do not rely on local shell env vars to make tests pass; explicitly clear or seed required env inside the test
-- do not rely on ambient `.env` values in unit, integration, or Bun smoke tests; seed and restore required env in the test or the test-local helper
-- prefer real temporary fixtures over late module mocks when exercising filesystem-backed flows
+High-signal summary:
+- always run the base verification bundle before handoff
+- add the Docker CI-like verification gate for runtime-sensitive auth, playback, route wiring, or storage changes
+- add the required browser smoke and escalate to Playwright MCP or equivalent isolated browser QA when the change is browser-visible and runtime-sensitive
+- keep tests environment-independent and free from hidden local-state coupling per the verification contract
 
 ## Commit & Pull Request Guidelines
 Commits follow the gitmoji + capitalized imperative subject pattern visible in history (e.g., `♻️ Refactor home library view`). Keep subjects under 72 characters, group related work, and avoid force-pushing shared branches. PRs should describe the problem, summarize changes in bullets, list verification steps (lint/test/typecheck/build or Playwright runs), and attach screenshots or clips for UI updates. Link issues or follow-up tasks when available.

@@ -2,6 +2,9 @@
 
 This guide defines the current test layers for Local Streamer.
 
+`docs/verification-contract.md` is the source of truth for the required verification bundle and escalation rules.
+`docs/browser-qa-contract.md` defines when browser-visible work must escalate beyond HTTP checks into Playwright MCP or equivalent isolated browser QA.
+
 `bun run test` is the default full-suite command. It runs:
 
 - the Vitest suite
@@ -10,9 +13,21 @@ This guide defines the current test layers for Local Streamer.
 
 The default `bun run test*` verification commands are env-scrubbed by design. Bun `.env` autoloading is disabled and Vite env-file loading is disabled for the test-facing entrypoints. Unit, integration, and Bun smoke tests must not depend on an ambient local `.env`; any required env must be seeded explicitly inside the test or the test-local helper.
 
-## Prerequisites
+## Execution Paths
 
-1. **Configure auth**
+### Required Hermetic Verification
+
+The required verification paths do not depend on a repo-local `.env`.
+
+- `bun run test*` entrypoints disable Bun `.env` autoloading and Vite env-file loading
+- the required browser smoke path runs against an isolated runtime workspace
+- required verification must not rely on repo-local auth DB state, repo-local uploaded files, or ambient shell env
+
+### Optional Manual Dev-Server QA
+
+Only use this path when you intentionally want ad-hoc local investigation with `bun run dev`.
+
+1. **Configure auth for manual dev QA**
    ```bash
    cp .env.example .env
    ```
@@ -21,14 +36,15 @@ The default `bun run test*` verification commands are env-scrubbed by design. Bu
    ```bash
    bun run dev
    ```
-   The application will be available at `http://localhost:5173`
+
+The manual dev server will be available at `http://localhost:5173`.
 
 ## CI-Like Verification
 
-For auth, playback, route wiring, or other runtime-sensitive changes, prefer a Docker verification pass that matches GitHub Actions more closely than the host shell:
+For auth, playback, route wiring, or other runtime-sensitive changes, run a Docker verification pass that matches GitHub Actions more closely than the host shell. Use a Bun image matching the repo `packageManager` Bun version instead of a hardcoded tag:
 
 ```bash
-docker run --rm --user "$(id -u):$(id -g)" -e CI=true -e GITHUB_ACTIONS=true -v "$PWD":/workspace -w /workspace oven/bun:1.3.10 bash -lc 'bun install && bun run test'
+docker run --rm --user "$(id -u):$(id -g)" -e CI=true -e GITHUB_ACTIONS=true -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -e TZ=Etc/UTC -v "$PWD":/workspace -w /workspace oven/bun:<matching-packageManager-version> bash -lc 'bun install --frozen-lockfile && bun run lint && bun run typecheck && bun run test && bun run build'
 ```
 
 Use `--user "$(id -u):$(id -g)"` so the container does not leave root-owned files behind in the bind-mounted repository. If you forget this, local `bun run dev`, `bun run typecheck`, or `bun run build` may fail until ownership is fixed for `.react-router/`, `build/`, or `node_modules/.vite/`.
@@ -40,6 +56,15 @@ When debugging CI-only failures:
 - treat host-specific absolute paths and leaked local env vars as test bugs
 - treat leaked ambient `.env` values as test bugs in unit, integration, and Bun smoke layers
 - prefer tests that seed their own temp storage and configuration explicitly
+
+For the required browser smoke layer, run:
+
+```bash
+bun run test:e2e -- tests/e2e/home-library-owner-smoke.spec.ts tests/e2e/player-layout.spec.ts
+```
+
+with a `bun` matching the repo `packageManager` contract. That browser smoke path is separate from the non-browser Docker gate above.
+When the change is both browser-visible and runtime-sensitive, follow `docs/browser-qa-contract.md` to decide whether Playwright MCP or equivalent isolated browser QA is additionally required.
 
 ## Test Layers
 
@@ -108,13 +133,7 @@ Use for:
 ### 6. Browser Verification
 
 Use Playwright when API checks are not enough.
-
-Required for:
-
-- login UI
-- logout UI
-- player surface
-- DRM / token / thumbnail flows that need browser cookies and real navigation
+Use `docs/browser-qa-contract.md` when deciding whether browser QA is required for a given change.
 
 ## Testing Tools
 
