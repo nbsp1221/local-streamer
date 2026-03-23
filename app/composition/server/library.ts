@@ -1,6 +1,6 @@
 import type { LibraryVideoSourcePort } from '~/modules/library/application/ports/library-video-source.port';
 import { LoadLibraryCatalogSnapshotUseCase } from '~/modules/library/application/use-cases/load-library-catalog-snapshot.usecase';
-import { createLibraryLegacyVideoSource } from './library-legacy-video-source';
+import { createCanonicalVideoMetadataLegacyStore } from './canonical-video-metadata-legacy-store';
 
 export interface LoadLibraryCatalogSnapshotService {
   execute: LoadLibraryCatalogSnapshotUseCase['execute'];
@@ -18,7 +18,7 @@ let cachedLibraryServices: ServerLibraryServices | null = null;
 
 function createDefaultDependencies(): ServerLibraryServiceDependencies {
   return {
-    videoSource: createLibraryLegacyVideoSource(),
+    videoSource: createCanonicalVideoMetadataLegacyStore(),
   };
 }
 

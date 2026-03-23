@@ -3,9 +3,9 @@ import type { IngestLibraryIntakePort } from '~/modules/ingest/application/ports
 import type { IngestVideoMetadataWriterPort } from '~/modules/ingest/application/ports/ingest-video-metadata-writer.port';
 import { AddVideoToLibraryUseCase } from '~/modules/ingest/application/use-cases/add-video-to-library.usecase';
 import { ScanIncomingVideosUseCase } from '~/modules/ingest/application/use-cases/scan-incoming-videos.usecase';
+import { createCanonicalVideoMetadataLegacyStore } from './canonical-video-metadata-legacy-store';
 import { createIngestLegacyIncomingVideoSource } from './ingest-legacy-incoming-video-source';
 import { createIngestLegacyLibraryIntake } from './ingest-legacy-library-intake';
-import { createIngestLegacyVideoMetadataWriter } from './ingest-legacy-video-metadata-writer';
 
 export interface ServerIngestServices {
   addVideoToLibrary: AddVideoToLibraryUseCase;
@@ -28,7 +28,7 @@ export function createServerIngestServices(
   const libraryIntake = overrides.libraryIntake ??
     createIngestLegacyLibraryIntake();
   const videoMetadataWriter = overrides.videoMetadataWriter ??
-    createIngestLegacyVideoMetadataWriter();
+    createCanonicalVideoMetadataLegacyStore();
 
   return {
     addVideoToLibrary: new AddVideoToLibraryUseCase({

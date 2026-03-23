@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const createIngestLegacyIncomingVideoSourceMock = vi.fn();
 const createIngestLegacyLibraryIntakeMock = vi.fn();
-const createIngestLegacyVideoMetadataWriterMock = vi.fn();
+const createCanonicalVideoMetadataLegacyStoreMock = vi.fn();
 
 vi.mock('~/composition/server/ingest-legacy-incoming-video-source', () => ({
   createIngestLegacyIncomingVideoSource: createIngestLegacyIncomingVideoSourceMock,
@@ -12,8 +12,8 @@ vi.mock('~/composition/server/ingest-legacy-library-intake', () => ({
   createIngestLegacyLibraryIntake: createIngestLegacyLibraryIntakeMock,
 }));
 
-vi.mock('~/composition/server/ingest-legacy-video-metadata-writer', () => ({
-  createIngestLegacyVideoMetadataWriter: createIngestLegacyVideoMetadataWriterMock,
+vi.mock('~/composition/server/canonical-video-metadata-legacy-store', () => ({
+  createCanonicalVideoMetadataLegacyStore: createCanonicalVideoMetadataLegacyStoreMock,
 }));
 
 describe('server ingest composition root', () => {
@@ -107,7 +107,8 @@ describe('server ingest composition root', () => {
       processPreparedVideo,
     });
     const writeVideoRecord = vi.fn(async () => undefined);
-    createIngestLegacyVideoMetadataWriterMock.mockReturnValue({
+    createCanonicalVideoMetadataLegacyStoreMock.mockReturnValue({
+      listLibraryVideos: vi.fn(),
       writeVideoRecord,
     });
 
@@ -118,7 +119,7 @@ describe('server ingest composition root', () => {
     expect(first).toBe(second);
     expect(createIngestLegacyIncomingVideoSourceMock).toHaveBeenCalledOnce();
     expect(createIngestLegacyLibraryIntakeMock).toHaveBeenCalledOnce();
-    expect(createIngestLegacyVideoMetadataWriterMock).toHaveBeenCalledOnce();
+    expect(createCanonicalVideoMetadataLegacyStoreMock).toHaveBeenCalledOnce();
     await expect(first.scanIncomingVideos.execute()).resolves.toEqual({
       ok: true,
       data: {
