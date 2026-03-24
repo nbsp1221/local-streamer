@@ -116,7 +116,7 @@ describe('SqliteVideoRepository', () => {
     ]);
   });
 
-  test('repairs a partial bootstrap before treating SQLite as complete', async () => {
+  test('repairs stale bootstrap rows before treating SQLite as complete', async () => {
     await writeFile(videosJsonPath, JSON.stringify([
       {
         createdAt: '2026-03-22T00:00:00.000Z',
@@ -149,13 +149,13 @@ describe('SqliteVideoRepository', () => {
 
     await metadataRepository.create({
       createdAt: new Date('2026-03-22T00:00:00.000Z'),
-      description: 'Newest legacy fixture',
+      description: 'Stale description',
       duration: 120,
       id: 'legacy-newest',
       sortIndex: 2,
       tags: ['vault'],
       thumbnailUrl: '/api/thumbnail/legacy-newest',
-      title: 'Newest legacy fixture',
+      title: 'Stale title',
       videoUrl: '/videos/legacy-newest/manifest.mpd',
     });
 
@@ -166,7 +166,11 @@ describe('SqliteVideoRepository', () => {
     });
 
     await expect(repository.findAll()).resolves.toEqual([
-      expect.objectContaining({ id: 'legacy-newest' }),
+      expect.objectContaining({
+        description: 'Newest legacy fixture',
+        id: 'legacy-newest',
+        title: 'Newest legacy fixture',
+      }),
       expect.objectContaining({ id: 'legacy-older' }),
     ]);
   });

@@ -4,7 +4,10 @@ This directory now contains the SQLite-backed canonical video metadata store.
 
 The current compatibility shape is:
 
-- durable video metadata lives in SQLite under `app/modules/library/infrastructure/sqlite`
+- durable video metadata lives in SQLite under
+  `app/modules/library/infrastructure/sqlite`
+- local file persistence uses the single `@libsql/client` adapter path in
+  `libsql-video-metadata.database.ts`
 - `app/legacy/repositories/SqliteVideoRepository.ts` adapts that store to the
   existing `VideoRepository` interface so legacy update/delete/playback flows
   keep using the same source of truth

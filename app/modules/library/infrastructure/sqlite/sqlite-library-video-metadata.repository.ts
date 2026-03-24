@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { LibraryVideo } from '../../domain/library-video';
-import type { CreateSqliteDatabase, SqliteDatabaseAdapter } from './video-metadata-sqlite.database';
-import { createVideoMetadataSqliteDatabase } from './video-metadata-sqlite.database';
+import type { CreateSqliteDatabase, SqliteDatabaseAdapter } from './libsql-video-metadata.database';
+import { createVideoMetadataSqliteDatabase } from './libsql-video-metadata.database';
 
 interface SqliteLibraryVideoMetadataRepositoryOptions {
   createDatabase?: CreateSqliteDatabase;
@@ -63,14 +63,14 @@ export class SqliteLibraryVideoMetadataRepository {
 
   async bootstrapFromVideos(videos: LibraryVideo[]): Promise<void> {
     const database = await this.getDatabase();
-    let sortIndex = videos.length;
+    await database.transaction(async (transaction) => {
+      let sortIndex = videos.length;
 
-    database.exec('BEGIN IMMEDIATE');
+      await transaction.exec('DELETE FROM library_videos');
 
-    try {
       for (const video of videos) {
-        database.prepare(`
-          INSERT OR IGNORE INTO library_videos (
+        await transaction.prepare(`
+          INSERT INTO library_videos (
             id,
             title,
             description,
@@ -95,23 +95,18 @@ export class SqliteLibraryVideoMetadataRepository {
         sortIndex -= 1;
       }
 
-      database.prepare(`
+      await transaction.prepare(`
         INSERT OR REPLACE INTO library_video_metadata_state (
           key,
           value
         ) VALUES (?, ?)
       `).run('legacy_bootstrap_complete', 'true');
-      database.exec('COMMIT');
-    }
-    catch (error) {
-      database.exec('ROLLBACK');
-      throw error;
-    }
+    });
   }
 
   async count(): Promise<number> {
     const database = await this.getDatabase();
-    const row = database.prepare<{ count: number }>(`
+    const row = await database.prepare<{ count: number }>(`
       SELECT COUNT(*) AS count
       FROM library_videos
     `).get();
@@ -126,7 +121,7 @@ export class SqliteLibraryVideoMetadataRepository {
     const id = input.id ?? uuidv4();
 
     if (typeof sortIndex === 'number') {
-      database.prepare(`
+      await database.prepare(`
         INSERT INTO library_videos (
           id,
           title,
@@ -151,7 +146,7 @@ export class SqliteLibraryVideoMetadataRepository {
       );
     }
     else {
-      database.prepare(`
+      await database.prepare(`
         INSERT INTO library_videos (
           id,
           title,
@@ -195,7 +190,7 @@ export class SqliteLibraryVideoMetadataRepository {
 
   async delete(id: string): Promise<boolean> {
     const database = await this.getDatabase();
-    const result = database.prepare(`
+    const result = await database.prepare(`
       DELETE FROM library_videos
       WHERE id = ?
     `).run(id) as { changes?: number };
@@ -209,7 +204,7 @@ export class SqliteLibraryVideoMetadataRepository {
 
   async findAll(): Promise<LibraryVideo[]> {
     const database = await this.getDatabase();
-    const rows = database.prepare<LibraryVideoRow>(`
+    const rows = await database.prepare<LibraryVideoRow>(`
       SELECT
         id,
         title,
@@ -222,14 +217,14 @@ export class SqliteLibraryVideoMetadataRepository {
         sort_index
       FROM library_videos
       ORDER BY sort_index DESC
-    `).all?.() ?? [];
+    `).all();
 
     return rows.map(row => mapRowToLibraryVideo(row));
   }
 
   async findById(id: string): Promise<LibraryVideo | null> {
     const database = await this.getDatabase();
-    const row = database.prepare<LibraryVideoRow>(`
+    const row = await database.prepare<LibraryVideoRow>(`
       SELECT
         id,
         title,
@@ -297,7 +292,7 @@ export class SqliteLibraryVideoMetadataRepository {
     }
 
     const database = await this.getDatabase();
-    database.prepare(`
+    await database.prepare(`
       UPDATE library_videos
       SET
         title = ?,
@@ -326,7 +321,7 @@ export class SqliteLibraryVideoMetadataRepository {
 
   async isBootstrapComplete(): Promise<boolean> {
     const database = await this.getDatabase();
-    const row = database.prepare<{ value: string }>(`
+    const row = await database.prepare<{ value: string }>(`
       SELECT value
       FROM library_video_metadata_state
       WHERE key = ?
