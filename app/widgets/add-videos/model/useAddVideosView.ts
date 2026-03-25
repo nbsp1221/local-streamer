@@ -40,9 +40,8 @@ interface UseAddVideosViewResult {
 }
 
 function createInitialMetadata(filename: string): FileMetadataState {
-  const defaultTitle = filename.replace(/\.[^/.]+$/, '');
   return {
-    title: defaultTitle,
+    title: filename.replace(/\.[^/.]+$/, ''),
     tags: '',
     description: '',
     encodingOptions: { ...DEFAULT_ENCODING_OPTIONS },
@@ -72,19 +71,18 @@ export function useAddVideosView(): UseAddVideosViewResult {
       }
 
       setPendingFiles(data.files);
-      setMetadataByFilename((prev) => {
+      setMetadataByFilename((previous) => {
         const next: Record<string, FileMetadataState> = {};
 
         data.files.forEach((file) => {
-          next[file.filename] = prev[file.filename] ?? createInitialMetadata(file.filename);
+          next[file.filename] = previous[file.filename] ?? createInitialMetadata(file.filename);
         });
 
-        // If there was success message for removed file, keep state clean
         return next;
       });
     }
-    catch (err) {
-      console.error('Scan error:', err);
+    catch (error) {
+      console.error('Scan error:', error);
       setError('Network error occurred.');
     }
     finally {
@@ -93,10 +91,11 @@ export function useAddVideosView(): UseAddVideosViewResult {
   }, []);
 
   const updateMetadata = useCallback((filename: string, updater: (current: FileMetadataState) => FileMetadataState) => {
-    setMetadataByFilename((prev) => {
-      const current = prev[filename] ?? createInitialMetadata(filename);
+    setMetadataByFilename((previous) => {
+      const current = previous[filename] ?? createInitialMetadata(filename);
+
       return {
-        ...prev,
+        ...previous,
         [filename]: updater(current),
       };
     });
@@ -126,10 +125,10 @@ export function useAddVideosView(): UseAddVideosViewResult {
       return;
     }
 
-    setProcessingFiles((prev) => {
-      const updated = new Set(prev);
-      updated.add(filename);
-      return updated;
+    setProcessingFiles((previous) => {
+      const next = new Set(previous);
+      next.add(filename);
+      return next;
     });
     setError(null);
     setSuccessMessage(null);
@@ -157,22 +156,22 @@ export function useAddVideosView(): UseAddVideosViewResult {
       }
 
       setSuccessMessage(`"${metadata.title}" has been added to the library.`);
-      setPendingFiles(prev => prev.filter(file => file.filename !== filename));
-      setMetadataByFilename((prev) => {
-        const next = { ...prev };
+      setPendingFiles(previous => previous.filter(file => file.filename !== filename));
+      setMetadataByFilename((previous) => {
+        const next = { ...previous };
         delete next[filename];
         return next;
       });
     }
-    catch (err) {
-      console.error('Add to library error:', err);
+    catch (error) {
+      console.error('Add to library error:', error);
       setError('Network error occurred.');
     }
     finally {
-      setProcessingFiles((prev) => {
-        const updated = new Set(prev);
-        updated.delete(filename);
-        return updated;
+      setProcessingFiles((previous) => {
+        const next = new Set(previous);
+        next.delete(filename);
+        return next;
       });
     }
   }, [metadataByFilename]);

@@ -29,7 +29,7 @@ describe('useAddVideosView', () => {
       success: true,
     })));
 
-    const { useAddVideosView } = await import('../../../app/legacy/widgets/add-videos-view/model/useAddVideosView');
+    const { useAddVideosView } = await import('../../../app/widgets/add-videos/model/useAddVideosView');
     const { result } = renderHook(() => useAddVideosView());
 
     await waitFor(() => {
@@ -80,7 +80,7 @@ describe('useAddVideosView', () => {
         success: true,
       })));
 
-    const { useAddVideosView } = await import('../../../app/legacy/widgets/add-videos-view/model/useAddVideosView');
+    const { useAddVideosView } = await import('../../../app/widgets/add-videos/model/useAddVideosView');
     const { result } = renderHook(() => useAddVideosView());
 
     await waitFor(() => {
@@ -133,7 +133,7 @@ describe('useAddVideosView', () => {
         videoId: 'video-123',
       })));
 
-    const { useAddVideosView } = await import('../../../app/legacy/widgets/add-videos-view/model/useAddVideosView');
+    const { useAddVideosView } = await import('../../../app/widgets/add-videos/model/useAddVideosView');
     const { result } = renderHook(() => useAddVideosView());
 
     await waitFor(() => {
@@ -197,7 +197,7 @@ describe('useAddVideosView', () => {
         success: false,
       })));
 
-    const { useAddVideosView } = await import('../../../app/legacy/widgets/add-videos-view/model/useAddVideosView');
+    const { useAddVideosView } = await import('../../../app/widgets/add-videos/model/useAddVideosView');
     const { result } = renderHook(() => useAddVideosView());
 
     await waitFor(() => {
@@ -237,7 +237,7 @@ describe('useAddVideosView', () => {
         success: false,
       }), { status: 500 }));
 
-    const { useAddVideosView } = await import('../../../app/legacy/widgets/add-videos-view/model/useAddVideosView');
+    const { useAddVideosView } = await import('../../../app/widgets/add-videos/model/useAddVideosView');
     const { result } = renderHook(() => useAddVideosView());
 
     await waitFor(() => {
