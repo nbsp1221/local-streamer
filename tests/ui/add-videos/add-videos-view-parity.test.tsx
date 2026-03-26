@@ -2,15 +2,17 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, test, vi } from 'vitest';
 
-import type { EncodingOptions } from '../../../app/legacy/modules/video/add-video/add-video.types';
-import type { PendingVideo } from '../../../app/legacy/types/video';
-import { DEFAULT_ENCODING_OPTIONS } from '../../../app/legacy/utils/encoding';
+import type { PendingUploadVideo } from '../../../app/entities/pending-video/model/pending-upload-video';
+import {
+  type AddVideosEncodingOptions,
+  DEFAULT_ADD_VIDEOS_ENCODING_OPTIONS,
+} from '../../../app/features/add-videos-encoding/model/add-videos-encoding-options';
 import {
   type AddVideosViewProps,
   AddVideosView,
 } from '../../../app/widgets/add-videos/ui/AddVideosView';
 
-function createPendingFile(overrides: Partial<PendingVideo> = {}): PendingVideo {
+function createPendingFile(overrides: Partial<PendingUploadVideo> = {}): PendingUploadVideo {
   return {
     createdAt: new Date('2026-03-25T00:00:00.000Z'),
     filename: 'fixture-video.mp4',
@@ -27,7 +29,7 @@ function createViewProps(overrides: Partial<AddVideosViewProps> = {}): AddVideos
   const metadataByFilename = {
     [pendingFile.filename]: {
       description: 'Fixture description',
-      encodingOptions: { ...DEFAULT_ENCODING_OPTIONS } satisfies EncodingOptions,
+      encodingOptions: { ...DEFAULT_ADD_VIDEOS_ENCODING_OPTIONS } satisfies AddVideosEncodingOptions,
       tags: 'one, two',
       title: 'Fixture title',
     },

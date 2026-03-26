@@ -1,9 +1,11 @@
 import { ArrowLeft, Check, FileVideo, RefreshCw, Upload } from 'lucide-react';
 import { Link } from 'react-router';
-import type { EncodingOptions } from '~/legacy/modules/video/add-video/add-video.types';
-import type { PendingVideo } from '~/legacy/types/video';
+import type { PendingUploadVideo } from '~/entities/pending-video/model/pending-upload-video';
+import {
+  type AddVideosEncodingOptions as AddVideosEncodingOptionsValue,
+  createDefaultAddVideosEncodingOptions,
+} from '~/features/add-videos-encoding/model/add-videos-encoding-options';
 import { AddVideosEncodingOptions } from '~/features/add-videos-encoding/ui/AddVideosEncodingOptions';
-import { DEFAULT_ENCODING_OPTIONS } from '~/legacy/utils/encoding';
 import { Alert, AlertDescription } from '~/shared/ui/alert';
 import { Badge } from '~/shared/ui/badge';
 import { Button } from '~/shared/ui/button';
@@ -28,7 +30,7 @@ function formatFileSize(bytes: number): string {
 }
 
 export interface AddVideosViewProps {
-  pendingFiles: PendingVideo[];
+  pendingFiles: PendingUploadVideo[];
   loading: boolean;
   error: string | null;
   successMessage: string | null;
@@ -38,7 +40,7 @@ export interface AddVideosViewProps {
   onTitleChange: (filename: string, value: string) => void;
   onTagsChange: (filename: string, value: string) => void;
   onDescriptionChange: (filename: string, value: string) => void;
-  onEncodingOptionsChange: (filename: string, options: EncodingOptions) => void;
+  onEncodingOptionsChange: (filename: string, options: AddVideosEncodingOptionsValue) => void;
   onAddToLibrary: (filename: string) => void;
 }
 
@@ -202,7 +204,7 @@ export function AddVideosView({
                     <AddVideosEncodingOptions
                       fileSize={file.size}
                       onChange={options => onEncodingOptionsChange(file.filename, options)}
-                      value={metadata?.encodingOptions ?? { ...DEFAULT_ENCODING_OPTIONS }}
+                      value={metadata?.encodingOptions ?? createDefaultAddVideosEncodingOptions()}
                     />
 
                     <div className="flex justify-end pt-2">

@@ -1,5 +1,8 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import {
+  DEFAULT_ADD_VIDEOS_ENCODING_OPTIONS,
+} from '../../../app/features/add-videos-encoding/model/add-videos-encoding-options';
 
 describe('useAddVideosView', () => {
   const fetchMock = vi.fn<typeof fetch>();
@@ -37,7 +40,7 @@ describe('useAddVideosView', () => {
     });
 
     expect(result.current.metadataByFilename['fixture-video.mp4']?.encodingOptions).toEqual({
-      encoder: 'cpu-h264',
+      ...DEFAULT_ADD_VIDEOS_ENCODING_OPTIONS,
     });
   });
 
@@ -106,7 +109,7 @@ describe('useAddVideosView', () => {
       title: 'second-video',
     }));
     expect(result.current.metadataByFilename['second-video.mov']?.encodingOptions).toEqual({
-      encoder: 'cpu-h264',
+      ...DEFAULT_ADD_VIDEOS_ENCODING_OPTIONS,
     });
   });
 

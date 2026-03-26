@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { EncodingOptions } from '~/legacy/modules/video/add-video/add-video.types';
-import type { PendingVideo } from '~/legacy/types/video';
-import { DEFAULT_ENCODING_OPTIONS } from '~/legacy/utils/encoding';
+import type { PendingUploadVideo } from '~/entities/pending-video/model/pending-upload-video';
+import {
+  type AddVideosEncodingOptions,
+  createDefaultAddVideosEncodingOptions,
+} from '~/features/add-videos-encoding/model/add-videos-encoding-options';
 
 export interface FileMetadataState {
   title: string;
   tags: string;
   description: string;
-  encodingOptions: EncodingOptions;
+  encodingOptions: AddVideosEncodingOptions;
 }
 
 interface ScanResponse {
   success: boolean;
-  files: PendingVideo[];
+  files: PendingUploadVideo[];
   count: number;
   error?: string;
 }
@@ -25,7 +27,7 @@ interface AddResponse {
 }
 
 interface UseAddVideosViewResult {
-  pendingFiles: PendingVideo[];
+  pendingFiles: PendingUploadVideo[];
   loading: boolean;
   error: string | null;
   successMessage: string | null;
@@ -35,7 +37,7 @@ interface UseAddVideosViewResult {
   handleTitleChange: (filename: string, value: string) => void;
   handleTagsChange: (filename: string, value: string) => void;
   handleDescriptionChange: (filename: string, value: string) => void;
-  handleEncodingOptionsChange: (filename: string, options: EncodingOptions) => void;
+  handleEncodingOptionsChange: (filename: string, options: AddVideosEncodingOptions) => void;
   handleAddToLibrary: (filename: string) => Promise<void>;
 }
 
@@ -44,12 +46,12 @@ function createInitialMetadata(filename: string): FileMetadataState {
     title: filename.replace(/\.[^/.]+$/, ''),
     tags: '',
     description: '',
-    encodingOptions: { ...DEFAULT_ENCODING_OPTIONS },
+    encodingOptions: createDefaultAddVideosEncodingOptions(),
   };
 }
 
 export function useAddVideosView(): UseAddVideosViewResult {
-  const [pendingFiles, setPendingFiles] = useState<PendingVideo[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<PendingUploadVideo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -113,7 +115,7 @@ export function useAddVideosView(): UseAddVideosViewResult {
     updateMetadata(filename, current => ({ ...current, description: value }));
   }, [updateMetadata]);
 
-  const handleEncodingOptionsChange = useCallback((filename: string, options: EncodingOptions) => {
+  const handleEncodingOptionsChange = useCallback((filename: string, options: AddVideosEncodingOptions) => {
     updateMetadata(filename, current => ({ ...current, encodingOptions: options }));
   }, [updateMetadata]);
 

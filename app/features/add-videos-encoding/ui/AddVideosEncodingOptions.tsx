@@ -1,9 +1,10 @@
-import type { EncodingOptions } from '~/legacy/modules/video/add-video/add-video.types';
+import type { AddVideosEncodingOptions as AddVideosEncodingOptionsValue } from '~/features/add-videos-encoding/model/add-videos-encoding-options';
+import type { EncodingOptions as LegacyEncodingOptions } from '~/legacy/modules/video/add-video/add-video.types';
 import { EncodingOptionsComponent } from '~/legacy/components/EncodingOptions';
 
 interface AddVideosEncodingOptionsProps {
-  value: EncodingOptions;
-  onChange: (options: EncodingOptions) => void;
+  value: AddVideosEncodingOptionsValue;
+  onChange: (options: AddVideosEncodingOptionsValue) => void;
   fileSize?: number;
 }
 
@@ -15,8 +16,8 @@ export function AddVideosEncodingOptions({
   return (
     <EncodingOptionsComponent
       fileSize={fileSize}
-      onChange={onChange}
-      value={value}
+      onChange={options => onChange(options as AddVideosEncodingOptionsValue)}
+      value={value as LegacyEncodingOptions}
     />
   );
 }
