@@ -50,10 +50,17 @@ export function HomeQuickViewDialog({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
 
   if (!video) {
     return null;
   }
+
+  const clearActionErrors = () => {
+    setDeleteError(null);
+    setEditError(null);
+  };
 
   const handleTagClick = (tag: string, event: React.MouseEvent) => {
     event.preventDefault();
@@ -64,13 +71,18 @@ export function HomeQuickViewDialog({
 
   const handleDeleteConfirm = async () => {
     setIsDeleting(true);
+    setDeleteError(null);
+
     try {
       await onDeleteVideo(video.id);
       setShowDeleteConfirm(false);
+      setDeleteError(null);
       onClose();
     }
     catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete video';
       console.error('Failed to delete video:', error);
+      setDeleteError(message);
     }
     finally {
       setIsDeleting(false);
@@ -78,12 +90,17 @@ export function HomeQuickViewDialog({
   };
 
   const handleEditSave = async (data: UpdateVideoPayload) => {
+    setEditError(null);
+
     try {
       await onUpdateVideo(video.id, data);
+      setEditError(null);
       setIsEditMode(false);
     }
     catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update video';
       console.error('Failed to update video:', error);
+      setEditError(message);
     }
   };
 
@@ -94,6 +111,8 @@ export function HomeQuickViewDialog({
         onOpenChange={(nextOpen) => {
           if (!nextOpen) {
             setIsEditMode(false);
+            setShowDeleteConfirm(false);
+            clearActionErrors();
             onClose();
           }
         }}
@@ -106,7 +125,15 @@ export function HomeQuickViewDialog({
               </DialogTitle>
               {!isEditMode && (
                 <div className="flex justify-start">
-                  <Button variant="ghost" size="sm" onClick={() => setIsEditMode(true)} type="button">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setEditError(null);
+                      setIsEditMode(true);
+                    }}
+                    type="button"
+                  >
                     <Edit className="mr-2 h-4 w-4" />
                     Edit Info
                   </Button>
@@ -120,11 +147,24 @@ export function HomeQuickViewDialog({
 
           {isEditMode
             ? (
-                <EditHomeVideoForm
-                  video={video}
-                  onSave={handleEditSave}
-                  onCancel={() => setIsEditMode(false)}
-                />
+                <div className="space-y-4">
+                  {editError && (
+                    <div
+                      role="alert"
+                      className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                    >
+                      {editError}
+                    </div>
+                  )}
+                  <EditHomeVideoForm
+                    video={video}
+                    onSave={handleEditSave}
+                    onCancel={() => {
+                      setEditError(null);
+                      setIsEditMode(false);
+                    }}
+                  />
+                </div>
               )
             : (
                 <div className="space-y-6">
@@ -202,7 +242,15 @@ export function HomeQuickViewDialog({
                       </Link>
                     </Button>
 
-                    <Button variant="destructive" size="default" onClick={() => setShowDeleteConfirm(true)} type="button">
+                    <Button
+                      variant="destructive"
+                      size="default"
+                      onClick={() => {
+                        setDeleteError(null);
+                        setShowDeleteConfirm(true);
+                      }}
+                      type="button"
+                    >
                       <Trash2 className="mr-2 h-4 w-4" />
                       Delete
                     </Button>
@@ -217,7 +265,16 @@ export function HomeQuickViewDialog({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      <Dialog
+        open={showDeleteConfirm}
+        onOpenChange={(nextOpen) => {
+          setShowDeleteConfirm(nextOpen);
+
+          if (!nextOpen) {
+            setDeleteError(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Delete Video</DialogTitle>
@@ -228,10 +285,22 @@ export function HomeQuickViewDialog({
             </DialogDescription>
           </DialogHeader>
 
+          {deleteError && (
+            <div
+              role="alert"
+              className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
+              {deleteError}
+            </div>
+          )}
+
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setShowDeleteConfirm(false)}
+              onClick={() => {
+                setDeleteError(null);
+                setShowDeleteConfirm(false);
+              }}
               disabled={isDeleting}
               type="button"
             >

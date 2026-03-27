@@ -1,13 +1,21 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 const createCanonicalVideoMetadataLegacyStoreMock = vi.fn();
+const createLegacyArtifactRemovalPortMock = vi.fn();
+const createLegacyMutationPortMock = vi.fn();
 
 vi.mock('~/composition/server/canonical-video-metadata-legacy-store', () => ({
   createCanonicalVideoMetadataLegacyStore: createCanonicalVideoMetadataLegacyStoreMock,
 }));
 
+vi.mock('~/composition/server/library-legacy-video-mutation', () => ({
+  createLibraryLegacyVideoArtifactRemovalPort: createLegacyArtifactRemovalPortMock,
+  createLibraryLegacyVideoMutationPort: createLegacyMutationPortMock,
+}));
+
 describe('server library composition root', () => {
   afterEach(() => {
+    vi.clearAllMocks();
     vi.resetModules();
   });
 
@@ -68,6 +76,31 @@ describe('server library composition root', () => {
     createCanonicalVideoMetadataLegacyStoreMock.mockReturnValue({
       listLibraryVideos,
       writeVideoRecord: vi.fn(),
+    });
+    createLegacyArtifactRemovalPortMock.mockReturnValue({
+      cleanupVideoArtifacts: vi.fn(async () => ({})),
+    });
+    createLegacyMutationPortMock.mockReturnValue({
+      deleteLibraryVideo: vi.fn(async () => ({
+        deleted: true,
+        title: 'Catalog Fixture',
+      })),
+      findLibraryVideoById: vi.fn(async videoId => ({
+        createdAt: new Date('2026-03-11T00:00:00.000Z'),
+        duration: 180,
+        id: videoId,
+        tags: ['Action'],
+        title: 'Catalog Fixture',
+        videoUrl: '/videos/video-1/manifest.mpd',
+      })),
+      updateLibraryVideo: vi.fn(async input => ({
+        createdAt: new Date('2026-03-11T00:00:00.000Z'),
+        duration: 180,
+        id: input.videoId,
+        tags: input.tags,
+        title: input.title,
+        videoUrl: '/videos/video-1/manifest.mpd',
+      })),
     });
     vi.resetModules();
 

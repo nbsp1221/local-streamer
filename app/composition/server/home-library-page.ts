@@ -2,7 +2,7 @@ import type { PendingVideo, SearchFilters } from '~/legacy/types/video';
 import type { LoadLibraryCatalogSnapshotResult } from '~/modules/library/application/use-cases/load-library-catalog-snapshot.usecase';
 import type { LibraryHomeFilters } from '~/modules/library/domain/library-home-filters';
 import type { LibraryVideo } from '~/modules/library/domain/library-video';
-import { type ServerLibraryServices, getServerLibraryServices } from './library';
+import { getServerLibraryServices } from './library';
 import {
   type PendingVideosCompatReader,
   createPendingVideosCompatReader,
@@ -37,8 +37,14 @@ interface HomeLibraryPageServices {
   };
 }
 
+interface HomeLibraryReadServices {
+  loadLibraryCatalogSnapshot: {
+    execute: ReturnType<typeof getServerLibraryServices>['loadLibraryCatalogSnapshot']['execute'];
+  };
+}
+
 interface HomeLibraryPageServiceDependencies {
-  libraryServices: ServerLibraryServices;
+  libraryServices: HomeLibraryReadServices;
   pendingVideosReader: PendingVideosCompatReader;
 }
 

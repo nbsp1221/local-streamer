@@ -184,7 +184,7 @@ describe('HomeLibraryWidget', () => {
     expect(screen.queryByRole('button', { name: 'Remove #Drama filter' })).not.toBeInTheDocument();
   });
 
-  test('opens and closes quick view, applies delete/update success behavior, and preserves state on action failures', async () => {
+  test('opens and closes quick view, surfaces delete/update failures, and preserves state on action failures', async () => {
     const user = userEvent.setup();
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     deleteVideoMock.mockReset();
@@ -230,16 +230,19 @@ describe('HomeLibraryWidget', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(updateVideoMock).toHaveBeenCalledOnce();
+    expect(screen.getByRole('alert')).toHaveTextContent('update failed');
     expect(screen.getByLabelText('Title')).toHaveValue('Updated Fixture');
 
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(screen.getByRole('heading', { name: 'Canonical Fixture' })).toBeInTheDocument();
     expect(screen.getByText('Canonical description')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
     deleteVideoMock.mockRejectedValueOnce(new Error('delete failed'));
     await user.click(screen.getByRole('button', { name: 'Delete' }));
     const failedDeleteDialog = screen.getByRole('dialog', { name: 'Delete Video' });
     await user.click(within(failedDeleteDialog).getByRole('button', { name: 'Delete' }));
+    expect(within(failedDeleteDialog).getByRole('alert')).toHaveTextContent('delete failed');
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByRole('heading', { name: 'Canonical Fixture' })).toBeInTheDocument();
 
