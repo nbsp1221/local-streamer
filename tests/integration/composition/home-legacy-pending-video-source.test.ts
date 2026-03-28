@@ -13,7 +13,7 @@ async function seedStorage(storageDir: string, overrides?: { pendingVideos?: unk
   );
 }
 
-describe('pending videos compat reader', () => {
+describe('home legacy pending video source', () => {
   let tempDir = '';
   let previousStorageDir: string | undefined;
 
@@ -32,14 +32,15 @@ describe('pending videos compat reader', () => {
     }
   });
 
-  test('returns pending videos in the current compatibility shape without making them part of the library module contract', async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'local-streamer-pending-reader-'));
+  test('returns pending library items from the legacy repository without leaking legacy-only fields', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'local-streamer-home-pending-source-'));
     const storageDir = join(tempDir, 'storage');
     previousStorageDir = process.env.STORAGE_DIR;
     process.env.STORAGE_DIR = storageDir;
     await seedStorage(storageDir, {
       pendingVideos: [
         {
+          createdAt: '2026-03-28T00:00:00.000Z',
           filename: 'fixture-upload.mp4',
           id: 'pending-1',
           path: '/vault/uploads/fixture-upload.mp4',
@@ -51,16 +52,14 @@ describe('pending videos compat reader', () => {
     });
     vi.resetModules();
 
-    const { createPendingVideosCompatReader } = await import('../../../app/composition/server/pending-videos-compat-reader');
-    const reader = createPendingVideosCompatReader();
+    const { createHomeLegacyPendingVideoSource } = await import('../../../app/composition/server/home-legacy-pending-video-source');
+    const source = createHomeLegacyPendingVideoSource();
 
-    await expect(reader.readPendingVideos()).resolves.toEqual([
+    await expect(source.readPendingLibraryItems()).resolves.toEqual([
       {
         filename: 'fixture-upload.mp4',
         id: 'pending-1',
-        path: '/vault/uploads/fixture-upload.mp4',
         size: 128,
-        thumbnailUrl: '/uploads/thumbnails/pending-1.jpg',
         type: 'video/mp4',
       },
     ]);

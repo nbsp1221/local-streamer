@@ -46,4 +46,34 @@ describe('createRuntimeTestWorkspace', () => {
       }),
     ]));
   });
+
+  test('accepts explicit pending-video seeds for hermetic browser flows', async () => {
+    const workspace = await createRuntimeTestWorkspace({
+      pendingVideos: [
+        {
+          filename: 'pending-fixture.mp4',
+          id: 'pending-1',
+          size: 128,
+          type: 'video/mp4',
+        },
+      ],
+    });
+    cleanupTasks.push(workspace.cleanup);
+
+    const pendingVideos = JSON.parse(await readFile(`${workspace.storageDir}/data/pending.json`, 'utf8')) as Array<{
+      filename: string;
+      id: string;
+      size: number;
+      type: string;
+    }>;
+
+    expect(pendingVideos).toEqual([
+      {
+        filename: 'pending-fixture.mp4',
+        id: 'pending-1',
+        size: 128,
+        type: 'video/mp4',
+      },
+    ]);
+  });
 });

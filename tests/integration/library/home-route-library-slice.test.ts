@@ -31,10 +31,6 @@ describe('home route library slice adapter', () => {
     loadHomeLibraryPageDataExecuteMock.mockResolvedValue({
       ok: true,
       data: {
-        initialFilters: {
-          query: '',
-          tags: [],
-        },
         pendingVideos: [
           {
             filename: 'pending.mp4',
@@ -87,10 +83,6 @@ describe('home route library slice adapter', () => {
     loadHomeLibraryPageDataExecuteMock.mockResolvedValue({
       ok: true,
       data: {
-        initialFilters: {
-          query: '',
-          tags: [],
-        },
         pendingVideos: [],
         videos: [
           {

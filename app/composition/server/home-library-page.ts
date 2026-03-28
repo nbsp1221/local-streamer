@@ -1,12 +1,11 @@
-import type { PendingVideo, SearchFilters } from '~/legacy/types/video';
+import type { PendingLibraryItem } from '~/entities/pending-video/model/pending-video';
 import type { LoadLibraryCatalogSnapshotResult } from '~/modules/library/application/use-cases/load-library-catalog-snapshot.usecase';
-import type { LibraryHomeFilters } from '~/modules/library/domain/library-home-filters';
 import type { LibraryVideo } from '~/modules/library/domain/library-video';
-import { getServerLibraryServices } from './library';
 import {
-  type PendingVideosCompatReader,
-  createPendingVideosCompatReader,
-} from './pending-videos-compat-reader';
+  type HomePendingLibraryItemSource,
+  createHomeLegacyPendingVideoSource,
+} from './home-legacy-pending-video-source';
+import { getServerLibraryServices } from './library';
 
 interface LoadHomeLibraryPageDataInput {
   rawQuery?: string | null;
@@ -17,8 +16,7 @@ interface LoadHomeLibraryPageDataSuccess {
   ok: true;
   data: {
     videos: LibraryVideo[];
-    pendingVideos: PendingVideo[];
-    initialFilters: SearchFilters;
+    pendingVideos: PendingLibraryItem[];
   };
 }
 
@@ -45,7 +43,7 @@ interface HomeLibraryReadServices {
 
 interface HomeLibraryPageServiceDependencies {
   libraryServices: HomeLibraryReadServices;
-  pendingVideosReader: PendingVideosCompatReader;
+  pendingVideosSource: HomePendingLibraryItemSource;
 }
 
 let cachedHomeLibraryPageServices: HomeLibraryPageServices | null = null;
@@ -57,46 +55,15 @@ function createHomeLibraryUnavailableFailure(): LoadHomeLibraryPageDataFailure {
   };
 }
 
-function toLegacyBootstrapTags(rawTags: string[]): string[] {
-  const seenTags = new Set<string>();
-
-  return rawTags.reduce<string[]>((tags, rawTag) => {
-    const tag = rawTag.trim();
-
-    if (tag.length === 0) {
-      return tags;
-    }
-
-    const normalizedTag = tag.toLowerCase();
-
-    if (seenTags.has(normalizedTag)) {
-      return tags;
-    }
-
-    seenTags.add(normalizedTag);
-    tags.push(tag);
-
-    return tags;
-  }, []);
-}
-
-function createLegacyInitialFilters(filters: LibraryHomeFilters): SearchFilters {
-  return {
-    query: filters.displayQuery,
-    tags: toLegacyBootstrapTags(filters.rawTags),
-  };
-}
-
 function mapCatalogResultToHomePageData(
   result: Extract<LoadLibraryCatalogSnapshotResult, { ok: true }>,
-  pendingVideos: PendingVideo[],
+  pendingVideos: PendingLibraryItem[],
 ): LoadHomeLibraryPageDataSuccess {
   return {
     ok: true,
     data: {
       videos: result.data.videos,
       pendingVideos,
-      initialFilters: createLegacyInitialFilters(result.data.filters),
     },
   };
 }
@@ -106,7 +73,7 @@ function resolveDependencies(
 ): HomeLibraryPageServiceDependencies {
   return {
     libraryServices: overrides.libraryServices ?? getServerLibraryServices(),
-    pendingVideosReader: overrides.pendingVideosReader ?? createPendingVideosCompatReader(),
+    pendingVideosSource: overrides.pendingVideosSource ?? createHomeLegacyPendingVideoSource(),
   };
 }
 
@@ -125,7 +92,7 @@ export function createHomeLibraryPageServices(
         }
 
         try {
-          const pendingVideos = await deps.pendingVideosReader.readPendingVideos();
+          const pendingVideos = await deps.pendingVideosSource.readPendingLibraryItems();
 
           return mapCatalogResultToHomePageData(catalogResult, pendingVideos);
         }

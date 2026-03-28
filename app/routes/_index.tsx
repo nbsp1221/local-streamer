@@ -46,20 +46,6 @@ function deserializeHomeLibraryVideo(video: SerializedHomeLibraryVideo): HomeLib
   };
 }
 
-function toPendingLibraryItem(item: {
-  filename: string;
-  id: string;
-  size: number;
-  type: string;
-}): PendingLibraryItem {
-  return {
-    filename: item.filename,
-    id: item.id,
-    size: item.size,
-    type: item.type,
-  };
-}
-
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireProtectedPageSession(request);
   const result = await getHomeLibraryPageServices().loadHomeLibraryPageData.execute({});
@@ -69,7 +55,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   return {
-    pendingVideos: result.data.pendingVideos.map(toPendingLibraryItem),
+    pendingVideos: result.data.pendingVideos,
     videos: result.data.videos.map(serializeHomeLibraryVideo),
   } satisfies LoaderData;
 }

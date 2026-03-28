@@ -11,7 +11,16 @@ const port = 4173;
 const sharedPassword = getE2ESharedPassword(process.env.AUTH_SHARED_PASSWORD);
 const runtimeMode = detectPlaywrightRuntimeMode(process.argv);
 const runtimeWorkspace = runtimeMode === 'hermetic-smoke'
-  ? await createRuntimeTestWorkspace()
+  ? await createRuntimeTestWorkspace({
+      pendingVideos: [
+        {
+          filename: 'pending-smoke-fixture.mp4',
+          id: 'pending-smoke-1',
+          size: 128,
+          type: 'video/mp4',
+        },
+      ],
+    })
   : null;
 
 function createPlaywrightWebServerEnv(portValue: number): Record<string, string> {

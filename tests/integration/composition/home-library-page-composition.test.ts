@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
-import type { PendingVideo } from '../../../app/legacy/types/video';
+import type { PendingLibraryItem } from '../../../app/entities/pending-video/model/pending-video';
 import type { LibraryVideo } from '../../../app/modules/library/domain/library-video';
 
 function createFixtureVideo(overrides: Partial<LibraryVideo> = {}): LibraryVideo {
@@ -14,7 +14,7 @@ function createFixtureVideo(overrides: Partial<LibraryVideo> = {}): LibraryVideo
   };
 }
 
-function createPendingFixture(overrides: Partial<PendingVideo> = {}): PendingVideo {
+function createPendingFixture(overrides: Partial<PendingLibraryItem> = {}): PendingLibraryItem {
   return {
     filename: 'pending.mp4',
     id: 'pending-1',
@@ -25,7 +25,7 @@ function createPendingFixture(overrides: Partial<PendingVideo> = {}): PendingVid
 }
 
 describe('home library page composition root', () => {
-  test('composes canonical library data with pending compatibility data and exposes legacy bootstrap filters', async () => {
+  test('composes canonical library data with pending library items in the active shape', async () => {
     const { createHomeLibraryPageServices } = await import('../../../app/composition/server/home-library-page');
     const services = createHomeLibraryPageServices({
       libraryServices: {
@@ -44,8 +44,8 @@ describe('home library page composition root', () => {
           })),
         },
       },
-      pendingVideosReader: {
-        readPendingVideos: vi.fn(async () => [createPendingFixture()]),
+      pendingVideosSource: {
+        readPendingLibraryItems: vi.fn(async () => [createPendingFixture()]),
       },
     });
 
@@ -55,100 +55,16 @@ describe('home library page composition root', () => {
     })).resolves.toEqual({
       ok: true,
       data: {
-        videos: [expect.objectContaining({ id: 'video-1' })],
         pendingVideos: [expect.objectContaining({ id: 'pending-1' })],
-        initialFilters: {
-          query: ' Action ',
-          tags: ['Action', 'Drama'],
-        },
-      },
-    });
-  });
-
-  test('trims bootstrap tag values before handing them to the legacy HomePage filter contract', async () => {
-    const { createHomeLibraryPageServices } = await import('../../../app/composition/server/home-library-page');
-    const services = createHomeLibraryPageServices({
-      libraryServices: {
-        loadLibraryCatalogSnapshot: {
-          execute: vi.fn(async () => ({
-            ok: true as const,
-            data: {
-              filters: {
-                displayQuery: '',
-                normalizedQuery: '',
-                normalizedTags: ['action', 'drama'],
-                rawTags: ['  Action  ', 'Drama'],
-              },
-              videos: [createFixtureVideo()],
-            },
-          })),
-        },
-      },
-      pendingVideosReader: {
-        readPendingVideos: vi.fn(async () => []),
-      },
-    });
-
-    await expect(services.loadHomeLibraryPageData.execute({
-      rawQuery: '',
-      rawTags: ['  Action  ', 'Drama'],
-    })).resolves.toEqual({
-      ok: true,
-      data: {
         videos: [expect.objectContaining({ id: 'video-1' })],
-        pendingVideos: [],
-        initialFilters: {
-          query: '',
-          tags: ['Action', 'Drama'],
-        },
-      },
-    });
-  });
-
-  test('deduplicates repeated tag params before handing them to the legacy HomePage filter contract', async () => {
-    const { createHomeLibraryPageServices } = await import('../../../app/composition/server/home-library-page');
-    const services = createHomeLibraryPageServices({
-      libraryServices: {
-        loadLibraryCatalogSnapshot: {
-          execute: vi.fn(async () => ({
-            ok: true as const,
-            data: {
-              filters: {
-                displayQuery: '',
-                normalizedQuery: '',
-                normalizedTags: ['action', 'drama'],
-                rawTags: ['Action', '  Action  ', 'Drama', 'drama'],
-              },
-              videos: [createFixtureVideo()],
-            },
-          })),
-        },
-      },
-      pendingVideosReader: {
-        readPendingVideos: vi.fn(async () => []),
-      },
-    });
-
-    await expect(services.loadHomeLibraryPageData.execute({
-      rawQuery: '',
-      rawTags: ['Action', '  Action  ', 'Drama', 'drama'],
-    })).resolves.toEqual({
-      ok: true,
-      data: {
-        videos: [expect.objectContaining({ id: 'video-1' })],
-        pendingVideos: [],
-        initialFilters: {
-          query: '',
-          tags: ['Action', 'Drama'],
-        },
       },
     });
   });
 
   test('returns an explicit failure when catalog or pending compatibility data is unavailable', async () => {
     const { createHomeLibraryPageServices } = await import('../../../app/composition/server/home-library-page');
-    const pendingVideosReader = {
-      readPendingVideos: vi
+    const pendingVideosSource = {
+      readPendingLibraryItems: vi
         .fn()
         .mockRejectedValueOnce(new Error('pending unavailable')),
     };
@@ -176,7 +92,7 @@ describe('home library page composition root', () => {
           execute: catalogExecute,
         },
       },
-      pendingVideosReader,
+      pendingVideosSource,
     });
 
     await expect(services.loadHomeLibraryPageData.execute({
@@ -186,7 +102,7 @@ describe('home library page composition root', () => {
       ok: false,
       reason: 'HOME_DATA_UNAVAILABLE',
     });
-    expect(pendingVideosReader.readPendingVideos).not.toHaveBeenCalled();
+    expect(pendingVideosSource.readPendingLibraryItems).not.toHaveBeenCalled();
 
     await expect(services.loadHomeLibraryPageData.execute({
       rawQuery: '',
@@ -196,6 +112,6 @@ describe('home library page composition root', () => {
       reason: 'HOME_DATA_UNAVAILABLE',
     });
     expect(catalogExecute).toHaveBeenCalledTimes(2);
-    expect(pendingVideosReader.readPendingVideos).toHaveBeenCalledOnce();
+    expect(pendingVideosSource.readPendingLibraryItems).toHaveBeenCalledOnce();
   });
 });
