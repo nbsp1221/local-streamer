@@ -26,4 +26,14 @@ describe('home read route ownership boundary', () => {
       ).toBe(false);
     }
   });
+
+  test('home page composition depends on ingest-owned pending-upload services instead of the retired home seam', async () => {
+    const filePath = join(projectRoot, 'app/composition/server/home-library-page.ts');
+    const source = await readFile(filePath, 'utf8');
+
+    expect(
+      source.includes('./home-legacy-pending-video-source'),
+      'home-library-page.ts should not import the retired home pending seam',
+    ).toBe(false);
+  });
 });

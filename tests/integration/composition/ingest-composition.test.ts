@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
+const createCanonicalVideoMetadataLegacyStoreMock = vi.fn();
 const createIngestLegacyIncomingVideoSourceMock = vi.fn();
 const createIngestLegacyLibraryIntakeMock = vi.fn();
-const createCanonicalVideoMetadataLegacyStoreMock = vi.fn();
+const createIngestLegacyPendingVideoSourceMock = vi.fn();
+
+vi.mock('~/composition/server/canonical-video-metadata-legacy-store', () => ({
+  createCanonicalVideoMetadataLegacyStore: createCanonicalVideoMetadataLegacyStoreMock,
+}));
 
 vi.mock('~/composition/server/ingest-legacy-incoming-video-source', () => ({
   createIngestLegacyIncomingVideoSource: createIngestLegacyIncomingVideoSourceMock,
@@ -12,8 +17,8 @@ vi.mock('~/composition/server/ingest-legacy-library-intake', () => ({
   createIngestLegacyLibraryIntake: createIngestLegacyLibraryIntakeMock,
 }));
 
-vi.mock('~/composition/server/canonical-video-metadata-legacy-store', () => ({
-  createCanonicalVideoMetadataLegacyStore: createCanonicalVideoMetadataLegacyStoreMock,
+vi.mock('~/composition/server/ingest-legacy-pending-video-source', () => ({
+  createIngestLegacyPendingVideoSource: createIngestLegacyPendingVideoSourceMock,
 }));
 
 describe('server ingest composition root', () => {
@@ -47,6 +52,7 @@ describe('server ingest composition root', () => {
       restoredThumbnail: true,
       retryAvailability: 'restored' as const,
     }));
+    const readPendingUploads = vi.fn(async () => []);
     const writeVideoRecord = vi.fn(async () => undefined);
 
     const services = createServerIngestServices({
@@ -59,11 +65,15 @@ describe('server ingest composition root', () => {
       incomingVideoSource: {
         scanIncomingVideos,
       },
+      pendingVideoReader: {
+        readPendingUploads,
+      },
       videoMetadataWriter: {
         writeVideoRecord,
       },
     });
     const result = await services.scanIncomingVideos.execute();
+    const pendingSnapshot = await services.loadPendingUploadSnapshot.execute();
     const addResult = await services.addVideoToLibrary.execute({
       filename: 'fixture-video.mp4',
       tags: [],
@@ -74,6 +84,7 @@ describe('server ingest composition root', () => {
     expect(prepareVideoForLibrary).toHaveBeenCalledOnce();
     expect(processPreparedVideo).toHaveBeenCalledOnce();
     expect(recoverFailedPreparedVideo).not.toHaveBeenCalled();
+    expect(readPendingUploads).toHaveBeenCalledOnce();
     expect(writeVideoRecord).toHaveBeenCalledOnce();
     expect(finalizeSuccessfulPreparedVideo).toHaveBeenCalledOnce();
     expect(result).toEqual({
@@ -86,6 +97,13 @@ describe('server ingest composition root', () => {
             id: 'fixture-video',
           }),
         ],
+      },
+    });
+    expect(pendingSnapshot).toEqual({
+      ok: true,
+      data: {
+        count: 0,
+        files: [],
       },
     });
     expect(addResult).toEqual({
@@ -122,6 +140,10 @@ describe('server ingest composition root', () => {
       processPreparedVideo,
       recoverFailedPreparedVideo,
     });
+    const readPendingUploads = vi.fn(async () => []);
+    createIngestLegacyPendingVideoSourceMock.mockReturnValue({
+      readPendingUploads,
+    });
     const writeVideoRecord = vi.fn(async () => undefined);
     createCanonicalVideoMetadataLegacyStoreMock.mockReturnValue({
       listLibraryVideos: vi.fn(),
@@ -133,10 +155,14 @@ describe('server ingest composition root', () => {
     const second = getServerIngestServices();
 
     expect(first).toBe(second);
-    expect(createIngestLegacyIncomingVideoSourceMock).toHaveBeenCalledOnce();
-    expect(createIngestLegacyLibraryIntakeMock).toHaveBeenCalledOnce();
-    expect(createCanonicalVideoMetadataLegacyStoreMock).toHaveBeenCalledOnce();
     await expect(first.scanIncomingVideos.execute()).resolves.toEqual({
+      ok: true,
+      data: {
+        count: 0,
+        files: [],
+      },
+    });
+    await expect(first.loadPendingUploadSnapshot.execute()).resolves.toEqual({
       ok: true,
       data: {
         count: 0,
@@ -152,6 +178,11 @@ describe('server ingest composition root', () => {
       message: 'Video conversion failed. The upload was restored so you can retry.',
       reason: 'ADD_TO_LIBRARY_UNAVAILABLE',
     });
+    expect(createIngestLegacyIncomingVideoSourceMock).toHaveBeenCalledOnce();
+    expect(createIngestLegacyLibraryIntakeMock).toHaveBeenCalledOnce();
+    expect(createIngestLegacyPendingVideoSourceMock).toHaveBeenCalledOnce();
+    expect(createCanonicalVideoMetadataLegacyStoreMock).toHaveBeenCalledOnce();
+    expect(readPendingUploads).toHaveBeenCalledOnce();
     expect(writeVideoRecord).not.toHaveBeenCalled();
     expect(recoverFailedPreparedVideo).toHaveBeenCalledWith({
       filename: 'fixture-video.mp4',

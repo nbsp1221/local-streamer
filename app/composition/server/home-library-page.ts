@@ -1,10 +1,8 @@
 import type { PendingLibraryItem } from '~/entities/pending-video/model/pending-video';
+import type { IngestPendingVideo } from '~/modules/ingest/domain/ingest-pending-video';
 import type { LoadLibraryCatalogSnapshotResult } from '~/modules/library/application/use-cases/load-library-catalog-snapshot.usecase';
 import type { LibraryVideo } from '~/modules/library/domain/library-video';
-import {
-  type HomePendingLibraryItemSource,
-  createHomeLegacyPendingVideoSource,
-} from './home-legacy-pending-video-source';
+import { getServerPendingUploadSnapshotServices } from './ingest';
 import { getServerLibraryServices } from './library';
 
 interface LoadHomeLibraryPageDataInput {
@@ -25,6 +23,8 @@ interface LoadHomeLibraryPageDataFailure {
   reason: 'HOME_DATA_UNAVAILABLE';
 }
 
+type PendingLibraryItemSource = Pick<IngestPendingVideo, 'filename' | 'id' | 'size' | 'type'>;
+
 export type LoadHomeLibraryPageDataResult =
   | LoadHomeLibraryPageDataSuccess
   | LoadHomeLibraryPageDataFailure;
@@ -41,9 +41,15 @@ interface HomeLibraryReadServices {
   };
 }
 
+interface HomeLibraryIngestServices {
+  loadPendingUploadSnapshot: {
+    execute: ReturnType<typeof getServerPendingUploadSnapshotServices>['loadPendingUploadSnapshot']['execute'];
+  };
+}
+
 interface HomeLibraryPageServiceDependencies {
+  ingestServices: HomeLibraryIngestServices;
   libraryServices: HomeLibraryReadServices;
-  pendingVideosSource: HomePendingLibraryItemSource;
 }
 
 let cachedHomeLibraryPageServices: HomeLibraryPageServices | null = null;
@@ -68,12 +74,47 @@ function mapCatalogResultToHomePageData(
   };
 }
 
+function toPendingLibraryItem({
+  filename,
+  id,
+  size,
+  type,
+}: PendingLibraryItemSource): PendingLibraryItem {
+  return {
+    filename,
+    id,
+    size,
+    type,
+  };
+}
+
+function toPendingLibraryItems(files: IngestPendingVideo[]): PendingLibraryItem[] {
+  return files.map(toPendingLibraryItem);
+}
+
+async function loadPendingLibraryItems(
+  ingestServices: HomeLibraryIngestServices,
+): Promise<PendingLibraryItem[] | null> {
+  try {
+    const pendingSnapshot = await ingestServices.loadPendingUploadSnapshot.execute();
+
+    if (!pendingSnapshot.ok) {
+      return null;
+    }
+
+    return toPendingLibraryItems(pendingSnapshot.data.files);
+  }
+  catch {
+    return null;
+  }
+}
+
 function resolveDependencies(
   overrides: Partial<HomeLibraryPageServiceDependencies>,
 ): HomeLibraryPageServiceDependencies {
   return {
+    ingestServices: overrides.ingestServices ?? getServerPendingUploadSnapshotServices(),
     libraryServices: overrides.libraryServices ?? getServerLibraryServices(),
-    pendingVideosSource: overrides.pendingVideosSource ?? createHomeLegacyPendingVideoSource(),
   };
 }
 
@@ -91,14 +132,13 @@ export function createHomeLibraryPageServices(
           return createHomeLibraryUnavailableFailure();
         }
 
-        try {
-          const pendingVideos = await deps.pendingVideosSource.readPendingLibraryItems();
+        const pendingVideos = await loadPendingLibraryItems(deps.ingestServices);
 
-          return mapCatalogResultToHomePageData(catalogResult, pendingVideos);
-        }
-        catch {
+        if (!pendingVideos) {
           return createHomeLibraryUnavailableFailure();
         }
+
+        return mapCatalogResultToHomePageData(catalogResult, pendingVideos);
       },
     },
   };
