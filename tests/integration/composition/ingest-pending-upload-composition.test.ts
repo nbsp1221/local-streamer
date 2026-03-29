@@ -2,8 +2,9 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 const createCanonicalVideoMetadataLegacyStoreMock = vi.fn();
 const createIngestLegacyIncomingVideoSourceMock = vi.fn();
-const createIngestLegacyLibraryIntakeMock = vi.fn();
 const createIngestLegacyPendingVideoSourceMock = vi.fn();
+const createIngestLegacyPreparedVideoWorkspaceMock = vi.fn();
+const createIngestLegacyVideoProcessingMock = vi.fn();
 
 vi.mock('~/composition/server/canonical-video-metadata-legacy-store', () => ({
   createCanonicalVideoMetadataLegacyStore: createCanonicalVideoMetadataLegacyStoreMock,
@@ -13,8 +14,12 @@ vi.mock('~/composition/server/ingest-legacy-incoming-video-source', () => ({
   createIngestLegacyIncomingVideoSource: createIngestLegacyIncomingVideoSourceMock,
 }));
 
-vi.mock('~/composition/server/ingest-legacy-library-intake', () => ({
-  createIngestLegacyLibraryIntake: createIngestLegacyLibraryIntakeMock,
+vi.mock('~/composition/server/ingest-legacy-prepared-video-workspace', () => ({
+  createIngestLegacyPreparedVideoWorkspace: createIngestLegacyPreparedVideoWorkspaceMock,
+}));
+
+vi.mock('~/composition/server/ingest-legacy-video-processing', () => ({
+  createIngestLegacyVideoProcessing: createIngestLegacyVideoProcessingMock,
 }));
 
 vi.mock('~/composition/server/ingest-legacy-pending-video-source', () => ({
@@ -56,7 +61,8 @@ describe('server ingest pending-upload composition root', () => {
     expect(readPendingUploads).toHaveBeenCalledOnce();
     expect(createIngestLegacyPendingVideoSourceMock).not.toHaveBeenCalled();
     expect(createIngestLegacyIncomingVideoSourceMock).not.toHaveBeenCalled();
-    expect(createIngestLegacyLibraryIntakeMock).not.toHaveBeenCalled();
+    expect(createIngestLegacyPreparedVideoWorkspaceMock).not.toHaveBeenCalled();
+    expect(createIngestLegacyVideoProcessingMock).not.toHaveBeenCalled();
     expect(createCanonicalVideoMetadataLegacyStoreMock).not.toHaveBeenCalled();
   });
 
@@ -68,19 +74,21 @@ describe('server ingest pending-upload composition root', () => {
     createIngestLegacyIncomingVideoSourceMock.mockReturnValue({
       scanIncomingVideos: vi.fn(async () => []),
     });
-    createIngestLegacyLibraryIntakeMock.mockReturnValue({
-      finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
-      prepareVideoForLibrary: vi.fn(async () => ({
+    createIngestLegacyPreparedVideoWorkspaceMock.mockReturnValue({
+      preparePreparedVideo: vi.fn(async () => ({
         duration: 120,
         sourcePath: '/workspace/video.mp4',
       })),
+      recoverPreparedVideo: vi.fn(async () => ({
+        restoredThumbnail: true,
+        retryAvailability: 'restored' as const,
+      })),
+    });
+    createIngestLegacyVideoProcessingMock.mockReturnValue({
+      finalizeSuccessfulVideo: vi.fn(async () => undefined),
       processPreparedVideo: vi.fn(async () => ({
         dashEnabled: true,
         message: 'processed',
-      })),
-      recoverFailedPreparedVideo: vi.fn(async () => ({
-        restoredThumbnail: true,
-        retryAvailability: 'restored' as const,
       })),
     });
     createIngestLegacyPendingVideoSourceMock.mockReturnValue({
@@ -116,7 +124,8 @@ describe('server ingest pending-upload composition root', () => {
     expect(first).toBe(second);
     expect(createIngestLegacyPendingVideoSourceMock).toHaveBeenCalledOnce();
     expect(createIngestLegacyIncomingVideoSourceMock).not.toHaveBeenCalled();
-    expect(createIngestLegacyLibraryIntakeMock).not.toHaveBeenCalled();
+    expect(createIngestLegacyPreparedVideoWorkspaceMock).not.toHaveBeenCalled();
+    expect(createIngestLegacyVideoProcessingMock).not.toHaveBeenCalled();
     expect(createCanonicalVideoMetadataLegacyStoreMock).not.toHaveBeenCalled();
     await expect(first.loadPendingUploadSnapshot.execute()).resolves.toEqual({
       ok: true,

@@ -1,6 +1,31 @@
 import { describe, expect, test, vi } from 'vitest';
+import type { IngestPreparedVideoWorkspacePort } from '../../../app/modules/ingest/application/ports/ingest-prepared-video-workspace.port';
+import type { IngestVideoProcessingPort } from '../../../app/modules/ingest/application/ports/ingest-video-processing.port';
 import { AddVideoToLibraryUseCase } from '../../../app/modules/ingest/application/use-cases/add-video-to-library.usecase';
 import { createAddToLibraryAction } from '../../../app/routes/api.add-to-library';
+
+function createPreparedVideoWorkspace(input: {
+  preparePreparedVideo: IngestPreparedVideoWorkspacePort['preparePreparedVideo'];
+  recoverPreparedVideo?: IngestPreparedVideoWorkspacePort['recoverPreparedVideo'];
+}): IngestPreparedVideoWorkspacePort {
+  return {
+    preparePreparedVideo: input.preparePreparedVideo,
+    recoverPreparedVideo: input.recoverPreparedVideo ?? (async () => ({
+      restoredThumbnail: true as const,
+      retryAvailability: 'restored' as const,
+    })),
+  };
+}
+
+function createVideoProcessing(input: {
+  finalizeSuccessfulVideo?: IngestVideoProcessingPort['finalizeSuccessfulVideo'];
+  processPreparedVideo: IngestVideoProcessingPort['processPreparedVideo'];
+}): IngestVideoProcessingPort {
+  return {
+    finalizeSuccessfulVideo: input.finalizeSuccessfulVideo ?? (async () => undefined),
+    processPreparedVideo: input.processPreparedVideo,
+  };
+}
 
 describe('add to library api route', () => {
   test('loads the add-to-library command through the ingest composition root and preserves the success contract', async () => {
@@ -150,18 +175,16 @@ describe('add to library api route', () => {
       createErrorResponse: error => new Response(error instanceof Error ? error.message : 'Unknown error occurred', { status: 500 }),
       getServerIngestServices: () => ({
         addVideoToLibrary: new AddVideoToLibraryUseCase({
-          libraryIntake: {
-            finalizeSuccessfulPreparedVideo,
-            prepareVideoForLibrary,
-            processPreparedVideo,
-            recoverFailedPreparedVideo: vi.fn(async () => ({
-              restoredThumbnail: true,
-              retryAvailability: 'restored' as const,
-            })),
-          },
+          preparedVideoWorkspace: createPreparedVideoWorkspace({
+            preparePreparedVideo: prepareVideoForLibrary,
+          }),
           videoMetadataWriter: {
             writeVideoRecord,
           },
+          videoProcessing: createVideoProcessing({
+            finalizeSuccessfulVideo: finalizeSuccessfulPreparedVideo,
+            processPreparedVideo,
+          }),
         }),
         scanIncomingVideos: {
           execute: vi.fn(),
@@ -215,15 +238,17 @@ describe('add to library api route', () => {
       createErrorResponse: error => new Response(error instanceof Error ? error.message : 'Unknown error occurred', { status: 500 }),
       getServerIngestServices: () => ({
         addVideoToLibrary: new AddVideoToLibraryUseCase({
-          libraryIntake: {
-            finalizeSuccessfulPreparedVideo,
-            prepareVideoForLibrary,
-            processPreparedVideo,
-            recoverFailedPreparedVideo,
-          } as never,
+          preparedVideoWorkspace: createPreparedVideoWorkspace({
+            preparePreparedVideo: prepareVideoForLibrary,
+            recoverPreparedVideo: recoverFailedPreparedVideo,
+          }),
           videoMetadataWriter: {
             writeVideoRecord,
           },
+          videoProcessing: createVideoProcessing({
+            finalizeSuccessfulVideo: finalizeSuccessfulPreparedVideo,
+            processPreparedVideo,
+          }),
         }),
         scanIncomingVideos: {
           execute: vi.fn(),
@@ -275,15 +300,17 @@ describe('add to library api route', () => {
       createErrorResponse: error => new Response(error instanceof Error ? error.message : 'Unknown error occurred', { status: 500 }),
       getServerIngestServices: () => ({
         addVideoToLibrary: new AddVideoToLibraryUseCase({
-          libraryIntake: {
-            finalizeSuccessfulPreparedVideo,
-            prepareVideoForLibrary,
-            processPreparedVideo,
-            recoverFailedPreparedVideo,
-          } as never,
+          preparedVideoWorkspace: createPreparedVideoWorkspace({
+            preparePreparedVideo: prepareVideoForLibrary,
+            recoverPreparedVideo: recoverFailedPreparedVideo,
+          }),
           videoMetadataWriter: {
             writeVideoRecord,
           },
+          videoProcessing: createVideoProcessing({
+            finalizeSuccessfulVideo: finalizeSuccessfulPreparedVideo,
+            processPreparedVideo,
+          }),
         }),
         scanIncomingVideos: {
           execute: vi.fn(),
@@ -339,15 +366,17 @@ describe('add to library api route', () => {
       createErrorResponse: error => new Response(error instanceof Error ? error.message : 'Unknown error occurred', { status: 500 }),
       getServerIngestServices: () => ({
         addVideoToLibrary: new AddVideoToLibraryUseCase({
-          libraryIntake: {
-            finalizeSuccessfulPreparedVideo,
-            prepareVideoForLibrary,
-            processPreparedVideo,
-            recoverFailedPreparedVideo,
-          } as never,
+          preparedVideoWorkspace: createPreparedVideoWorkspace({
+            preparePreparedVideo: prepareVideoForLibrary,
+            recoverPreparedVideo: recoverFailedPreparedVideo,
+          }),
           videoMetadataWriter: {
             writeVideoRecord,
           },
+          videoProcessing: createVideoProcessing({
+            finalizeSuccessfulVideo: finalizeSuccessfulPreparedVideo,
+            processPreparedVideo,
+          }),
         }),
         scanIncomingVideos: {
           execute: vi.fn(),
@@ -386,18 +415,16 @@ describe('add to library api route', () => {
       createErrorResponse: error => new Response(error instanceof Error ? error.message : 'Unknown error occurred', { status: 500 }),
       getServerIngestServices: () => ({
         addVideoToLibrary: new AddVideoToLibraryUseCase({
-          libraryIntake: {
-            finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
-            prepareVideoForLibrary: vi.fn(),
-            processPreparedVideo: vi.fn(),
-            recoverFailedPreparedVideo: vi.fn(async () => ({
-              restoredThumbnail: true,
-              retryAvailability: 'restored' as const,
-            })),
-          } as never,
+          preparedVideoWorkspace: createPreparedVideoWorkspace({
+            preparePreparedVideo: vi.fn(),
+          }),
           videoMetadataWriter: {
             writeVideoRecord: vi.fn(),
           },
+          videoProcessing: createVideoProcessing({
+            finalizeSuccessfulVideo: vi.fn(async () => undefined),
+            processPreparedVideo: vi.fn(),
+          }),
         }),
         scanIncomingVideos: {
           execute: vi.fn(),

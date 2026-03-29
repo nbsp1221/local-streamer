@@ -3,10 +3,11 @@ import type { IngestVideoRecord } from '../../domain/ingest-video-record';
 import type {
   AddVideoToLibraryCommand,
   AddVideoToLibrarySuccessData,
-  IngestLibraryIntakePort,
   RecoverFailedPreparedVideoResult,
 } from '../ports/ingest-library-intake.port';
+import type { IngestPreparedVideoWorkspacePort } from '../ports/ingest-prepared-video-workspace.port';
 import type { IngestVideoMetadataWriterPort } from '../ports/ingest-video-metadata-writer.port';
+import type { IngestVideoProcessingPort } from '../ports/ingest-video-processing.port';
 
 type ErrorWithStatusCode = {
   statusCode: number;
@@ -19,7 +20,8 @@ type RecoveryAwareError = {
 };
 
 interface AddVideoToLibraryUseCaseDependencies {
-  libraryIntake: IngestLibraryIntakePort;
+  preparedVideoWorkspace: IngestPreparedVideoWorkspacePort;
+  videoProcessing: IngestVideoProcessingPort;
   videoMetadataWriter: IngestVideoMetadataWriterPort;
 }
 
@@ -57,7 +59,7 @@ export class AddVideoToLibraryUseCase {
       const normalizedCommand = normalizeCommand(command);
       normalizedFilename = normalizedCommand.filename;
       const videoId = uuidv4();
-      const preparedAsset = await this.deps.libraryIntake.prepareVideoForLibrary({
+      const preparedAsset = await this.deps.preparedVideoWorkspace.preparePreparedVideo({
         filename: normalizedCommand.filename,
         title: normalizedCommand.title,
         videoId,
@@ -68,7 +70,7 @@ export class AddVideoToLibraryUseCase {
       };
       preparedVideo = recoveryTarget;
       currentStage = 'process';
-      const processedVideo = await this.deps.libraryIntake.processPreparedVideo({
+      const processedVideo = await this.deps.videoProcessing.processPreparedVideo({
         encodingOptions: normalizedCommand.encodingOptions,
         sourcePath: preparedAsset.sourcePath,
         title: normalizedCommand.title,
@@ -76,7 +78,7 @@ export class AddVideoToLibraryUseCase {
       });
 
       if (!processedVideo.dashEnabled) {
-        const recoveryResult = await this.deps.libraryIntake.recoverFailedPreparedVideo(recoveryTarget);
+        const recoveryResult = await this.deps.preparedVideoWorkspace.recoverPreparedVideo(recoveryTarget);
 
         return {
           ok: false,
@@ -96,7 +98,7 @@ export class AddVideoToLibraryUseCase {
       currentStage = 'write';
       await this.deps.videoMetadataWriter.writeVideoRecord(videoRecord);
       currentStage = 'finalize';
-      await this.deps.libraryIntake.finalizeSuccessfulPreparedVideo({
+      await this.deps.videoProcessing.finalizeSuccessfulVideo({
         title: normalizedCommand.title,
         videoId,
       });
@@ -122,7 +124,7 @@ export class AddVideoToLibraryUseCase {
         const recoveryResult = await resolveRecoveryResult({
           error,
           errorStage,
-          libraryIntake: this.deps.libraryIntake,
+          preparedVideoWorkspace: this.deps.preparedVideoWorkspace,
           normalizedFilename,
           preparedVideo,
         });
@@ -145,11 +147,11 @@ export class AddVideoToLibraryUseCase {
 }
 
 async function recoverPreparedVideo(
-  libraryIntake: IngestLibraryIntakePort,
+  preparedVideoWorkspace: IngestPreparedVideoWorkspacePort,
   command: { filename: string; videoId: string },
 ): Promise<RecoverFailedPreparedVideoResult> {
   try {
-    return await libraryIntake.recoverFailedPreparedVideo(command);
+    return await preparedVideoWorkspace.recoverPreparedVideo(command);
   }
   catch (recoveryError) {
     console.error('Failed to recover prepared video after add-to-library error:', recoveryError);
@@ -163,7 +165,7 @@ async function recoverPreparedVideo(
 async function resolveRecoveryResult(input: {
   error: unknown;
   errorStage: AddToLibraryStage;
-  libraryIntake: IngestLibraryIntakePort;
+  preparedVideoWorkspace: IngestPreparedVideoWorkspacePort;
   normalizedFilename: string | null;
   preparedVideo: { videoId: string } | null;
 }): Promise<RecoverFailedPreparedVideoResult | null> {
@@ -173,7 +175,7 @@ async function resolveRecoveryResult(input: {
   }
 
   if (input.preparedVideo && input.normalizedFilename) {
-    return recoverPreparedVideo(input.libraryIntake, {
+    return recoverPreparedVideo(input.preparedVideoWorkspace, {
       filename: input.normalizedFilename,
       videoId: input.preparedVideo.videoId,
     });

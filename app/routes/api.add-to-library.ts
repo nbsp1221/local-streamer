@@ -3,7 +3,6 @@ import type { AddVideoToLibraryCommand } from '~/modules/ingest/application/port
 import type { AddVideoToLibraryUseCaseResult } from '~/modules/ingest/application/use-cases/add-video-to-library.usecase';
 import { requireProtectedApiSession } from '~/composition/server/auth';
 import { getServerIngestServices } from '~/composition/server/ingest';
-import { createErrorResponse } from '~/legacy/utils/error-response.server';
 
 type AddToLibraryRouteServices = {
   addVideoToLibrary: {
@@ -12,10 +11,22 @@ type AddToLibraryRouteServices = {
 };
 
 type AddToLibraryActionDependencies = {
-  createErrorResponse: typeof createErrorResponse;
+  createErrorResponse: (error: unknown) => Response;
   getServerIngestServices: () => AddToLibraryRouteServices;
   requireProtectedApiSession: typeof requireProtectedApiSession;
 };
+
+function defaultCreateErrorResponse(error: unknown): Response {
+  const message = error instanceof Error ? error.message : 'Unknown error occurred';
+  const status = typeof error === 'object' &&
+    error !== null &&
+    'statusCode' in error &&
+    typeof (error as { statusCode?: unknown }).statusCode === 'number'
+    ? (error as { statusCode: number }).statusCode
+    : 500;
+
+  return new Response(message, { status });
+}
 
 export function createAddToLibraryAction(
   deps: AddToLibraryActionDependencies,
@@ -49,7 +60,7 @@ export function createAddToLibraryAction(
 }
 
 export const action = createAddToLibraryAction({
-  createErrorResponse,
+  createErrorResponse: defaultCreateErrorResponse,
   getServerIngestServices,
   requireProtectedApiSession,
 });

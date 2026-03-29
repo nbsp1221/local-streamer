@@ -1,4 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
+import type { IngestPreparedVideoWorkspacePort } from '../ports/ingest-prepared-video-workspace.port';
+import type { IngestVideoProcessingPort } from '../ports/ingest-video-processing.port';
 import { AddVideoToLibraryUseCase } from './add-video-to-library.usecase';
 
 class RejectedAddToLibraryError extends Error {
@@ -6,6 +8,29 @@ class RejectedAddToLibraryError extends Error {
     super(message);
     this.name = 'RejectedAddToLibraryError';
   }
+}
+
+function createPreparedVideoWorkspace(input: {
+  preparePreparedVideo: IngestPreparedVideoWorkspacePort['preparePreparedVideo'];
+  recoverPreparedVideo?: IngestPreparedVideoWorkspacePort['recoverPreparedVideo'];
+}): IngestPreparedVideoWorkspacePort {
+  return {
+    preparePreparedVideo: input.preparePreparedVideo,
+    recoverPreparedVideo: input.recoverPreparedVideo ?? (async () => ({
+      restoredThumbnail: true as const,
+      retryAvailability: 'restored' as const,
+    })),
+  };
+}
+
+function createVideoProcessing(input: {
+  finalizeSuccessfulVideo?: IngestVideoProcessingPort['finalizeSuccessfulVideo'];
+  processPreparedVideo: IngestVideoProcessingPort['processPreparedVideo'];
+}): IngestVideoProcessingPort {
+  return {
+    finalizeSuccessfulVideo: input.finalizeSuccessfulVideo ?? (async () => undefined),
+    processPreparedVideo: input.processPreparedVideo,
+  };
 }
 
 describe('AddVideoToLibraryUseCase', () => {
@@ -33,15 +58,13 @@ describe('AddVideoToLibraryUseCase', () => {
       callOrder.push('finalize');
     });
     const useCase = new AddVideoToLibraryUseCase({
-      libraryIntake: {
-        finalizeSuccessfulPreparedVideo,
-        prepareVideoForLibrary,
+      preparedVideoWorkspace: createPreparedVideoWorkspace({
+        preparePreparedVideo: prepareVideoForLibrary,
+      }),
+      videoProcessing: createVideoProcessing({
+        finalizeSuccessfulVideo: finalizeSuccessfulPreparedVideo,
         processPreparedVideo,
-        recoverFailedPreparedVideo: vi.fn(async () => ({
-          restoredThumbnail: true,
-          retryAvailability: 'restored' as const,
-        })),
-      },
+      }),
       videoMetadataWriter: {
         writeVideoRecord,
       },
@@ -84,17 +107,14 @@ describe('AddVideoToLibraryUseCase', () => {
 
   test('returns the explicit canonical failure payload from the source port without data loss', async () => {
     const useCase = new AddVideoToLibraryUseCase({
-      libraryIntake: {
-        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
-        prepareVideoForLibrary: vi.fn(async () => {
+      preparedVideoWorkspace: createPreparedVideoWorkspace({
+        preparePreparedVideo: vi.fn(async () => {
           throw new RejectedAddToLibraryError('Title cannot be empty', 400);
         }),
+      }),
+      videoProcessing: createVideoProcessing({
         processPreparedVideo: vi.fn(),
-        recoverFailedPreparedVideo: vi.fn(async () => ({
-          restoredThumbnail: true,
-          retryAvailability: 'restored' as const,
-        })),
-      },
+      }),
       videoMetadataWriter: {
         writeVideoRecord: vi.fn(),
       },
@@ -116,15 +136,12 @@ describe('AddVideoToLibraryUseCase', () => {
     const processPreparedVideo = vi.fn();
     const writeVideoRecord = vi.fn();
     const useCase = new AddVideoToLibraryUseCase({
-      libraryIntake: {
-        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
-        prepareVideoForLibrary,
+      preparedVideoWorkspace: createPreparedVideoWorkspace({
+        preparePreparedVideo: prepareVideoForLibrary,
+      }),
+      videoProcessing: createVideoProcessing({
         processPreparedVideo,
-        recoverFailedPreparedVideo: vi.fn(async () => ({
-          restoredThumbnail: true,
-          retryAvailability: 'restored' as const,
-        })),
-      },
+      }),
       videoMetadataWriter: {
         writeVideoRecord,
       },
@@ -155,15 +172,12 @@ describe('AddVideoToLibraryUseCase', () => {
     }));
     const writeVideoRecord = vi.fn(async () => undefined);
     const useCase = new AddVideoToLibraryUseCase({
-      libraryIntake: {
-        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
-        prepareVideoForLibrary,
+      preparedVideoWorkspace: createPreparedVideoWorkspace({
+        preparePreparedVideo: prepareVideoForLibrary,
+      }),
+      videoProcessing: createVideoProcessing({
         processPreparedVideo,
-        recoverFailedPreparedVideo: vi.fn(async () => ({
-          restoredThumbnail: true,
-          retryAvailability: 'restored' as const,
-        })),
-      },
+      }),
       videoMetadataWriter: {
         writeVideoRecord,
       },
@@ -191,15 +205,12 @@ describe('AddVideoToLibraryUseCase', () => {
     const processPreparedVideo = vi.fn();
     const writeVideoRecord = vi.fn();
     const useCase = new AddVideoToLibraryUseCase({
-      libraryIntake: {
-        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
-        prepareVideoForLibrary,
+      preparedVideoWorkspace: createPreparedVideoWorkspace({
+        preparePreparedVideo: prepareVideoForLibrary,
+      }),
+      videoProcessing: createVideoProcessing({
         processPreparedVideo,
-        recoverFailedPreparedVideo: vi.fn(async () => ({
-          restoredThumbnail: true,
-          retryAvailability: 'restored' as const,
-        })),
-      },
+      }),
       videoMetadataWriter: {
         writeVideoRecord,
       },
@@ -234,12 +245,13 @@ describe('AddVideoToLibraryUseCase', () => {
     }));
     const writeVideoRecord = vi.fn(async () => undefined);
     const useCase = new AddVideoToLibraryUseCase({
-      libraryIntake: {
-        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
-        prepareVideoForLibrary,
+      preparedVideoWorkspace: createPreparedVideoWorkspace({
+        preparePreparedVideo: prepareVideoForLibrary,
+        recoverPreparedVideo: recoverFailedPreparedVideo,
+      }),
+      videoProcessing: createVideoProcessing({
         processPreparedVideo,
-        recoverFailedPreparedVideo,
-      },
+      }),
       videoMetadataWriter: {
         writeVideoRecord,
       },
@@ -275,12 +287,13 @@ describe('AddVideoToLibraryUseCase', () => {
     }));
     const writeVideoRecord = vi.fn(async () => undefined);
     const useCase = new AddVideoToLibraryUseCase({
-      libraryIntake: {
-        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
-        prepareVideoForLibrary,
+      preparedVideoWorkspace: createPreparedVideoWorkspace({
+        preparePreparedVideo: prepareVideoForLibrary,
+        recoverPreparedVideo: recoverFailedPreparedVideo,
+      }),
+      videoProcessing: createVideoProcessing({
         processPreparedVideo,
-        recoverFailedPreparedVideo,
-      },
+      }),
       videoMetadataWriter: {
         writeVideoRecord,
       },
@@ -317,12 +330,13 @@ describe('AddVideoToLibraryUseCase', () => {
     }));
     const writeVideoRecord = vi.fn(async () => undefined);
     const useCase = new AddVideoToLibraryUseCase({
-      libraryIntake: {
-        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
-        prepareVideoForLibrary,
+      preparedVideoWorkspace: createPreparedVideoWorkspace({
+        preparePreparedVideo: prepareVideoForLibrary,
+        recoverPreparedVideo: recoverFailedPreparedVideo,
+      }),
+      videoProcessing: createVideoProcessing({
         processPreparedVideo,
-        recoverFailedPreparedVideo,
-      },
+      }),
       videoMetadataWriter: {
         writeVideoRecord,
       },
@@ -356,15 +370,12 @@ describe('AddVideoToLibraryUseCase', () => {
     const processPreparedVideo = vi.fn();
     const writeVideoRecord = vi.fn(async () => undefined);
     const useCase = new AddVideoToLibraryUseCase({
-      libraryIntake: {
-        finalizeSuccessfulPreparedVideo: vi.fn(async () => undefined),
-        prepareVideoForLibrary,
+      preparedVideoWorkspace: createPreparedVideoWorkspace({
+        preparePreparedVideo: prepareVideoForLibrary,
+      }),
+      videoProcessing: createVideoProcessing({
         processPreparedVideo,
-        recoverFailedPreparedVideo: vi.fn(async () => ({
-          restoredThumbnail: true,
-          retryAvailability: 'restored' as const,
-        })),
-      },
+      }),
       videoMetadataWriter: {
         writeVideoRecord,
       },
@@ -401,12 +412,14 @@ describe('AddVideoToLibraryUseCase', () => {
     });
     const finalizeSuccessfulPreparedVideo = vi.fn(async () => undefined);
     const useCase = new AddVideoToLibraryUseCase({
-      libraryIntake: {
-        finalizeSuccessfulPreparedVideo,
-        prepareVideoForLibrary,
+      preparedVideoWorkspace: createPreparedVideoWorkspace({
+        preparePreparedVideo: prepareVideoForLibrary,
+        recoverPreparedVideo: recoverFailedPreparedVideo,
+      }),
+      videoProcessing: createVideoProcessing({
+        finalizeSuccessfulVideo: finalizeSuccessfulPreparedVideo,
         processPreparedVideo,
-        recoverFailedPreparedVideo,
-      },
+      }),
       videoMetadataWriter: {
         writeVideoRecord,
       },

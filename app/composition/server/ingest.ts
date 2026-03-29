@@ -1,14 +1,16 @@
 import type { IngestIncomingVideoSourcePort } from '~/modules/ingest/application/ports/ingest-incoming-video-source.port';
-import type { IngestLibraryIntakePort } from '~/modules/ingest/application/ports/ingest-library-intake.port';
 import type { IngestPendingVideoReaderPort } from '~/modules/ingest/application/ports/ingest-pending-video-reader.port';
+import type { IngestPreparedVideoWorkspacePort } from '~/modules/ingest/application/ports/ingest-prepared-video-workspace.port';
 import type { IngestVideoMetadataWriterPort } from '~/modules/ingest/application/ports/ingest-video-metadata-writer.port';
+import type { IngestVideoProcessingPort } from '~/modules/ingest/application/ports/ingest-video-processing.port';
 import { AddVideoToLibraryUseCase } from '~/modules/ingest/application/use-cases/add-video-to-library.usecase';
 import { LoadPendingUploadSnapshotUseCase } from '~/modules/ingest/application/use-cases/load-pending-upload-snapshot.usecase';
 import { ScanIncomingVideosUseCase } from '~/modules/ingest/application/use-cases/scan-incoming-videos.usecase';
 import { createCanonicalVideoMetadataLegacyStore } from './canonical-video-metadata-legacy-store';
 import { createIngestLegacyIncomingVideoSource } from './ingest-legacy-incoming-video-source';
-import { createIngestLegacyLibraryIntake } from './ingest-legacy-library-intake';
 import { createIngestLegacyPendingVideoSource } from './ingest-legacy-pending-video-source';
+import { createIngestLegacyPreparedVideoWorkspace } from './ingest-legacy-prepared-video-workspace';
+import { createIngestLegacyVideoProcessing } from './ingest-legacy-video-processing';
 
 export interface ServerIngestServices {
   addVideoToLibrary: AddVideoToLibraryUseCase;
@@ -22,9 +24,10 @@ export interface ServerPendingUploadSnapshotServices {
 
 interface ServerIngestServiceDependencies {
   incomingVideoSource: IngestIncomingVideoSourcePort;
-  libraryIntake: IngestLibraryIntakePort;
   pendingVideoReader: IngestPendingVideoReaderPort;
+  preparedVideoWorkspace: IngestPreparedVideoWorkspacePort;
   videoMetadataWriter: IngestVideoMetadataWriterPort;
+  videoProcessing: IngestVideoProcessingPort;
 }
 
 let cachedIngestServices: ServerIngestServices | null = null;
@@ -56,11 +59,13 @@ export function createServerIngestServices(
   overrides: Partial<ServerIngestServiceDependencies> = {},
 ): ServerIngestServices {
   const getIncomingVideoSource = createLazyValue(() => overrides.incomingVideoSource ?? createIngestLegacyIncomingVideoSource());
-  const getLibraryIntake = createLazyValue(() => overrides.libraryIntake ?? createIngestLegacyLibraryIntake());
   const getPendingVideoReader = createLazyValue(() => overrides.pendingVideoReader ?? createIngestLegacyPendingVideoSource());
+  const getPreparedVideoWorkspace = createLazyValue(() => overrides.preparedVideoWorkspace ?? createIngestLegacyPreparedVideoWorkspace());
   const getVideoMetadataWriter = createLazyValue(() => overrides.videoMetadataWriter ?? createCanonicalVideoMetadataLegacyStore());
+  const getVideoProcessing = createLazyValue(() => overrides.videoProcessing ?? createIngestLegacyVideoProcessing());
   const getAddVideoToLibrary = createLazyValue(() => new AddVideoToLibraryUseCase({
-    libraryIntake: getLibraryIntake(),
+    preparedVideoWorkspace: getPreparedVideoWorkspace(),
+    videoProcessing: getVideoProcessing(),
     videoMetadataWriter: getVideoMetadataWriter(),
   }));
   const getLoadPendingUploadSnapshot = createLazyValue(() => createLoadPendingUploadSnapshotUseCase(getPendingVideoReader()));
