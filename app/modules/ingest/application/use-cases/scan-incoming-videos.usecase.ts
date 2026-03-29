@@ -1,8 +1,10 @@
 import type { IngestPendingVideo } from '../../domain/ingest-pending-video';
-import type { IngestIncomingVideoSourcePort } from '../ports/ingest-incoming-video-source.port';
+import type { IngestPendingThumbnailEnricherPort } from '../ports/ingest-pending-thumbnail-enricher.port';
+import type { IngestUploadScanPort } from '../ports/ingest-upload-scan.port';
 
 interface ScanIncomingVideosUseCaseDependencies {
-  incomingVideoSource: IngestIncomingVideoSourcePort;
+  pendingThumbnailEnricher: IngestPendingThumbnailEnricherPort;
+  uploadScan: IngestUploadScanPort;
 }
 
 type ScanIncomingVideosSuccess = {
@@ -29,7 +31,8 @@ export class ScanIncomingVideosUseCase {
 
   async execute(): Promise<ScanIncomingVideosUseCaseResult> {
     try {
-      const files = await this.deps.incomingVideoSource.scanIncomingVideos();
+      const discoveredUploads = await this.deps.uploadScan.discoverUploads();
+      const files = await this.deps.pendingThumbnailEnricher.enrichPendingUploads(discoveredUploads);
 
       return {
         ok: true,
