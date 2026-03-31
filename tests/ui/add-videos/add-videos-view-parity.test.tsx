@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, test, vi } from 'vitest';
 
@@ -91,6 +92,62 @@ describe('AddVideosView parity target', () => {
     expect(screen.getByLabelText('Description (optional)')).toHaveValue('Fixture description');
     expect(screen.getByRole('button', { name: 'Add to Library' })).toBeInTheDocument();
     expect(screen.getByText('Browser Playback Encoding')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Configure' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'CPU H.264' })).toBeChecked();
+  });
+
+  test('shows the supported encoder options and reports selection changes', async () => {
+    const user = userEvent.setup();
+    const onEncodingOptionsChange = vi.fn();
+
+    renderView(createViewProps({
+      onEncodingOptionsChange,
+    }));
+
+    expect(screen.getByRole('radio', { name: 'CPU H.264' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: 'GPU H.264' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'CPU H.265' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: 'GPU H.265' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('radio', { name: 'GPU H.265' }));
+
+    expect(onEncodingOptionsChange).toHaveBeenCalledWith('fixture-video.mp4', {
+      encoder: 'gpu-h265',
+    });
+  });
+
+  test('keeps encoding selection scoped to the matching pending file when multiple cards are rendered', async () => {
+    const user = userEvent.setup();
+    const onEncodingOptionsChange = vi.fn();
+    const firstFile = createPendingFile();
+    const secondFile = createPendingFile({
+      filename: 'second-video.mov',
+      id: 'pending-2',
+      type: 'mov',
+    });
+
+    renderView(createViewProps({
+      metadataByFilename: {
+        [firstFile.filename]: {
+          description: 'First description',
+          encodingOptions: { ...DEFAULT_ADD_VIDEOS_ENCODING_OPTIONS },
+          tags: '',
+          title: 'First title',
+        },
+        [secondFile.filename]: {
+          description: 'Second description',
+          encodingOptions: { ...DEFAULT_ADD_VIDEOS_ENCODING_OPTIONS },
+          tags: '',
+          title: 'Second title',
+        },
+      },
+      onEncodingOptionsChange,
+      pendingFiles: [firstFile, secondFile],
+    }));
+
+    await user.click(screen.getAllByText('GPU H.265')[1]!);
+
+    expect(onEncodingOptionsChange).toHaveBeenCalledWith('second-video.mov', {
+      encoder: 'gpu-h265',
+    });
   });
 });

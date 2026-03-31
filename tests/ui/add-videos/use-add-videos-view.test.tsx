@@ -113,6 +113,48 @@ describe('useAddVideosView', () => {
     });
   });
 
+  test('updates encoding options without mutating the other pending metadata fields', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({
+      count: 1,
+      files: [
+        {
+          createdAt: '2026-03-17T00:00:00.000Z',
+          filename: 'fixture-video.mp4',
+          id: 'pending-1',
+          size: 1_024,
+          thumbnailUrl: '/api/thumbnail-preview/fixture-video.jpg',
+          type: 'mp4',
+        },
+      ],
+      success: true,
+    })));
+
+    const { useAddVideosView } = await import('../../../app/widgets/add-videos/model/useAddVideosView');
+    const { result } = renderHook(() => useAddVideosView());
+
+    await waitFor(() => {
+      expect(result.current.pendingFiles).toHaveLength(1);
+    });
+
+    act(() => {
+      result.current.handleTitleChange('fixture-video.mp4', 'Custom title');
+      result.current.handleTagsChange('fixture-video.mp4', 'one, two');
+      result.current.handleDescriptionChange('fixture-video.mp4', 'Custom description');
+      result.current.handleEncodingOptionsChange('fixture-video.mp4', {
+        encoder: 'gpu-h265',
+      });
+    });
+
+    expect(result.current.metadataByFilename['fixture-video.mp4']).toEqual({
+      description: 'Custom description',
+      encodingOptions: {
+        encoder: 'gpu-h265',
+      },
+      tags: 'one, two',
+      title: 'Custom title',
+    });
+  });
+
   test('posts the preserved add-to-library request body and removes the processed file on success', async () => {
     fetchMock
       .mockResolvedValueOnce(new Response(JSON.stringify({

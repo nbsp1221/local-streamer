@@ -202,7 +202,6 @@ export function AddVideosView({
                     </div>
 
                     <AddVideosEncodingOptions
-                      fileSize={file.size}
                       onChange={options => onEncodingOptionsChange(file.filename, options)}
                       value={metadata?.encodingOptions ?? createDefaultAddVideosEncodingOptions()}
                     />

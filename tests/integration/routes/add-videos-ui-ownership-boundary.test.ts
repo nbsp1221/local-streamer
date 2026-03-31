@@ -3,10 +3,6 @@ import { join, relative } from 'node:path';
 import { describe, expect, test } from 'vitest';
 
 const projectRoot = process.cwd();
-const allowedLegacyImportFile = join(
-  projectRoot,
-  'app/features/add-videos-encoding/ui/AddVideosEncodingOptions.tsx',
-);
 const activeAddVideosRoots = [
   join(projectRoot, 'app/routes/add-videos.tsx'),
   join(projectRoot, 'app/pages/add-videos'),
@@ -49,14 +45,10 @@ async function collectFiles(path: string): Promise<string[]> {
 }
 
 describe('add-videos UI ownership boundary', () => {
-  test('active add-videos route path does not import app/legacy outside the encoding wrapper', async () => {
+  test('active add-videos route path does not import app/legacy', async () => {
     const files = (await Promise.all(activeAddVideosRoots.map(collectFiles))).flat();
 
     for (const filePath of files) {
-      if (filePath === allowedLegacyImportFile) {
-        continue;
-      }
-
       const source = await readFile(filePath, 'utf8');
       const hasForbiddenImport = forbiddenImportPatterns.some(pattern => pattern.test(source));
 
