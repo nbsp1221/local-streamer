@@ -183,6 +183,28 @@ describe('Phase 2 playback route adapters', () => {
     expect(clearKeyResponse.status).toBe(200);
   });
 
+  test('clearkey action delegates POST license requests to the playback composition root', async () => {
+    fakePlaybackServices.servePlaybackClearKeyLicense.execute.mockResolvedValue({
+      body: '{"keys":[]}',
+      headers: { 'Content-Type': 'application/json' },
+      ok: true,
+    });
+    const { action } = await importClearKeyRoute();
+
+    const response = await action({
+      params: { videoId: 'video-1' },
+      request: new Request('http://localhost/videos/video-1/clearkey?token=signed-token', {
+        method: 'POST',
+      }),
+    } as never);
+
+    expect(fakePlaybackServices.servePlaybackClearKeyLicense.execute).toHaveBeenCalledWith({
+      token: 'signed-token',
+      videoId: 'video-1',
+    });
+    expect(response.status).toBe(200);
+  });
+
   test('manifest route accepts Authorization bearer token when the query token is absent', async () => {
     fakePlaybackServices.servePlaybackManifest.execute.mockResolvedValue({
       body: '<MPD />',

@@ -83,14 +83,23 @@ describe('Phase 2 playback resource route error mapping', () => {
     fakePlaybackServices.servePlaybackClearKeyLicense.execute.mockRejectedValue(
       new Error('upstream clearkey failure'),
     );
-    const { loader } = await importClearKeyRoute();
+    const { action, loader } = await importClearKeyRoute();
 
-    const response = await loader({
+    const loaderResponse = await loader({
       params: { videoId: 'video-1' },
       request: new Request('http://localhost/videos/video-1/clearkey?token=signed-token'),
     } as never);
 
-    expect(response.status).toBe(403);
-    await expect(response.text()).resolves.toBe('Clear Key license access denied');
+    const actionResponse = await action({
+      params: { videoId: 'video-1' },
+      request: new Request('http://localhost/videos/video-1/clearkey?token=signed-token', {
+        method: 'POST',
+      }),
+    } as never);
+
+    expect(loaderResponse.status).toBe(403);
+    await expect(loaderResponse.text()).resolves.toBe('Clear Key license access denied');
+    expect(actionResponse.status).toBe(403);
+    await expect(actionResponse.text()).resolves.toBe('Clear Key license access denied');
   });
 });

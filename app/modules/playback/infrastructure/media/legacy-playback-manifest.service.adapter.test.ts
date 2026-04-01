@@ -1,8 +1,8 @@
 import { describe, expect, test, vi } from 'vitest';
 
-describe('LegacyPlaybackManifestServiceAdapter', () => {
+describe('PlaybackManifestService', () => {
   test('maps the legacy manifest use-case output to the playback manifest port contract', async () => {
-    const { LegacyPlaybackManifestServiceAdapter } = await import('./legacy-playback-manifest.service.adapter');
+    const { PlaybackManifestService } = await import('./playback-manifest.service');
     const execute = vi.fn(async () => ({
       data: {
         headers: {
@@ -13,7 +13,7 @@ describe('LegacyPlaybackManifestServiceAdapter', () => {
       },
       success: true,
     }));
-    const adapter = new LegacyPlaybackManifestServiceAdapter({
+    const adapter = new PlaybackManifestService({
       execute,
     });
 

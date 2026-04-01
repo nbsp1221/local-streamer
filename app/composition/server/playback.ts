@@ -1,18 +1,18 @@
-import type { PlaybackClearKeyService } from '~/modules/playback/application/ports/playback-clearkey-service.port';
-import type { PlaybackManifestService } from '~/modules/playback/application/ports/playback-manifest-service.port';
-import type { PlaybackMediaSegmentService } from '~/modules/playback/application/ports/playback-media-segment-service.port';
-import type { PlaybackTokenService } from '~/modules/playback/application/ports/playback-token-service.port';
+import type { PlaybackClearKeyService as PlaybackClearKeyServicePort } from '~/modules/playback/application/ports/playback-clearkey-service.port';
+import type { PlaybackManifestService as PlaybackManifestServicePort } from '~/modules/playback/application/ports/playback-manifest-service.port';
+import type { PlaybackMediaSegmentService as PlaybackMediaSegmentServicePort } from '~/modules/playback/application/ports/playback-media-segment-service.port';
+import type { PlaybackTokenService as PlaybackTokenServicePort } from '~/modules/playback/application/ports/playback-token-service.port';
 import type { VideoCatalogPort } from '~/modules/playback/application/ports/video-catalog.port';
 import { IssuePlaybackTokenUseCase } from '~/modules/playback/application/use-cases/issue-playback-token.usecase';
 import { ResolvePlayerVideoUseCase } from '~/modules/playback/application/use-cases/resolve-player-video.usecase';
 import { ServePlaybackClearKeyLicenseUseCase } from '~/modules/playback/application/use-cases/serve-playback-clearkey-license.usecase';
 import { ServePlaybackManifestUseCase } from '~/modules/playback/application/use-cases/serve-playback-manifest.usecase';
 import { ServePlaybackMediaSegmentUseCase } from '~/modules/playback/application/use-cases/serve-playback-media-segment.usecase';
-import { LegacyVideoCatalogAdapter } from '~/modules/playback/infrastructure/catalog/legacy-video-catalog.adapter';
-import { LegacyPlaybackClearKeyServiceAdapter } from '~/modules/playback/infrastructure/license/legacy-playback-clearkey.service.adapter';
-import { LegacyPlaybackManifestServiceAdapter } from '~/modules/playback/infrastructure/media/legacy-playback-manifest.service.adapter';
-import { LegacyPlaybackMediaSegmentServiceAdapter } from '~/modules/playback/infrastructure/media/legacy-playback-media-segment.service.adapter';
-import { JsonWebTokenPlaybackTokenService } from '~/modules/playback/infrastructure/token/jsonwebtoken-playback-token.service';
+import { PlaybackVideoCatalogAdapter } from '~/modules/playback/infrastructure/catalog/playback-video-catalog.adapter';
+import { PlaybackClearKeyService } from '~/modules/playback/infrastructure/license/playback-clearkey.service';
+import { PlaybackManifestService } from '~/modules/playback/infrastructure/media/playback-manifest.service';
+import { PlaybackMediaSegmentService } from '~/modules/playback/infrastructure/media/playback-media-segment.service';
+import { PlaybackTokenService } from '~/modules/playback/infrastructure/token/playback-token.service';
 
 interface ServerPlaybackServices {
   issuePlaybackToken: IssuePlaybackTokenUseCase;
@@ -23,63 +23,72 @@ interface ServerPlaybackServices {
 }
 
 interface ServerPlaybackServiceDependencies {
-  clearKeyService: PlaybackClearKeyService;
-  manifestService: PlaybackManifestService;
-  mediaSegmentService: PlaybackMediaSegmentService;
-  tokenService: PlaybackTokenService;
+  clearKeyService: PlaybackClearKeyServicePort;
+  manifestService: PlaybackManifestServicePort;
+  mediaSegmentService: PlaybackMediaSegmentServicePort;
+  tokenService: PlaybackTokenServicePort;
   videoCatalog: VideoCatalogPort;
 }
 
 let cachedPlaybackServices: ServerPlaybackServices | null = null;
 
-function createDefaultDependencies(): ServerPlaybackServiceDependencies {
-  return {
-    clearKeyService: new LegacyPlaybackClearKeyServiceAdapter(),
-    manifestService: new LegacyPlaybackManifestServiceAdapter(),
-    mediaSegmentService: new LegacyPlaybackMediaSegmentServiceAdapter(),
-    tokenService: new JsonWebTokenPlaybackTokenService(),
-    videoCatalog: new LegacyVideoCatalogAdapter(),
+function createLazyValue<T>(factory: () => T): () => T {
+  const uninitialized = Symbol('uninitialized');
+  let cachedValue: T | typeof uninitialized = uninitialized;
+
+  return () => {
+    if (cachedValue !== uninitialized) {
+      return cachedValue;
+    }
+
+    cachedValue = factory();
+    return cachedValue;
   };
 }
 
 export function createServerPlaybackServices(
   overrides: Partial<ServerPlaybackServiceDependencies> = {},
 ): ServerPlaybackServices {
-  const hasAllOverrides = Boolean(
-    overrides.clearKeyService &&
-    overrides.manifestService &&
-    overrides.mediaSegmentService &&
-    overrides.tokenService &&
-    overrides.videoCatalog,
-  );
-  const defaultDependencies = hasAllOverrides ? null : createDefaultDependencies();
-  const deps = {
-    clearKeyService: overrides.clearKeyService ?? defaultDependencies!.clearKeyService,
-    manifestService: overrides.manifestService ?? defaultDependencies!.manifestService,
-    mediaSegmentService: overrides.mediaSegmentService ?? defaultDependencies!.mediaSegmentService,
-    tokenService: overrides.tokenService ?? defaultDependencies!.tokenService,
-    videoCatalog: overrides.videoCatalog ?? defaultDependencies!.videoCatalog,
-  };
+  const getClearKeyService = createLazyValue(() => overrides.clearKeyService ?? new PlaybackClearKeyService());
+  const getManifestService = createLazyValue(() => overrides.manifestService ?? new PlaybackManifestService());
+  const getMediaSegmentService = createLazyValue(() => overrides.mediaSegmentService ?? new PlaybackMediaSegmentService());
+  const getTokenService = createLazyValue(() => overrides.tokenService ?? new PlaybackTokenService());
+  const getVideoCatalog = createLazyValue(() => overrides.videoCatalog ?? new PlaybackVideoCatalogAdapter());
+  const getIssuePlaybackToken = createLazyValue(() => new IssuePlaybackTokenUseCase({
+    tokenService: getTokenService(),
+  }));
+  const getResolvePlayerVideo = createLazyValue(() => new ResolvePlayerVideoUseCase({
+    videoCatalog: getVideoCatalog(),
+  }));
+  const getServePlaybackClearKeyLicense = createLazyValue(() => new ServePlaybackClearKeyLicenseUseCase({
+    clearKeyService: getClearKeyService(),
+    tokenService: getTokenService(),
+  }));
+  const getServePlaybackManifest = createLazyValue(() => new ServePlaybackManifestUseCase({
+    manifestService: getManifestService(),
+    tokenService: getTokenService(),
+  }));
+  const getServePlaybackMediaSegment = createLazyValue(() => new ServePlaybackMediaSegmentUseCase({
+    mediaSegmentService: getMediaSegmentService(),
+    tokenService: getTokenService(),
+  }));
 
   return {
-    issuePlaybackToken: new IssuePlaybackTokenUseCase({
-      tokenService: deps.tokenService,
-    }),
-    resolvePlayerVideo: new ResolvePlayerVideoUseCase({
-      videoCatalog: deps.videoCatalog,
-    }),
-    servePlaybackClearKeyLicense: new ServePlaybackClearKeyLicenseUseCase({
-      clearKeyService: deps.clearKeyService,
-      tokenService: deps.tokenService,
-    }),
-    servePlaybackManifest: new ServePlaybackManifestUseCase({
-      manifestService: deps.manifestService,
-      tokenService: deps.tokenService,
-    }),
-    servePlaybackMediaSegment: new ServePlaybackMediaSegmentUseCase({
-      mediaSegmentService: deps.mediaSegmentService,
-      tokenService: deps.tokenService,
-    }),
+    get issuePlaybackToken() {
+      return getIssuePlaybackToken();
+    },
+    get resolvePlayerVideo() {
+      return getResolvePlayerVideo();
+    },
+    get servePlaybackClearKeyLicense() {
+      return getServePlaybackClearKeyLicense();
+    },
+    get servePlaybackManifest() {
+      return getServePlaybackManifest();
+    },
+    get servePlaybackMediaSegment() {
+      return getServePlaybackMediaSegment();
+    },
   };
 }
 

@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
 
-describe('LegacyVideoCatalogAdapter', () => {
+describe('PlaybackVideoCatalogAdapter', () => {
   test('returns the current video and related videos without exposing repository details upward', async () => {
-    const { LegacyVideoCatalogAdapter } = await import('./legacy-video-catalog.adapter');
-    const adapter = new LegacyVideoCatalogAdapter({
+    const { PlaybackVideoCatalogAdapter } = await import('./playback-video-catalog.adapter');
+    const adapter = new PlaybackVideoCatalogAdapter({
       repository: {
         findAll: async () => [
           {
@@ -59,8 +59,8 @@ describe('LegacyVideoCatalogAdapter', () => {
   });
 
   test('returns null when the legacy repository cannot resolve the requested video', async () => {
-    const { LegacyVideoCatalogAdapter } = await import('./legacy-video-catalog.adapter');
-    const adapter = new LegacyVideoCatalogAdapter({
+    const { PlaybackVideoCatalogAdapter } = await import('./playback-video-catalog.adapter');
+    const adapter = new PlaybackVideoCatalogAdapter({
       repository: {
         findAll: async () => [],
       },

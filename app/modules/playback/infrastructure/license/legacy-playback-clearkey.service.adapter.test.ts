@@ -1,8 +1,8 @@
 import { describe, expect, test, vi } from 'vitest';
 
-describe('LegacyPlaybackClearKeyServiceAdapter', () => {
+describe('PlaybackClearKeyService', () => {
   test('preserves downstream headers and serializes the legacy ClearKey response body unchanged', async () => {
-    const { LegacyPlaybackClearKeyServiceAdapter } = await import('./legacy-playback-clearkey.service.adapter');
+    const { PlaybackClearKeyService } = await import('./playback-clearkey.service');
     const execute = vi.fn(async () => ({
       data: {
         clearKeyResponse: {
@@ -23,7 +23,7 @@ describe('LegacyPlaybackClearKeyServiceAdapter', () => {
       },
       success: true,
     }));
-    const adapter = new LegacyPlaybackClearKeyServiceAdapter({
+    const adapter = new PlaybackClearKeyService({
       execute,
     });
 

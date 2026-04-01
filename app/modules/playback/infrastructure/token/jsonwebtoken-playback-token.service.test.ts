@@ -1,10 +1,10 @@
 import jwt from 'jsonwebtoken';
 import { describe, expect, test } from 'vitest';
 
-describe('JsonWebTokenPlaybackTokenService', () => {
+describe('PlaybackTokenService', () => {
   test('issues and validates playback tokens using the current legacy claims contract', async () => {
-    const { JsonWebTokenPlaybackTokenService } = await import('./jsonwebtoken-playback-token.service');
-    const service = new JsonWebTokenPlaybackTokenService({
+    const { PlaybackTokenService } = await import('./playback-token.service');
+    const service = new PlaybackTokenService({
       config: {
         jwtAudience: 'video-streaming',
         jwtExpiry: '15m',
@@ -52,8 +52,8 @@ describe('JsonWebTokenPlaybackTokenService', () => {
   });
 
   test('returns null when validation fails', async () => {
-    const { JsonWebTokenPlaybackTokenService } = await import('./jsonwebtoken-playback-token.service');
-    const service = new JsonWebTokenPlaybackTokenService({
+    const { PlaybackTokenService } = await import('./playback-token.service');
+    const service = new PlaybackTokenService({
       config: {
         jwtAudience: 'video-streaming',
         jwtExpiry: '15m',

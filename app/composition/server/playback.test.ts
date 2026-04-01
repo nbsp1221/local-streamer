@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 describe('server playback composition root', () => {
@@ -119,5 +120,55 @@ describe('server playback composition root', () => {
     expect(first.servePlaybackManifest).toBeDefined();
     expect(first.servePlaybackMediaSegment).toBeDefined();
     expect(first.servePlaybackClearKeyLicense).toBeDefined();
+  });
+
+  test('does not assemble legacy-named playback infrastructure directly in the composition root', async () => {
+    const source = await readFile(new URL('./playback.ts', import.meta.url), 'utf8');
+
+    expect(source).not.toContain('legacy-video-catalog.adapter');
+    expect(source).not.toContain('legacy-playback-manifest.service.adapter');
+    expect(source).not.toContain('legacy-playback-media-segment.service.adapter');
+    expect(source).not.toContain('legacy-playback-clearkey.service.adapter');
+    expect(source).not.toContain('jsonwebtoken-playback-token.service');
+  });
+
+  test('does not construct unrelated playback defaults when only token issuance is exercised', async () => {
+    const { createServerPlaybackServices } = await import('./playback');
+    const issue = vi.fn(async () => 'signed-token');
+    const services = createServerPlaybackServices({
+      tokenService: {
+        issue,
+        validate: async () => null,
+      },
+    });
+
+    await expect(services.issuePlaybackToken.execute({
+      hasSiteSession: true,
+      videoId: 'video-1',
+    })).resolves.toEqual({
+      success: true,
+      token: 'signed-token',
+      urls: {
+        clearkey: '/videos/video-1/clearkey?token=signed-token',
+        manifest: '/videos/video-1/manifest.mpd?token=signed-token',
+      },
+    });
+    expect(issue).toHaveBeenCalledOnce();
+  });
+
+  test('does not require playback encryption env when only player catalog resolution is used', async () => {
+    const { createServerPlaybackServices } = await import('./playback');
+    const services = createServerPlaybackServices({
+      videoCatalog: {
+        getPlayerVideo: async () => null,
+      },
+    });
+
+    await expect(services.resolvePlayerVideo.execute({
+      videoId: 'missing-video',
+    })).resolves.toEqual({
+      ok: false,
+      reason: 'VIDEO_NOT_FOUND',
+    });
   });
 });

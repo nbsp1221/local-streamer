@@ -1,8 +1,8 @@
 import { describe, expect, test, vi } from 'vitest';
 
-describe('LegacyPlaybackMediaSegmentServiceAdapter', () => {
+describe('PlaybackMediaSegmentService', () => {
   test('preserves range-response metadata and stream handles from the legacy segment use case', async () => {
-    const { LegacyPlaybackMediaSegmentServiceAdapter } = await import('./legacy-playback-media-segment.service.adapter');
+    const { PlaybackMediaSegmentService } = await import('./playback-media-segment.service');
     const stream = new ReadableStream<Uint8Array>();
     const execute = vi.fn(async () => ({
       data: {
@@ -17,7 +17,7 @@ describe('LegacyPlaybackMediaSegmentServiceAdapter', () => {
       },
       success: true,
     }));
-    const adapter = new LegacyPlaybackMediaSegmentServiceAdapter({
+    const adapter = new PlaybackMediaSegmentService({
       execute,
     });
 
