@@ -5,6 +5,16 @@ import {
 } from '../../support/detect-playwright-runtime-mode';
 
 describe('detectPlaywrightRuntimeMode', () => {
+  test('selects hermetic-smoke mode for the required two-spec browser smoke command', () => {
+    expect(detectPlaywrightRuntimeMode([
+      'playwright',
+      'test',
+      PLAYWRIGHT_SMOKE_SPEC_PATHS[0],
+      PLAYWRIGHT_SMOKE_SPEC_PATHS[2],
+      '--project=chromium',
+    ])).toBe('hermetic-smoke');
+  });
+
   test('selects hermetic-smoke mode when the selected spec set matches the required smoke subset', () => {
     expect(detectPlaywrightRuntimeMode([
       'playwright',

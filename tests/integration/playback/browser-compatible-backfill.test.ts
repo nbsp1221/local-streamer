@@ -1,8 +1,9 @@
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
+import { promises as fsPromises } from 'fs';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import crypto from 'node:crypto';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ThumbnailCryptoUtils } from '~/legacy/modules/thumbnail/shared/thumbnail-crypto.utils';
 import { backfillBrowserCompatiblePlayback } from '../../../scripts/backfill-browser-compatible-playback';
 
@@ -60,6 +61,7 @@ describe('backfillBrowserCompatiblePlayback', () => {
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     await Promise.all(tempDirs.map(dir => rm(dir, { force: true, recursive: true })));
     tempDirs.length = 0;
   });
@@ -332,7 +334,21 @@ describe('backfillBrowserCompatiblePlayback', () => {
     await writeFile(join(targetDir, 'manifest.mpd'), '<Representation id="0" codecs="hev1.1.6.H120.90" />');
     await writeFile(join(targetDir, 'video', 'segment-0001.m4s'), 'old-video-segment');
     await writeFile(join(targetDir, 'audio', 'segment-0001.m4s'), 'old-audio-segment');
-    await chmod(join(targetDir, 'key.bin'), 0o000);
+
+    const originalCopyFile = fsPromises.copyFile.bind(fsPromises);
+    const copyFileSpy = vi.spyOn(fsPromises, 'copyFile');
+    copyFileSpy.mockImplementation(async (sourcePath, destinationPath, mode) => {
+      if (
+        String(sourcePath).endsWith(`/videos/${targetVideoId}/key.bin`) &&
+        String(destinationPath).includes(`.browser-backfill-rollback-${targetVideoId}-`)
+      ) {
+        const error = new Error('EACCES: simulated rollback capture failure') as NodeJS.ErrnoException;
+        error.code = 'EACCES';
+        throw error;
+      }
+
+      return originalCopyFile(sourcePath, destinationPath, mode);
+    });
 
     const result = await backfillBrowserCompatiblePlayback({
       createPackage: async (request) => {
@@ -360,7 +376,6 @@ describe('backfillBrowserCompatiblePlayback', () => {
     ]);
     expect(result.skipped).toEqual([]);
     expect(result.warnings).toEqual([]);
-    await chmod(join(targetDir, 'key.bin'), 0o644);
     await expect(readFile(join(targetDir, 'manifest.mpd'), 'utf8')).resolves.toContain('hev1.1.6.H120.90');
     await expect(readFile(join(targetDir, 'key.bin'), 'utf8')).resolves.toBe('old-key');
     await expect(readFile(join(targetDir, 'video', 'segment-0001.m4s'), 'utf8')).resolves.toBe('old-video-segment');

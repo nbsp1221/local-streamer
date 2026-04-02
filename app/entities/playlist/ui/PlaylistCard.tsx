@@ -27,6 +27,15 @@ export function PlaylistCard({
     onClick?.(playlist);
   };
 
+  const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+
+    event.preventDefault();
+    onClick?.(playlist);
+  };
+
   // Generate thumbnail or placeholder
   const getThumbnailContent = () => {
     if (playlist.thumbnailUrl) {
@@ -50,7 +59,14 @@ export function PlaylistCard({
 
   return (
     <div className="group relative">
-      <div className="block cursor-pointer" onClick={handleCardClick}>
+      <div
+        aria-label={playlist.name}
+        className="block cursor-pointer rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={handleCardClick}
+        onKeyDown={handleCardKeyDown}
+        role="button"
+        tabIndex={0}
+      >
         <div className="space-y-3">
           {/* Thumbnail area */}
           <div className="relative overflow-hidden rounded-lg bg-muted">

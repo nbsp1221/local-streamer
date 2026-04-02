@@ -1,8 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { describe, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { PlaylistsPage } from '../../../app/pages/playlists/ui/PlaylistsPage';
+
+const mockNavigate = vi.fn();
 
 vi.mock('~/shared/hooks/use-root-user', () => ({
   useRootUser: () => ({
@@ -12,7 +14,20 @@ vi.mock('~/shared/hooks/use-root-user', () => ({
   }),
 }));
 
+vi.mock('react-router', async () => {
+  const actual = await vi.importActual<typeof import('react-router')>('react-router');
+
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 describe('PlaylistsPage', () => {
+  beforeEach(() => {
+    mockNavigate.mockReset();
+  });
+
   test('renders the active shell and playlist list content', async () => {
     const user = userEvent.setup();
     const router = createMemoryRouter([
@@ -81,10 +96,6 @@ describe('PlaylistsPage', () => {
         ),
       },
       {
-        path: '/playlists/:id',
-        element: <div>Playlist detail route</div>,
-      },
-      {
         path: '/api/playlists',
         action: async () => Response.json({ success: true }),
       },
@@ -96,10 +107,10 @@ describe('PlaylistsPage', () => {
       <RouterProvider router={router} />,
     );
 
-    await user.click(screen.getByRole('heading', { level: 3, name: 'Vault' }));
+    await user.click(screen.getByRole('button', { name: 'Vault' }));
 
     await waitFor(() => {
-      expect(router.state.location.pathname).toBe('/playlists/playlist-1');
+      expect(mockNavigate).toHaveBeenCalledWith('/playlists/playlist-1');
     });
   });
 });

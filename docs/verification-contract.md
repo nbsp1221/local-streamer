@@ -39,14 +39,23 @@ The base verification bundle is:
 - Tests must not depend on an ambient local `.env`.
 - Runtime-sensitive test entrypoints should use shared helpers that seed only the required env.
 - Required browser smoke should run against an isolated runtime workspace instead of mutating repo-local auth or storage state.
+- Required browser smoke and runtime workspace helpers must not read fixture assets from ignored repo-local `storage/`.
+- CI-sensitive playback/browser fixtures must come from a test-owned tracked surface such as `tests/fixtures/`.
 - CI and local verification should use the same Bun version contract declared by `package.json`.
 - Runtime-sensitive verification should run under explicit timezone and locale settings instead of runner defaults.
 - `bun install` should fail fast when the running `bun` does not match the repo `packageManager` contract.
+- Local Docker parity is not CI-faithful unless it also covers the required `e2e-smoke` surface and the same hermetic input guard.
 
 ## Command Authority
 
 The authoritative commands for the current repo state are:
 
+- `bun run verify:hermetic-inputs`
+- `bun run verify:base`
+- `bun run verify:e2e-smoke`
+- `bun run verify:ci-faithful`
+- `bun run verify:ci-faithful:docker`
+- `bun run verify:ci-clean-export`
 - `bun run lint`
 - `bun run typecheck`
 - `bun run test`
@@ -66,7 +75,9 @@ GitHub Actions should run dedicated jobs for:
 - `build`
 - `e2e-smoke`
 
-`e2e-smoke` should run `bun run test:e2e -- tests/e2e/home-library-owner-smoke.spec.ts tests/e2e/player-layout.spec.ts`. Heavier browser suites can remain non-required under `bun run test:e2e` until they are deterministic.
+`test` should run the hermetic input guard before `bun run test`.
+
+`e2e-smoke` should run `bun run verify:e2e-smoke`. Heavier browser suites can remain non-required under `bun run test:e2e` until they are deterministic.
 
 ## Broader browser suite
 
@@ -79,8 +90,10 @@ When a change is browser-visible and runtime-sensitive, passing the browser smok
 - use `docs/browser-qa-contract.md` to decide whether Playwright MCP or equivalent isolated browser QA is required
 - prefer HTTP-level checks before browser QA, but do not use them as a substitute for directly observing a browser-only success condition
 - report when browser QA used a fallback because Playwright MCP was unavailable
+- if a browser-visible fix depends on tracked fixture assets, verify the same flow from a clean export or equivalent clean-checkout proof before completion
 
 ## Non-goals
 
 - Git hooks are optional convenience tools. They are not the correctness boundary.
 - A local pass is not considered CI-safe unless the same script and runtime contract also pass in CI.
+- “Test added and green” is not sufficient. Runtime-sensitive tests must be hermetic, contract-relevant, and reproducible from tracked inputs only.

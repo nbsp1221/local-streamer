@@ -53,6 +53,7 @@ bun run test:e2e -- tests/e2e/home-library-owner-smoke.spec.ts tests/e2e/player-
 - Do not rely on ambient `.env` values. Seed the required environment explicitly.
 - Prefer isolated temporary workspaces for runtime QA when the flow touches auth or storage.
 - Prefer checked-in test fixtures or generated temporary fixtures over ad-hoc local machine state.
+- For playback/browser smoke, do not use ignored `storage/` assets as fixture sources. Use tracked test-owned fixtures or generators that run inside the same authority scripts and CI provisioning path.
 
 ## Playwright MCP Expectations
 
@@ -82,6 +83,7 @@ A browser QA report should state:
 - whether Playwright MCP or fallback QA was used
 - which success condition was directly observed
 - whether any blocker or important browser-visible issue remains
+- whether the exercised runtime state came from tracked fixtures or another explicitly documented hermetic seed path
 
 ## Relationship To Other Docs
 

@@ -18,9 +18,11 @@ describe('CI parity contract', () => {
     const packageJson = await readFile('package.json', 'utf8');
 
     expect(workflow).toContain('e2e-smoke:');
-    expect(workflow).toContain('bun run test:e2e -- tests/e2e/home-library-owner-smoke.spec.ts tests/e2e/player-layout.spec.ts');
+    expect(workflow).toContain('bun run verify:e2e-smoke');
     expect(packageJson).toContain('"test:e2e":');
-    expect(packageJson).not.toContain('"test:e2e:smoke"');
+    expect(packageJson).toContain('"verify:e2e-smoke":');
+    expect(packageJson).toContain('"verify:ci-faithful":');
+    expect(packageJson).toContain('"verify:ci-faithful:docker":');
   });
 
   test('keeps Bun version enforcement at install time instead of repeating a custom prefix across every verification script', async () => {
@@ -41,6 +43,18 @@ describe('CI parity contract', () => {
     expect(playwrightConfig).toContain('timezoneId: \'UTC\'');
     expect(playwrightConfig).toContain('locale: \'en-US\'');
     expect(playwrightConfig).toContain('bun --no-env-file run build && bun --no-env-file ./build/server/index.js');
+  });
+
+  test('runs clean-checkout CI-faithful verification from tracked inputs only', async () => {
+    const packageJson = await readFile('package.json', 'utf8');
+    const cleanExportScript = await readFile('scripts/verify-ci-clean-export.sh', 'utf8');
+    const workflow = await readFile('.github/workflows/ci.yml', 'utf8');
+
+    expect(packageJson).toContain('scripts/verify-hermetic-test-inputs.ts');
+    expect(packageJson).toContain('"verify:ci-clean-export":');
+    expect(cleanExportScript).toContain('git checkout-index --all --force --prefix="$tmpdir"/');
+    expect(cleanExportScript).toContain('bun run verify:ci-faithful');
+    expect(workflow).toContain('bun run verify:e2e-smoke');
   });
 
   test('pre-bundles player-only dev dependencies before the first player navigation', async () => {

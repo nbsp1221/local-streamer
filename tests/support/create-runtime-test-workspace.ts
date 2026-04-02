@@ -1,6 +1,8 @@
-import { access, cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { copyPlaybackFixture } from './copy-playback-fixture';
+import { REQUIRED_BROWSER_PLAYBACK_FIXTURE_IDS } from './playback-fixture-manifest';
 
 interface RuntimeTestWorkspace {
   authDbPath: string;
@@ -94,23 +96,10 @@ export async function createRuntimeTestWorkspace(
   ]);
 
   await Promise.all(
-    SEEDED_VIDEOS.map(async (video) => {
-      const fixtureDir = join(process.cwd(), 'storage', 'data', 'videos', video.id);
-
-      try {
-        await access(fixtureDir);
-        await cp(
-          fixtureDir,
-          join(dataDir, 'videos', video.id),
-          { recursive: true },
-        );
-      }
-      catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-          throw error;
-        }
-      }
-    }),
+    REQUIRED_BROWSER_PLAYBACK_FIXTURE_IDS.map(videoId => copyPlaybackFixture({
+      targetVideosDir: join(dataDir, 'videos'),
+      videoId,
+    })),
   );
 
   return {
