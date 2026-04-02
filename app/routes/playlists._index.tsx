@@ -1,46 +1,53 @@
 import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { isRouteErrorResponse, useLoaderData, useRouteError } from 'react-router';
-
 import { requireProtectedPageSession } from '~/composition/server/auth';
-import { RouteErrorView } from '~/legacy/components/RouteErrorView';
-import { PlaylistsPage } from '~/legacy/pages/playlists/ui/PlaylistsPage';
-// Loader function to fetch playlist data from server-side API
+import { getServerPlaylistServices, resolveServerPlaylistOwnerId } from '~/composition/server/playlist';
+import { PlaylistsPage } from '~/pages/playlists/ui/PlaylistsPage';
+import { RouteErrorView } from '~/shared/ui/route-error-view';
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Failed to load playlists';
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   await requireProtectedPageSession(request);
 
   const url = new URL(request.url);
   const searchQuery = url.searchParams.get('q') || '';
-
-  // Fetch from the real API endpoint
-  const apiUrl = new URL('/api/playlists', url.origin);
-  if (searchQuery) {
-    apiUrl.searchParams.set('q', searchQuery);
-  }
-
-  const response = await fetch(apiUrl.toString(), {
-    headers: {
-      // Forward authentication cookie to maintain user session
-      cookie: request.headers.get('cookie') || '',
+  const ownerId = await resolveServerPlaylistOwnerId();
+  const services = getServerPlaylistServices();
+  const result = await services.findPlaylists.execute({
+    filters: {
+      genre: [],
+      searchQuery: searchQuery || undefined,
+      seriesName: undefined,
+      status: undefined,
+      type: undefined,
     },
+    includeEmpty: true,
+    includeStats: false,
+    limit: 20,
+    offset: 0,
+    sortBy: 'updatedAt',
+    sortOrder: 'desc',
+    ownerId,
   });
-  const data = await response.json();
 
-  // Handle API response format
-  if (!data.success) {
-    throw new Error(data.error || 'Failed to fetch playlists');
+  if (!result.success) {
+    throw new Error(getErrorMessage(result));
   }
 
-  // Create video count map from playlists data
   const videoCountMap: Record<string, number> = {};
-  data.playlists.forEach((playlist: { id: string; videoIds?: string[] }) => {
+  result.data.playlists.forEach((playlist: { id: string; videoIds?: string[] }) => {
     videoCountMap[playlist.id] = playlist.videoIds?.length || 0;
   });
 
   return {
-    playlists: data.playlists,
+    playlists: result.data.playlists,
+    searchQuery,
+    total: result.data.totalCount,
     videoCountMap,
-    total: data.totalCount,
   };
 }
 
@@ -50,15 +57,14 @@ export const meta: MetaFunction = () => ([
 ]);
 
 export default function Playlists() {
-  // Get data from server-side loader
-  const { playlists, videoCountMap, total } = useLoaderData<typeof loader>();
+  const { playlists, videoCountMap, total, searchQuery } = useLoaderData<typeof loader>();
 
   return (
     <PlaylistsPage
       playlists={playlists}
       videoCountMap={videoCountMap}
       total={total}
-      searchQuery=""
+      searchQuery={searchQuery}
       onSearchChange={() => {}}
     />
   );

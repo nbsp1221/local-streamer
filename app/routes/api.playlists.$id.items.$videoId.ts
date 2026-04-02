@@ -1,15 +1,57 @@
 import type { ActionFunctionArgs } from 'react-router';
-import { requireProtectedApiSession, resolveLegacyCompatibilityUser } from '~/composition/server/auth';
-import { RemoveVideoFromPlaylistUseCase } from '~/legacy/modules/playlist/commands/remove-video-from-playlist/remove-video-from-playlist.usecase';
-import { getPlaylistRepository, getUserRepository } from '~/legacy/repositories';
-import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
+import { requireProtectedApiSession } from '~/composition/server/auth';
+import { getServerPlaylistServices, resolveServerPlaylistOwnerId } from '~/composition/server/playlist';
 
-/**
- * DELETE /api/playlists/:id/items/:videoId - Remove video from playlist
- */
+type UseCaseResult<T> =
+  | { data: T; success: true }
+  | { error: string; reason: string; status: number; success: false };
+
+function getErrorStatusCode(error: unknown): number {
+  if (typeof error === 'object' && error !== null && 'status' in error) {
+    const status = (error as { status?: unknown }).status;
+    if (typeof status === 'number') {
+      return status;
+    }
+  }
+
+  if (typeof error === 'object' && error !== null && 'statusCode' in error) {
+    const statusCode = (error as { statusCode?: unknown }).statusCode;
+    if (typeof statusCode === 'number') {
+      return statusCode;
+    }
+  }
+
+  return 500;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'error' in error) {
+    const message = (error as { error?: unknown }).error;
+    if (typeof message === 'string') {
+      return message;
+    }
+  }
+
+  return error instanceof Error ? error.message : 'Unknown error occurred';
+}
+
+function createErrorResponse(error: unknown): Response {
+  return Response.json({
+    success: false,
+    error: getErrorMessage(error),
+  }, { status: getErrorStatusCode(error) });
+}
+
+function handleUseCaseResult<T>(result: UseCaseResult<T>): Response | T {
+  if (result.success) {
+    return result.data;
+  }
+
+  return createErrorResponse(result);
+}
+
 export async function action({ request, params }: ActionFunctionArgs) {
   try {
-    // Only allow DELETE requests
     if (request.method !== 'DELETE') {
       return Response.json(
         { success: false, error: 'Method not allowed' },
@@ -19,8 +61,8 @@ export async function action({ request, params }: ActionFunctionArgs) {
 
     const unauthorizedResponse = await requireProtectedApiSession(request);
     if (unauthorizedResponse) return unauthorizedResponse;
-    const user = await resolveLegacyCompatibilityUser();
-    const userId = user.id;
+
+    const ownerId = await resolveServerPlaylistOwnerId();
     const { id: playlistId, videoId } = params;
 
     if (!playlistId || !videoId) {
@@ -30,21 +72,13 @@ export async function action({ request, params }: ActionFunctionArgs) {
       );
     }
 
-    // Create use case with dependencies
-    const useCase = new RemoveVideoFromPlaylistUseCase({
-      playlistRepository: getPlaylistRepository(),
-      userRepository: getUserRepository(),
-      logger: console,
-    });
-
-    // Execute use case
-    const result = await useCase.execute({
+    const services = getServerPlaylistServices();
+    const result = await services.removeVideoFromPlaylist.execute({
       playlistId,
-      userId,
+      ownerId,
       videoId,
     });
 
-    // Handle result
     const response = handleUseCaseResult(result);
     if (response instanceof Response) {
       return response;

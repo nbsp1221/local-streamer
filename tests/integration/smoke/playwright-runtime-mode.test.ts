@@ -9,6 +9,7 @@ describe('detectPlaywrightRuntimeMode', () => {
     expect(detectPlaywrightRuntimeMode([
       'playwright',
       'test',
+      PLAYWRIGHT_SMOKE_SPEC_PATHS[2],
       PLAYWRIGHT_SMOKE_SPEC_PATHS[1],
       PLAYWRIGHT_SMOKE_SPEC_PATHS[0],
       '--project=chromium',

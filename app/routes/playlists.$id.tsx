@@ -1,96 +1,43 @@
 import type { LoaderFunctionArgs, MetaFunction } from 'react-router';
 import { AlertTriangle, FileWarning, Lock } from 'lucide-react';
 import { isRouteErrorResponse, useLoaderData, useRouteError } from 'react-router';
-import type { PlaylistItem, PlaylistStats, PlaylistWithVideos } from '~/legacy/modules/playlist/domain/playlist.types';
 import { requireProtectedPageSession } from '~/composition/server/auth';
-import { RouteErrorView } from '~/legacy/components/RouteErrorView';
-import { PlaylistDetailPage } from '~/legacy/pages/playlist-detail/ui/PlaylistDetailPage';
-
-interface PlaylistVideoDto {
-  duration: number;
-  id: string;
-  position: number;
-  thumbnailUrl?: string;
-  title: string;
-  episodeMetadata?: PlaylistItem['episodeMetadata'];
-}
-
-interface PlaylistWithVideosDto {
-  createdAt?: string;
-  id: string;
-  isPublic: boolean;
-  metadata?: PlaylistWithVideos['metadata'];
-  name: string;
-  ownerId: string;
-  thumbnailUrl?: string;
-  type: PlaylistWithVideos['type'];
-  updatedAt?: string;
-  videoIds: string[];
-  videos?: PlaylistVideoDto[];
-  description?: string;
-  stats?: PlaylistStats;
-}
-
-interface PlaylistStatsDto extends Omit<PlaylistStats, 'lastUpdated'> {
-  lastUpdated?: string;
-}
-
-function parsePlaylist(data: PlaylistWithVideosDto): PlaylistWithVideos {
-  return {
-    ...data,
-    createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
-    updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date(),
-    videos: Array.isArray(data.videos)
-      ? data.videos.map(video => ({
-          ...video,
-        }))
-      : [],
-    stats: data.stats ?? undefined,
-  };
-}
-
-function parseStats(data: PlaylistStatsDto | null | undefined): PlaylistStats | null {
-  if (!data) return null;
-  return {
-    ...data,
-    lastUpdated: data.lastUpdated ? new Date(data.lastUpdated) : new Date(),
-  };
-}
+import { getServerPlaylistServices, resolveServerPlaylistOwnerId } from '~/composition/server/playlist';
+import { PlaylistDetailPage } from '~/pages/playlist-detail/ui/PlaylistDetailPage';
+import { RouteErrorView } from '~/shared/ui/route-error-view';
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   await requireProtectedPageSession(request);
 
   const playlistId = params.id;
-
   if (!playlistId) {
     throw new Response('Playlist ID is required', { status: 400 });
   }
 
-  const url = new URL(request.url);
-  const apiUrl = new URL(`/api/playlists/${playlistId}`, url.origin);
-  apiUrl.searchParams.set('includeVideos', 'true');
-  apiUrl.searchParams.set('includeStats', 'true');
-
-  const response = await fetch(apiUrl.toString(), {
-    headers: {
-      cookie: request.headers.get('cookie') ?? '',
-    },
+  const ownerId = await resolveServerPlaylistOwnerId();
+  const services = getServerPlaylistServices();
+  const result = await services.getPlaylistDetails.execute({
+    includeRelated: false,
+    includeStats: true,
+    includeVideos: true,
+    playlistId,
+    ownerId,
+    videoLimit: 50,
+    videoOffset: 0,
   });
 
-  const data = await response.json();
-
-  if (!response.ok || !data?.success) {
-    const status = response.status === 200 ? 500 : response.status;
-    const message = data?.error || 'Failed to load playlist';
-    throw new Response(message, { status });
+  if (!result.success) {
+    throw new Response(result.error, {
+      status: result.status,
+    });
   }
 
   return {
-    playlist: parsePlaylist(data.playlist),
-    stats: parseStats(data.stats),
-    relatedPlaylists: Array.isArray(data.relatedPlaylists) ? data.relatedPlaylists : [],
-    videoPagination: data.videoPagination ?? null,
-    permissions: data.permissions ?? {},
+    permissions: result.data.permissions ?? {},
+    playlist: result.data.playlist,
+    relatedPlaylists: Array.isArray(result.data.relatedPlaylists) ? result.data.relatedPlaylists : [],
+    stats: result.data.stats ?? null,
+    videoPagination: result.data.videoPagination ?? null,
   } as const;
 }
 

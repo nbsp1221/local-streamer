@@ -25,6 +25,8 @@ describe('createRuntimeTestWorkspace', () => {
     await expect(access(`${workspace.storageDir}/data/playlists.json`)).resolves.toBeUndefined();
     await expect(access(`${workspace.storageDir}/data/playlist-items.json`)).resolves.toBeUndefined();
     await expect(access(`${workspace.storageDir}/data/users.json`)).resolves.toBeUndefined();
+    await expect(access(`${workspace.storageDir}/data/videos/68e5f819-15e8-41ef-90ee-8a96769311b7/manifest.mpd`)).resolves.toBeUndefined();
+    await expect(access(`${workspace.storageDir}/data/videos/68e5f819-15e8-41ef-90ee-8a96769311b7/video/init.mp4`)).resolves.toBeUndefined();
     await expect(access(workspace.videoMetadataDbPath)).rejects.toBeDefined();
 
     const videos = JSON.parse(await readFile(`${workspace.storageDir}/data/videos.json`, 'utf8')) as Array<{

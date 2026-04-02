@@ -1,17 +1,64 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router';
-import type { CreatePlaylistUseCaseRequest } from '~/legacy/modules/playlist/commands/create-playlist/create-playlist.types';
-import type { PlaylistFilters, PlaylistType } from '~/legacy/modules/playlist/domain/playlist.types';
-import type { FindPlaylistsUseCaseRequest } from '~/legacy/modules/playlist/queries/find-playlists/find-playlists.types';
-import { requireProtectedApiSession, resolveLegacyCompatibilityUser } from '~/composition/server/auth';
-import { CreatePlaylistUseCase } from '~/legacy/modules/playlist/commands/create-playlist/create-playlist.usecase';
-import { FindPlaylistsUseCase } from '~/legacy/modules/playlist/queries/find-playlists/find-playlists.usecase';
-import { getPlaylistRepository, getUserRepository } from '~/legacy/repositories';
-import { createErrorResponse, handleUseCaseResult } from '~/legacy/utils/error-response.server';
+import { requireProtectedApiSession } from '~/composition/server/auth';
+import { getServerPlaylistServices, resolveServerPlaylistOwnerId } from '~/composition/server/playlist';
 
-const playlistTypes: PlaylistType[] = ['user_created', 'series', 'season', 'auto_generated'];
-const playlistStatuses: NonNullable<PlaylistFilters['status']>[] = ['ongoing', 'completed', 'hiatus'];
-const playlistSortFields: NonNullable<FindPlaylistsUseCaseRequest['sortBy']>[] = ['name', 'createdAt', 'updatedAt', 'videoCount', 'popularity'];
-const sortOrders: NonNullable<FindPlaylistsUseCaseRequest['sortOrder']>[] = ['asc', 'desc'];
+const playlistTypes = ['user_created', 'series', 'season', 'auto_generated'] as const;
+const playlistStatuses = ['ongoing', 'completed', 'hiatus'] as const;
+const playlistSortFields = ['name', 'createdAt', 'updatedAt', 'videoCount', 'popularity'] as const;
+const sortOrders = ['asc', 'desc'] as const;
+
+type PlaylistType = typeof playlistTypes[number];
+type PlaylistStatus = typeof playlistStatuses[number];
+type PlaylistSortField = typeof playlistSortFields[number];
+type PlaylistSortOrder = typeof sortOrders[number];
+
+type UseCaseResult<T> =
+  | { data: T; success: true }
+  | { error: string; reason: string; status: number; success: false };
+
+function getErrorStatusCode(error: unknown): number {
+  if (typeof error === 'object' && error !== null && 'status' in error) {
+    const status = (error as { status?: unknown }).status;
+    if (typeof status === 'number') {
+      return status;
+    }
+  }
+
+  if (typeof error === 'object' && error !== null && 'statusCode' in error) {
+    const statusCode = (error as { statusCode?: unknown }).statusCode;
+    if (typeof statusCode === 'number') {
+      return statusCode;
+    }
+  }
+
+  return 500;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'error' in error) {
+    const message = (error as { error?: unknown }).error;
+    if (typeof message === 'string') {
+      return message;
+    }
+  }
+
+  return error instanceof Error ? error.message : 'Unknown error occurred';
+}
+
+function createErrorResponse(error: unknown): Response {
+  return Response.json({
+    success: false,
+    error: getErrorMessage(error),
+  }, { status: getErrorStatusCode(error) });
+}
+
+function handleUseCaseResult<T>(result: UseCaseResult<T>): Response | T {
+  if (result.success) {
+    return result.data;
+  }
+
+  return createErrorResponse(result);
+}
 
 function parsePlaylistType(value: string | null): PlaylistType | undefined {
   if (value === null) {
@@ -23,86 +70,65 @@ function parsePlaylistType(value: string | null): PlaylistType | undefined {
     : undefined;
 }
 
-function parsePlaylistStatus(value: string | null): PlaylistFilters['status'] {
+function parsePlaylistStatus(value: string | null): PlaylistStatus | undefined {
   if (value === null) {
     return undefined;
   }
 
-  return playlistStatuses.includes(value as NonNullable<PlaylistFilters['status']>)
-    ? value as NonNullable<PlaylistFilters['status']>
+  return playlistStatuses.includes(value as PlaylistStatus)
+    ? value as PlaylistStatus
     : undefined;
 }
 
-function parseSortBy(value: string | null): NonNullable<FindPlaylistsUseCaseRequest['sortBy']> {
+function parseSortBy(value: string | null): PlaylistSortField {
   if (value === null) {
     return 'updatedAt';
   }
 
-  return playlistSortFields.includes(value as NonNullable<FindPlaylistsUseCaseRequest['sortBy']>)
-    ? value as NonNullable<FindPlaylistsUseCaseRequest['sortBy']>
+  return playlistSortFields.includes(value as PlaylistSortField)
+    ? value as PlaylistSortField
     : 'updatedAt';
 }
 
-function parseSortOrder(value: string | null): NonNullable<FindPlaylistsUseCaseRequest['sortOrder']> {
+function parseSortOrder(value: string | null): PlaylistSortOrder {
   if (value === null) {
     return 'desc';
   }
 
-  return sortOrders.includes(value as NonNullable<FindPlaylistsUseCaseRequest['sortOrder']>)
-    ? value as NonNullable<FindPlaylistsUseCaseRequest['sortOrder']>
+  return sortOrders.includes(value as PlaylistSortOrder)
+    ? value as PlaylistSortOrder
     : 'desc';
 }
 
-/**
- * GET /api/playlists - List playlists with filtering and pagination
- */
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
     const unauthorizedResponse = await requireProtectedApiSession(request);
     if (unauthorizedResponse) return unauthorizedResponse;
-    const user = await resolveLegacyCompatibilityUser();
-    const userId = user.id;
 
-    // Parse query parameters
+    const ownerId = await resolveServerPlaylistOwnerId();
     const url = new URL(request.url);
-    const filters: PlaylistFilters = {
-      type: parsePlaylistType(url.searchParams.get('type')),
-      searchQuery: url.searchParams.get('q') || undefined,
-      genre: url.searchParams.getAll('genre'),
-      isPublic: url.searchParams.get('isPublic') === 'true'
-        ? true
-        : url.searchParams.get('isPublic') === 'false' ? false : undefined,
-      seriesName: url.searchParams.get('seriesName') || undefined,
-      status: parsePlaylistStatus(url.searchParams.get('status')),
-    };
+    const services = getServerPlaylistServices();
 
-    const sortBy = parseSortBy(url.searchParams.get('sortBy'));
-    const sortOrder = parseSortOrder(url.searchParams.get('sortOrder'));
-    const limit = parseInt(url.searchParams.get('limit') || '20');
-    const offset = parseInt(url.searchParams.get('offset') || '0');
-    const includeStats = url.searchParams.get('includeStats') === 'true';
-    const includeEmpty = url.searchParams.get('includeEmpty') !== 'false';
-
-    // Create use case with dependencies
-    const useCase = new FindPlaylistsUseCase({
-      playlistRepository: getPlaylistRepository(),
-      userRepository: getUserRepository(),
-      logger: console,
+    const result = await services.findPlaylists.execute({
+      filters: {
+        type: parsePlaylistType(url.searchParams.get('type')),
+        searchQuery: url.searchParams.get('q') || undefined,
+        genre: url.searchParams.getAll('genre'),
+        isPublic: url.searchParams.get('isPublic') === 'true'
+          ? true
+          : url.searchParams.get('isPublic') === 'false' ? false : undefined,
+        seriesName: url.searchParams.get('seriesName') || undefined,
+        status: parsePlaylistStatus(url.searchParams.get('status')),
+      },
+      includeEmpty: url.searchParams.get('includeEmpty') !== 'false',
+      includeStats: url.searchParams.get('includeStats') === 'true',
+      limit: parseInt(url.searchParams.get('limit') || '20'),
+      offset: parseInt(url.searchParams.get('offset') || '0'),
+      sortBy: parseSortBy(url.searchParams.get('sortBy')),
+      sortOrder: parseSortOrder(url.searchParams.get('sortOrder')),
+      ownerId,
     });
 
-    // Execute use case
-    const result = await useCase.execute({
-      userId,
-      filters,
-      sortBy,
-      sortOrder,
-      limit,
-      offset,
-      includeStats,
-      includeEmpty,
-    });
-
-    // Handle result
     const response = handleUseCaseResult(result);
     if (response instanceof Response) {
       return response;
@@ -120,7 +146,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  // Only allow POST requests for playlist creation
   if (request.method !== 'POST') {
     return Response.json(
       { success: false, error: 'Method not allowed' },
@@ -131,28 +156,28 @@ export async function action({ request }: ActionFunctionArgs) {
   try {
     const unauthorizedResponse = await requireProtectedApiSession(request);
     if (unauthorizedResponse) return unauthorizedResponse;
-    const user = await resolveLegacyCompatibilityUser();
-    const userId = user.id;
 
-    // Parse request body
-    const body = await request.json() as Partial<CreatePlaylistUseCaseRequest>;
+    const ownerId = await resolveServerPlaylistOwnerId();
+    const services = getServerPlaylistServices();
+    const body = await request.json() as {
+      description?: string;
+      initialVideoIds?: string[];
+      isPublic?: boolean;
+      metadata?: Record<string, unknown>;
+      name?: string;
+      type?: PlaylistType;
+    };
 
-    // Create use case with dependencies
-    const useCase = new CreatePlaylistUseCase({
-      playlistRepository: getPlaylistRepository(),
-      userRepository: getUserRepository(),
-      logger: console, // Using console as logger for now
+    const result = await services.createPlaylist.execute({
+      description: body.description,
+      initialVideoIds: body.initialVideoIds,
+      isPublic: body.isPublic,
+      metadata: body.metadata,
+      name: body.name ?? '',
+      type: body.type ?? 'user_created',
+      ownerId,
     });
 
-    // Execute use case with request data including user ID
-    const requestData: CreatePlaylistUseCaseRequest = {
-      ...body,
-      userId,
-    } as CreatePlaylistUseCaseRequest;
-
-    const result = await useCase.execute(requestData);
-
-    // Handle result with type-safe error handling
     const response = handleUseCaseResult(result);
     if (response instanceof Response) {
       return response;

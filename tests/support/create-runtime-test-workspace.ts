@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { access, cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -81,6 +81,7 @@ export async function createRuntimeTestWorkspace(
   const videoMetadataDbPath = join(dataDir, 'video-metadata.sqlite');
 
   await mkdir(join(storageDir, 'uploads', 'thumbnails'), { recursive: true });
+  await mkdir(join(dataDir, 'videos'), { recursive: true });
   await mkdir(dataDir, { recursive: true });
 
   await Promise.all([
@@ -91,6 +92,26 @@ export async function createRuntimeTestWorkspace(
     writeFile(join(dataDir, 'users.json'), JSON.stringify(SEEDED_USERS, null, 2)),
     writeFile(join(dataDir, 'videos.json'), JSON.stringify(SEEDED_VIDEOS, null, 2)),
   ]);
+
+  await Promise.all(
+    SEEDED_VIDEOS.map(async (video) => {
+      const fixtureDir = join(process.cwd(), 'storage', 'data', 'videos', video.id);
+
+      try {
+        await access(fixtureDir);
+        await cp(
+          fixtureDir,
+          join(dataDir, 'videos', video.id),
+          { recursive: true },
+        );
+      }
+      catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw error;
+        }
+      }
+    }),
+  );
 
   return {
     authDbPath,

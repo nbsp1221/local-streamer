@@ -1,0 +1,105 @@
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { createMemoryRouter, RouterProvider } from 'react-router';
+import { describe, expect, test, vi } from 'vitest';
+import { PlaylistsPage } from '../../../app/pages/playlists/ui/PlaylistsPage';
+
+vi.mock('~/shared/hooks/use-root-user', () => ({
+  useRootUser: () => ({
+    email: 'owner@example.com',
+    id: 'owner-1',
+    role: 'admin',
+  }),
+}));
+
+describe('PlaylistsPage', () => {
+  test('renders the active shell and playlist list content', async () => {
+    const user = userEvent.setup();
+    const router = createMemoryRouter([
+      {
+        path: '/playlists',
+        element: (
+          <PlaylistsPage
+            playlists={[{
+              createdAt: new Date('2026-03-08T00:00:00.000Z'),
+              id: 'playlist-1',
+              isPublic: false,
+              name: 'Vault',
+              ownerId: 'owner-1',
+              type: 'user_created',
+              updatedAt: new Date('2026-03-08T00:00:00.000Z'),
+              videoIds: ['video-1'],
+            }]}
+            videoCountMap={{ 'playlist-1': 1 }}
+            total={1}
+            searchQuery=""
+            onSearchChange={() => {}}
+          />
+        ),
+      },
+      {
+        path: '/api/playlists',
+        action: async () => Response.json({ success: true }),
+      },
+    ], {
+      initialEntries: ['/playlists'],
+    });
+
+    render(
+      <RouterProvider router={router} />,
+    );
+
+    expect(screen.getByText('Local Streamer')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'My Playlists' })).toBeInTheDocument();
+    expect(screen.getByText('Vault')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /new playlist/i }));
+    expect(screen.getByRole('dialog', { name: 'Create New Playlist' })).toBeInTheDocument();
+  });
+
+  test('navigates to playlist detail when the playlist card is selected', async () => {
+    const user = userEvent.setup();
+    const router = createMemoryRouter([
+      {
+        path: '/playlists',
+        element: (
+          <PlaylistsPage
+            playlists={[{
+              createdAt: new Date('2026-03-08T00:00:00.000Z'),
+              id: 'playlist-1',
+              isPublic: false,
+              name: 'Vault',
+              ownerId: 'owner-1',
+              type: 'user_created',
+              updatedAt: new Date('2026-03-08T00:00:00.000Z'),
+              videoIds: ['video-1'],
+            }]}
+            videoCountMap={{ 'playlist-1': 1 }}
+            total={1}
+            searchQuery=""
+            onSearchChange={() => {}}
+          />
+        ),
+      },
+      {
+        path: '/playlists/:id',
+        element: <div>Playlist detail route</div>,
+      },
+      {
+        path: '/api/playlists',
+        action: async () => Response.json({ success: true }),
+      },
+    ], {
+      initialEntries: ['/playlists'],
+    });
+
+    render(
+      <RouterProvider router={router} />,
+    );
+
+    await user.click(screen.getByRole('heading', { level: 3, name: 'Vault' }));
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/playlists/playlist-1');
+    });
+  });
+});
