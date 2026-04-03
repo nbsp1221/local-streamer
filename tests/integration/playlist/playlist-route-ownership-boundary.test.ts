@@ -16,6 +16,13 @@ const ACTIVE_PLAYLIST_PAGE_ROUTE_FILES = [
   'app/routes/playlists.$id.tsx',
 ] as const;
 
+const ACTIVE_PLAYLIST_INFRASTRUCTURE_FILES = [
+  'app/modules/playlist/infrastructure/json/json-playlist.repository.ts',
+  'app/modules/playlist/infrastructure/json/json-write-queue.ts',
+  'app/modules/playlist/infrastructure/json/playlist-storage-paths.server.ts',
+  'app/modules/playlist/infrastructure/video/sqlite-playlist-video-catalog.adapter.ts',
+] as const;
+
 function includesLegacyImport(source: string) {
   return source.includes('~/legacy/');
 }
@@ -34,6 +41,13 @@ describe('playlist route ownership boundary', () => {
       const source = await readFile(resolve(PROJECT_ROOT, file), 'utf8');
       expect(includesLegacyImport(source), file).toBe(false);
       expect(source.includes('resolveLegacyCompatibilityUser'), file).toBe(false);
+    }
+  });
+
+  test('active playlist infrastructure does not import server composition directly', async () => {
+    for (const file of ACTIVE_PLAYLIST_INFRASTRUCTURE_FILES) {
+      const source = await readFile(resolve(PROJECT_ROOT, file), 'utf8');
+      expect(source.includes('~/composition/server/'), file).toBe(false);
     }
   });
 });

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { redirect } from 'react-router';
+import type { SiteViewer } from '~/modules/auth/domain/site-viewer';
 import { CreateAuthSessionUseCase } from '~/modules/auth/application/use-cases/create-auth-session.usecase';
 import { DestroyAuthSessionUseCase } from '~/modules/auth/application/use-cases/destroy-auth-session.usecase';
 import { EvaluateSiteAccessUseCase } from '~/modules/auth/application/use-cases/evaluate-site-access.usecase';
@@ -7,6 +8,7 @@ import { ResolveAuthSessionUseCase } from '~/modules/auth/application/use-cases/
 import { EnvSharedPasswordVerifier } from '~/modules/auth/infrastructure/password/env-shared-password.verifier';
 import { InMemoryLoginAttemptGuard } from '~/modules/auth/infrastructure/security/in-memory-login-attempt-guard';
 import { SqliteSessionRepository } from '~/modules/auth/infrastructure/sqlite/sqlite-session.repository';
+import { JsonSiteViewerResolver } from '~/modules/auth/infrastructure/viewer/json-site-viewer.resolver';
 import {
   getAuthConfig,
   getAuthCookieConfig,
@@ -14,17 +16,11 @@ import {
   getAuthSessionConfig,
 } from '~/shared/config/auth.server';
 import { getCookieValue, serializeCookie } from '~/shared/lib/http/cookies.server';
-import {
-  type LegacyBridgeUser,
-  resolveLegacyBridgeUser,
-} from './auth-legacy-identity-bridge';
-
-export type LegacyCompatibleUser = LegacyBridgeUser;
 
 interface ServerSessionServices {
   destroyAuthSession: DestroyAuthSessionUseCase;
   evaluateSiteAccess: EvaluateSiteAccessUseCase;
-  resolveLegacyBridgeUser: () => Promise<LegacyCompatibleUser>;
+  resolveSiteViewer: () => Promise<SiteViewer>;
   resolveAuthSession: ResolveAuthSessionUseCase;
 }
 
@@ -48,6 +44,7 @@ function getCachedServerSessionServices(): CachedServerSessionServices {
   const sessionRepository = new SqliteSessionRepository({
     dbPath: sessionConfig.sqlitePath,
   });
+  const siteViewerResolver = new JsonSiteViewerResolver();
   const resolveAuthSession = new ResolveAuthSessionUseCase({
     sessionRepository,
     sessionTtlMs: sessionConfig.sessionTtlMs,
@@ -60,7 +57,7 @@ function getCachedServerSessionServices(): CachedServerSessionServices {
     evaluateSiteAccess: new EvaluateSiteAccessUseCase({
       resolveAuthSession,
     }),
-    resolveLegacyBridgeUser,
+    resolveSiteViewer: async () => siteViewerResolver.resolveViewer(),
     resolveAuthSession,
     sessionRepository,
   };
@@ -68,8 +65,8 @@ function getCachedServerSessionServices(): CachedServerSessionServices {
   return cachedSessionServices;
 }
 
-export async function resolveLegacyCompatibilityUser(): Promise<LegacyCompatibleUser> {
-  return resolveLegacyBridgeUser();
+export async function resolveSiteViewer(): Promise<SiteViewer> {
+  return getServerSessionServices().resolveSiteViewer();
 }
 
 export function getServerSessionServices(): ServerSessionServices {
@@ -112,7 +109,7 @@ export function getServerAuthServices(): ServerAuthServices {
     }),
     destroyAuthSession: sessionServices.destroyAuthSession,
     evaluateSiteAccess: sessionServices.evaluateSiteAccess,
-    resolveLegacyBridgeUser: sessionServices.resolveLegacyBridgeUser,
+    resolveSiteViewer: sessionServices.resolveSiteViewer,
     resolveAuthSession: sessionServices.resolveAuthSession,
   };
 
@@ -147,7 +144,7 @@ export function createClearedSessionCookieHeader(): string {
   });
 }
 
-export async function getOptionalLegacyCompatibleUser(request: Request): Promise<LegacyCompatibleUser | null> {
+export async function getOptionalSiteViewer(request: Request): Promise<SiteViewer | null> {
   if (!getAuthRuntimeState().isConfigured) {
     return null;
   }
@@ -158,7 +155,7 @@ export async function getOptionalLegacyCompatibleUser(request: Request): Promise
     sessionId: getSiteSessionId(request),
   });
 
-  return session ? sessionServices.resolveLegacyBridgeUser() : null;
+  return session ? sessionServices.resolveSiteViewer() : null;
 }
 
 async function requireProtectedSessionAccess(

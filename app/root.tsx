@@ -5,16 +5,13 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-  useLoaderData,
 } from 'react-router';
-
-import { getOptionalLegacyCompatibleUser } from '~/composition/server/auth';
-import { LegacyAuthStoreBridge } from '~/legacy/components/LegacyAuthStoreBridge';
+import { getOptionalSiteViewer } from '~/composition/server/auth';
 import type { Route } from './+types/root';
 import './app.css';
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const user = await getOptionalLegacyCompatibleUser(request);
+  const user = await getOptionalSiteViewer(request);
   return {
     user,
   };
@@ -52,11 +49,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { user } = useLoaderData<typeof loader>();
-
   return (
     <>
-      <LegacyAuthStoreBridge initialUser={user} />
       <Outlet />
     </>
   );

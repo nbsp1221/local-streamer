@@ -142,6 +142,14 @@ describe('Bun auth gate smoke', () => {
     ]);
 
     expect(authMeResponse.status).toBe(200);
+    await expect(authMeResponse.json()).resolves.toEqual({
+      success: true,
+      user: {
+        email: 'admin@example.com',
+        id: 'legacy-admin-1',
+        role: 'admin',
+      },
+    });
     expect(tokenResponse.status).toBe(200);
     expect(thumbnailResponse.status).toBe(404);
     await expect(thumbnailResponse.text()).resolves.toBe('Encrypted thumbnail not found');

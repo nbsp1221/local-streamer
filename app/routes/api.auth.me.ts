@@ -1,5 +1,5 @@
 import type { LoaderFunctionArgs } from 'react-router';
-import { getOptionalLegacyCompatibleUser } from '~/composition/server/auth';
+import { getOptionalSiteViewer } from '~/composition/server/auth';
 import { getAuthRuntimeState } from '~/shared/config/auth.server';
 export async function loader({ request }: LoaderFunctionArgs): Promise<Response> {
   try {
@@ -10,7 +10,7 @@ export async function loader({ request }: LoaderFunctionArgs): Promise<Response>
       );
     }
 
-    const user = await getOptionalLegacyCompatibleUser(request);
+    const user = await getOptionalSiteViewer(request);
 
     if (!user) {
       return Response.json(

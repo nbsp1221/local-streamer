@@ -193,11 +193,11 @@ describe('Dev auth gate smoke', () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual(expect.objectContaining({
       success: true,
-      user: expect.objectContaining({
-        email: expect.any(String),
-        id: expect.any(String),
+      user: {
+        email: 'admin@example.com',
+        id: 'legacy-admin-1',
         role: 'admin',
-      }),
+      },
     }));
   });
 

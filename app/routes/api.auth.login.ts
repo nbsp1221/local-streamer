@@ -105,7 +105,7 @@ export async function action({ request }: ActionFunctionArgs): Promise<Response>
     return Response.json(
       {
         success: true,
-        user: await authServices.resolveLegacyBridgeUser(),
+        user: await authServices.resolveSiteViewer(),
       },
       {
         headers: createLoginResponseHeaders(request, [

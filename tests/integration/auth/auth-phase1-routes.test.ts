@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -168,13 +168,17 @@ async function writeJsonFile(filePath: string, value: unknown) {
   await writeFile(filePath, JSON.stringify(value, null, 2));
 }
 
-function expectAdminUser(user: unknown) {
-  expect(user).toEqual(expect.objectContaining({
-    email: expect.any(String),
-    id: expect.any(String),
-    role: 'admin',
-  }));
-}
+const SEEDED_VIEWER = {
+  email: 'admin@example.com',
+  id: 'legacy-admin-1',
+  role: 'admin',
+} as const;
+
+const FALLBACK_VIEWER = {
+  email: 'vault@local',
+  id: 'vault-owner',
+  role: 'admin',
+} as const;
 
 async function seedStorage(storageDir: string, overrides?: {
   playlists?: unknown[];
@@ -247,7 +251,7 @@ describe('Phase 1 auth gate routes', () => {
     await rm(tempDir, { force: true, recursive: true });
   });
 
-  test('login action creates a session cookie for the shared password', async () => {
+  test('login action creates a session cookie and returns the seeded viewer for the shared password', async () => {
     const { action } = await importLoginAction();
     const request = new Request('http://localhost/api/auth/login', {
       body: JSON.stringify({ password: 'vault-password' }),
@@ -265,9 +269,8 @@ describe('Phase 1 auth gate routes', () => {
     expect(response.headers.get('Set-Cookie')).toContain('site_session=');
     expect(payload).toEqual({
       success: true,
-      user: expect.any(Object),
+      user: SEEDED_VIEWER,
     });
-    expectAdminUser(payload.user);
   });
 
   test('protected home route redirects unauthenticated requests to login', async () => {
@@ -280,7 +283,7 @@ describe('Phase 1 auth gate routes', () => {
     });
   });
 
-  test('root loader exposes a legacy-compatible user when a site session exists', async () => {
+  test('root loader exposes the seeded active viewer when a site session exists', async () => {
     const { action } = await importLoginAction();
     const loginResponse = await action({
       request: new Request('http://localhost/api/auth/login', {
@@ -305,12 +308,11 @@ describe('Phase 1 auth gate routes', () => {
     } as never);
 
     expect(response).toEqual({
-      user: expect.any(Object),
+      user: SEEDED_VIEWER,
     });
-    expectAdminUser(response.user);
   });
 
-  test('auth me returns the legacy-compatible user for an active session', async () => {
+  test('auth me returns the seeded active viewer for an active session', async () => {
     const { action } = await importLoginAction();
     const loginResponse = await action({
       request: new Request('http://localhost/api/auth/login', {
@@ -338,9 +340,8 @@ describe('Phase 1 auth gate routes', () => {
     const payload = await response.json();
     expect(payload).toEqual({
       success: true,
-      user: expect.any(Object),
+      user: SEEDED_VIEWER,
     });
-    expectAdminUser(payload.user);
   });
 
   test('logout revokes the active session cookie', async () => {
@@ -1186,7 +1187,7 @@ describe('Phase 1 auth gate routes', () => {
     expect(response.headers.get('X-Content-Source')).toBe('encrypted-thumbnail');
   });
 
-  test('root loader creates a compatibility legacy admin when no legacy users exist', async () => {
+  test('root loader persists and returns the fallback viewer when no users exist', async () => {
     await seedStorage(storageDir, { users: [] });
     vi.resetModules();
 
@@ -1214,12 +1215,16 @@ describe('Phase 1 auth gate routes', () => {
     } as never);
 
     expect(response).toEqual({
-      user: expect.any(Object),
+      user: FALLBACK_VIEWER,
     });
-    expectAdminUser(response.user);
+
+    const users = JSON.parse(await readFile(join(storageDir, 'data', 'users.json'), 'utf8')) as Array<unknown>;
+    expect(users).toEqual([
+      expect.objectContaining(FALLBACK_VIEWER),
+    ]);
   });
 
-  test('playlist creation does not fail on a clean install without legacy users', async () => {
+  test('playlist creation uses the persisted fallback owner on a clean install without users', async () => {
     await seedStorage(storageDir, {
       playlists: [],
       users: [],
@@ -1260,9 +1265,12 @@ describe('Phase 1 auth gate routes', () => {
     await expect(response.json()).resolves.toEqual(expect.objectContaining({
       success: true,
     }));
+    await expect(readFile(join(storageDir, 'data', 'playlists.json'), 'utf8')).resolves.toContain(
+      `"ownerId": "${FALLBACK_VIEWER.id}"`,
+    );
   });
 
-  test('playlist listing returns owner playlists for the compatibility identity after login', async () => {
+  test('playlist listing returns owner playlists for the seeded viewer identity after login', async () => {
     await seedStorage(storageDir, {
       playlists: [
         {
@@ -1310,7 +1318,7 @@ describe('Phase 1 auth gate routes', () => {
         expect.objectContaining({
           id: 'playlist-1',
           name: 'Owned Playlist',
-          ownerId: expect.any(String),
+          ownerId: SEEDED_VIEWER.id,
         }),
       ]),
       success: true,

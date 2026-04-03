@@ -7,9 +7,9 @@ import type {
   PlaylistWithVideos,
   UpdatePlaylistRequest,
 } from '~/modules/playlist/domain/playlist';
-import { CompatibilityPlaylistOwnerAdapter } from '~/modules/playlist/infrastructure/auth/compatibility-playlist-owner.adapter';
 import { JsonPlaylistRepository } from '~/modules/playlist/infrastructure/json/json-playlist.repository';
 import { SqlitePlaylistVideoCatalog } from '~/modules/playlist/infrastructure/video/sqlite-playlist-video-catalog.adapter';
+import { resolveSiteViewer } from './auth';
 
 type PlaylistFailure = {
   error: string;
@@ -186,25 +186,14 @@ function validateUpdateRequest(input: UpdatePlaylistRequest) {
   return null;
 }
 
-let cachedPlaylistOwnerAdapter: CompatibilityPlaylistOwnerAdapter | null = null;
-
-function getPlaylistOwnerAdapter() {
-  if (!cachedPlaylistOwnerAdapter) {
-    cachedPlaylistOwnerAdapter = new CompatibilityPlaylistOwnerAdapter();
-  }
-
-  return cachedPlaylistOwnerAdapter;
-}
-
 export async function resolveServerPlaylistOwnerId() {
-  const owner = await getPlaylistOwnerAdapter().resolveOwner();
-  return owner.id;
+  return (await resolveSiteViewer()).id;
 }
 
 export function createServerPlaylistServices() {
   const playlistRepository = new JsonPlaylistRepository();
   const videoCatalog = new SqlitePlaylistVideoCatalog();
-  const ownerAdapter = getPlaylistOwnerAdapter();
+  const resolveOwnerId = async () => (await resolveSiteViewer()).id;
 
   return {
     addVideoToPlaylist: {
@@ -222,7 +211,7 @@ export function createServerPlaylistServices() {
         totalVideosInPlaylist: number;
         videoTitle: string;
       }>> => {
-        const ownerId = input.ownerId ?? (await ownerAdapter.resolveOwner()).id;
+        const ownerId = input.ownerId ?? await resolveOwnerId();
         const playlist = await playlistRepository.findById(input.playlistId);
 
         if (!playlist) {
@@ -277,7 +266,7 @@ export function createServerPlaylistServices() {
           return validationFailure;
         }
 
-        const ownerId = input.ownerId ?? (await ownerAdapter.resolveOwner()).id;
+        const ownerId = input.ownerId ?? await resolveOwnerId();
         const nameExists = await playlistRepository.nameExistsForOwner(input.name, ownerId);
 
         if (nameExists) {
@@ -314,7 +303,7 @@ export function createServerPlaylistServices() {
         success: true;
         videosAffected: number;
       }>> => {
-        const ownerId = input.ownerId ?? (await ownerAdapter.resolveOwner()).id;
+        const ownerId = input.ownerId ?? await resolveOwnerId();
         const playlist = await playlistRepository.findById(input.playlistId);
 
         if (!playlist) {
@@ -485,7 +474,7 @@ export function createServerPlaylistServices() {
         success: true;
         videoId: string;
       }>> => {
-        const ownerId = input.ownerId ?? (await ownerAdapter.resolveOwner()).id;
+        const ownerId = input.ownerId ?? await resolveOwnerId();
         const playlist = await playlistRepository.findById(input.playlistId);
 
         if (!playlist) {
@@ -526,7 +515,7 @@ export function createServerPlaylistServices() {
         success: true;
         videosReordered: number;
       }>> => {
-        const ownerId = input.ownerId ?? (await ownerAdapter.resolveOwner()).id;
+        const ownerId = input.ownerId ?? await resolveOwnerId();
         const playlist = await playlistRepository.findById(input.playlistId);
 
         if (!playlist) {
@@ -574,7 +563,7 @@ export function createServerPlaylistServices() {
           return validationFailure;
         }
 
-        const ownerId = input.ownerId ?? (await ownerAdapter.resolveOwner()).id;
+        const ownerId = input.ownerId ?? await resolveOwnerId();
         const playlist = await playlistRepository.findById(input.playlistId);
 
         if (!playlist) {
