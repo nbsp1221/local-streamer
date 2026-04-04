@@ -44,6 +44,12 @@ describe('JsonSessionRepository', () => {
     ...overrides,
   });
 
+  const waitForTimeToAdvance = async (previousTime: number): Promise<void> => {
+    while (Date.now() <= previousTime) {
+      await new Promise(resolve => setTimeout(resolve, 1));
+    }
+  };
+
   describe('Basic CRUD operations', () => {
     it('should create a session', async () => {
       const input = createSampleSession();
@@ -251,11 +257,9 @@ describe('JsonSessionRepository', () => {
 
     it('should update last accessed time without refresh when not needed', async () => {
       // Set session to expire far in future (beyond refresh threshold of 4 days)
-      const farExpiry = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000); // 5 days from now
+      const farExpiry = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
       const updatedSession = await repository.update(session.id, { expiresAt: farExpiry });
-
-      // Add delay to ensure different timestamp
-      await new Promise(resolve => setTimeout(resolve, 1));
+      await waitForTimeToAdvance(updatedSession!.lastAccessedAt!.getTime());
 
       const refreshedSession = await repository.refreshSession(session.id);
 

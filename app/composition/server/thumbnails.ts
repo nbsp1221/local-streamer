@@ -1,6 +1,7 @@
-import { DecryptThumbnailUseCase } from '~/legacy/modules/thumbnail/decrypt-thumbnail/decrypt-thumbnail.usecase';
-import { ThumbnailEncryptionService } from '~/legacy/modules/thumbnail/shared/thumbnail-encryption.service';
-import { Pbkdf2KeyManagerAdapter } from '~/legacy/modules/video/security/adapters/pbkdf2-key-manager.adapter';
+import { createReadStream, existsSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { ThumbnailDecryptionService } from '~/modules/thumbnail/infrastructure/decryption/thumbnail-decryption.service';
+import { getThumbnailStoragePaths } from '~/modules/thumbnail/infrastructure/storage/thumbnail-storage-paths.server';
 
 interface LoadDecryptedThumbnailResponseInput {
   eTagPrefix: string;
@@ -10,25 +11,54 @@ interface LoadDecryptedThumbnailResponseInput {
   contentSource: string;
 }
 
-function createDecryptThumbnailUseCase() {
-  const keyManager = new Pbkdf2KeyManagerAdapter();
-  const thumbnailEncryptionService = new ThumbnailEncryptionService({
-    keyManager,
-    logger: console,
-  });
+interface LoadThumbnailPreviewResponseInput {
+  filename: string;
+}
 
-  return new DecryptThumbnailUseCase({
+function createThumbnailDecryptionService() {
+  return new ThumbnailDecryptionService({
     logger: console,
-    thumbnailEncryptionService,
   });
+}
+
+export async function loadThumbnailPreviewResponse(
+  input: LoadThumbnailPreviewResponseInput,
+): Promise<Response> {
+  const { thumbnailsDir } = getThumbnailStoragePaths();
+  const thumbnailPath = join(thumbnailsDir, input.filename);
+
+  if (!existsSync(thumbnailPath)) {
+    throw new Response('Thumbnail preview not found', { status: 404 });
+  }
+
+  try {
+    const stat = statSync(thumbnailPath);
+    const fileSize = stat.size;
+    const lastModified = stat.mtime;
+    const stream = createReadStream(thumbnailPath);
+
+    return new Response(stream as unknown as ReadableStream, {
+      headers: {
+        'Cache-Control': 'private, max-age=3600, must-revalidate',
+        'Content-Length': fileSize.toString(),
+        'Content-Type': 'image/jpeg',
+        'ETag': `"preview-${input.filename}-${lastModified.getTime()}"`,
+        'Last-Modified': lastModified.toUTCString(),
+      },
+    });
+  }
+  catch (error) {
+    console.error('Failed to serve thumbnail preview:', error);
+    throw new Response('Failed to read thumbnail preview', { status: 500 });
+  }
 }
 
 export async function loadDecryptedThumbnailResponse(
   input: LoadDecryptedThumbnailResponseInput,
 ): Promise<Response> {
   try {
-    const decryptThumbnailUseCase = createDecryptThumbnailUseCase();
-    const result = await decryptThumbnailUseCase.execute({
+    const thumbnailDecryptionService = createThumbnailDecryptionService();
+    const result = await thumbnailDecryptionService.decryptThumbnail({
       validateAccess: true,
       videoId: input.videoId,
     });
