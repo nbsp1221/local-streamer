@@ -1,4 +1,5 @@
 import type { PlaybackTokenService } from '../ports/playback-token-service.port';
+import { assertValidPlaybackVideoId } from '../../domain/playback-video-id';
 import { PlaybackGrantPolicy } from '../../domain/policies/PlaybackGrantPolicy';
 
 interface IssuePlaybackTokenUseCaseDependencies {
@@ -30,6 +31,8 @@ export class IssuePlaybackTokenUseCase {
   constructor(private readonly deps: IssuePlaybackTokenUseCaseDependencies) {}
 
   async execute(input: IssuePlaybackTokenUseCaseInput): Promise<IssuePlaybackTokenUseCaseResult> {
+    assertValidPlaybackVideoId(input.videoId);
+
     const decision = PlaybackGrantPolicy.evaluate({
       hasSiteSession: input.hasSiteSession,
     });

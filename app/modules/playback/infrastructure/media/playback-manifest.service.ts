@@ -1,28 +1,59 @@
+import { access, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import type { PlaybackManifestService as PlaybackManifestServicePort } from '../../application/ports/playback-manifest-service.port';
-import { LegacyPlaybackManifestServiceAdapter } from './legacy-playback-manifest.service.adapter';
+import { assertValidPlaybackVideoId } from '../../domain/playback-video-id';
+import { getPlaybackStoragePaths } from '../storage/playback-storage-paths.server';
 
-interface PlaybackManifestUseCaseResult {
-  data?: {
-    headers: Record<string, string>;
-    manifestContent: string;
-  };
-  error?: Error;
-  success: boolean;
-}
-
-interface PlaybackManifestServiceDependencies {
-  execute?: (input: { videoId: string }) => Promise<PlaybackManifestUseCaseResult>;
-}
-
-// Temporary playback-owned compatibility seam while manifest generation still delegates to legacy playback internals.
 export class PlaybackManifestService implements PlaybackManifestServicePort {
-  private readonly delegate: PlaybackManifestServicePort;
-
-  constructor(deps: PlaybackManifestServiceDependencies = {}) {
-    this.delegate = new LegacyPlaybackManifestServiceAdapter(deps);
-  }
-
   async getManifest(input: Parameters<PlaybackManifestServicePort['getManifest']>[0]) {
-    return this.delegate.getManifest(input);
+    assertValidPlaybackVideoId(input.videoId);
+
+    const videoDir = join(getPlaybackStoragePaths().videosDir, input.videoId);
+    const manifestPath = join(videoDir, 'manifest.mpd');
+    const keyPath = join(videoDir, 'key.bin');
+
+    let body: string;
+
+    try {
+      body = await readFile(manifestPath, 'utf8');
+    }
+    catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        throw Object.assign(new Error('Playback manifest not found'), {
+          name: 'NotFoundError',
+          statusCode: 404,
+        });
+      }
+
+      throw error;
+    }
+
+    try {
+      await access(keyPath);
+    }
+    catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        throw Object.assign(new Error('Video encryption key not found'), {
+          name: 'NotFoundError',
+          statusCode: 404,
+        });
+      }
+
+      throw error;
+    }
+
+    return {
+      body,
+      headers: {
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=60',
+        'Content-Length': String(Buffer.byteLength(body)),
+        'Content-Type': 'application/dash+xml',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    };
   }
 }

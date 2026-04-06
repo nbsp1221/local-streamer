@@ -53,12 +53,38 @@ describe('Phase 2 playback resource route error mapping', () => {
     const { loader } = await importManifestRoute();
 
     const response = await loader({
-      params: { videoId: 'not-a-uuid' },
-      request: new Request('http://localhost/videos/not-a-uuid/manifest.mpd?token=signed-token'),
+      params: { videoId: '../escape' },
+      request: new Request('http://localhost/videos/../escape/manifest.mpd?token=signed-token'),
     } as never);
 
     expect(response.status).toBe(400);
     await expect(response.text()).resolves.toBe('Invalid video ID format');
+  });
+
+  test('video segment route preserves playback error headers for invalid range responses', async () => {
+    fakePlaybackServices.servePlaybackMediaSegment.execute.mockRejectedValue(
+      Object.assign(new Error('Range not satisfiable'), {
+        headers: {
+          'Content-Range': 'bytes */512',
+        },
+        name: 'ValidationError',
+        statusCode: 416,
+      }),
+    );
+    const { loader } = await importVideoSegmentRoute();
+
+    const response = await loader({
+      params: { filename: 'segment-9999.m4s', videoId: 'video-1' },
+      request: new Request('http://localhost/videos/video-1/video/segment-9999.m4s?token=signed-token', {
+        headers: {
+          range: 'bytes=999-1200',
+        },
+      }),
+    } as never);
+
+    expect(response.status).toBe(416);
+    expect(response.headers.get('Content-Range')).toBe('bytes */512');
+    await expect(response.text()).resolves.toBe('Range not satisfiable');
   });
 
   test('video segment route maps not-found errors back to a 404 response', async () => {

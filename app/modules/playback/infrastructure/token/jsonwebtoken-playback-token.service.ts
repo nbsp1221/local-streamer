@@ -1,5 +1,5 @@
 import jwt, { type SignOptions } from 'jsonwebtoken';
-import { config as legacyConfig } from '~/legacy/configs';
+import { getPlaybackConfig } from '~/shared/config/playback.server';
 import type {
   PlaybackTokenIssueInput,
   PlaybackTokenPayload,
@@ -37,12 +37,7 @@ export class JsonWebTokenPlaybackTokenService implements PlaybackTokenService {
   };
 
   constructor(deps: JsonWebTokenPlaybackTokenServiceDependencies = {}) {
-    this.config = deps.config ?? {
-      jwtAudience: 'video-streaming',
-      jwtExpiry: '15m',
-      jwtIssuer: 'local-streamer',
-      jwtSecret: legacyConfig.security.video.auth.secret,
-    };
+    this.config = deps.config ?? getPlaybackConfig();
     this.jwt = deps.jwt ?? {
       JsonWebTokenError: jwt.JsonWebTokenError,
       TokenExpiredError: jwt.TokenExpiredError,

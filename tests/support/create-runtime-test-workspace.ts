@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { SqliteLibraryVideoMetadataRepository } from '~/modules/library/infrastructure/sqlite/sqlite-library-video-metadata.repository';
 import { copyPlaybackFixture } from './copy-playback-fixture';
 import { REQUIRED_BROWSER_PLAYBACK_FIXTURE_IDS } from './playback-fixture-manifest';
 
@@ -101,6 +102,14 @@ export async function createRuntimeTestWorkspace(
       videoId,
     })),
   );
+
+  const videoMetadataRepository = new SqliteLibraryVideoMetadataRepository({
+    dbPath: videoMetadataDbPath,
+  });
+  await videoMetadataRepository.bootstrapFromVideos(SEEDED_VIDEOS.map(video => ({
+    ...video,
+    createdAt: new Date(video.createdAt),
+  })));
 
   return {
     authDbPath,

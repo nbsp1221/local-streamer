@@ -1,6 +1,7 @@
 import { type LoaderFunctionArgs } from 'react-router';
 import { requireProtectedMediaSession } from '~/composition/server/auth';
 import { getServerPlaybackServices } from '~/composition/server/playback';
+import { assertValidPlaybackVideoId } from '~/modules/playback/domain/playback-video-id';
 import { getPlaybackRequestIp } from './playback-route-utils';
 
 /**
@@ -16,20 +17,52 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     return Response.json({ success: false, error: 'Video ID is required' }, { status: 400 });
   }
 
-  const playbackServices = getServerPlaybackServices();
-  const result = await playbackServices.issuePlaybackToken.execute({
-    hasSiteSession: true,
-    ipAddress: getPlaybackRequestIp(request),
-    userAgent: request.headers.get('user-agent') || 'unknown',
-    videoId,
-  });
+  try {
+    assertValidPlaybackVideoId(videoId);
+  }
+  catch (error) {
+    if (error instanceof Error) {
+      return Response.json({
+        error: error.message,
+        success: false,
+      }, { status: 400 });
+    }
 
-  if (!result.success) {
-    return Response.json({
-      error: 'Authentication required',
-      success: false,
-    }, { status: 401 });
+    throw error;
   }
 
-  return Response.json(result);
+  const playbackServices = getServerPlaybackServices();
+  try {
+    const result = await playbackServices.issuePlaybackToken.execute({
+      hasSiteSession: true,
+      ipAddress: getPlaybackRequestIp(request),
+      userAgent: request.headers.get('user-agent') || 'unknown',
+      videoId,
+    });
+
+    if (!result.success) {
+      return Response.json({
+        error: 'Authentication required',
+        success: false,
+      }, { status: 401 });
+    }
+
+    return Response.json(result);
+  }
+  catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'statusCode' in error &&
+      error.statusCode === 400 &&
+      error instanceof Error
+    ) {
+      return Response.json({
+        error: error.message,
+        success: false,
+      }, { status: 400 });
+    }
+
+    throw error;
+  }
 }

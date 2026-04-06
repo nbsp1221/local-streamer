@@ -1,42 +1,169 @@
-import { describe, expect, test, vi } from 'vitest';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+
+const ORIGINAL_STORAGE_DIR = process.env.STORAGE_DIR;
+
+afterEach(() => {
+  vi.resetModules();
+
+  if (ORIGINAL_STORAGE_DIR === undefined) {
+    delete process.env.STORAGE_DIR;
+    return;
+  }
+
+  process.env.STORAGE_DIR = ORIGINAL_STORAGE_DIR;
+});
 
 describe('PlaybackMediaSegmentService', () => {
-  test('preserves range-response metadata and stream handles from the legacy segment use case', async () => {
+  test('serves an entire DASH segment from the active playback storage path', async () => {
     const { PlaybackMediaSegmentService } = await import('./playback-media-segment.service');
-    const stream = new ReadableStream<Uint8Array>();
-    const execute = vi.fn(async () => ({
-      data: {
+    const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-segment-'));
+    process.env.STORAGE_DIR = rootDir;
+    await mkdir(path.join(rootDir, 'data', 'videos', 'video-1', 'video'), { recursive: true });
+    await writeFile(path.join(rootDir, 'data', 'videos', 'video-1', 'video', 'segment-0001.m4s'), 'segment-data');
+
+    const service = new PlaybackMediaSegmentService();
+
+    try {
+      const result = await service.serveSegment({
+        filename: 'segment-0001.m4s',
+        mediaType: 'video',
+        rangeHeader: null,
+        videoId: 'video-1',
+      });
+
+      expect(result.isRangeResponse).toBe(false);
+      expect(result.statusCode).toBeUndefined();
+      expect(result.headers).toEqual({
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'public, max-age=31536000',
+        'Content-Length': '12',
+        'Content-Type': 'video/iso.segment',
+      });
+      expect(result.stream).toBeTruthy();
+    }
+    finally {
+      await rm(rootDir, { force: true, recursive: true });
+    }
+  });
+
+  test('preserves range-response metadata and stream handles for partial segment reads', async () => {
+    const { PlaybackMediaSegmentService } = await import('./playback-media-segment.service');
+    const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-segment-'));
+    process.env.STORAGE_DIR = rootDir;
+    await mkdir(path.join(rootDir, 'data', 'videos', 'video-1', 'video'), { recursive: true });
+    await writeFile(path.join(rootDir, 'data', 'videos', 'video-1', 'video', 'segment-0001.m4s'), 'segment-data');
+
+    const service = new PlaybackMediaSegmentService();
+
+    try {
+      const result = await service.serveSegment({
+        filename: 'segment-0001.m4s',
+        mediaType: 'video',
+        rangeHeader: 'bytes=0-6',
+        videoId: 'video-1',
+      });
+
+      expect(result).toEqual({
         headers: {
-          'Content-Length': '128',
-          'Content-Range': 'bytes 0-127/512',
+          'Accept-Ranges': 'bytes',
+          'Cache-Control': 'public, max-age=31536000',
+          'Content-Length': '7',
+          'Content-Range': 'bytes 0-6/12',
+          'Content-Type': 'video/iso.segment',
         },
         isRangeResponse: true,
         statusCode: 206,
-        stream,
-        success: true as const,
-      },
-      success: true,
-    }));
-    const adapter = new PlaybackMediaSegmentService({
-      execute,
-    });
+        stream: expect.anything(),
+      });
+    }
+    finally {
+      await rm(rootDir, { force: true, recursive: true });
+    }
+  });
 
-    const result = await adapter.serveSegment({
+  test('throws a not-found error when the requested segment file is missing', async () => {
+    const { PlaybackMediaSegmentService } = await import('./playback-media-segment.service');
+    const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-segment-'));
+    process.env.STORAGE_DIR = rootDir;
+    await mkdir(path.join(rootDir, 'data', 'videos', 'video-1', 'video'), { recursive: true });
+
+    const service = new PlaybackMediaSegmentService();
+
+    try {
+      await expect(service.serveSegment({
+        filename: 'segment-0001.m4s',
+        mediaType: 'video',
+        rangeHeader: null,
+        videoId: 'video-1',
+      })).rejects.toMatchObject({
+        name: 'NotFoundError',
+        statusCode: 404,
+      });
+    }
+    finally {
+      await rm(rootDir, { force: true, recursive: true });
+    }
+  });
+
+  test('throws a validation error for an invalid DASH segment filename', async () => {
+    const { PlaybackMediaSegmentService } = await import('./playback-media-segment.service');
+    const service = new PlaybackMediaSegmentService();
+
+    await expect(service.serveSegment({
+      filename: '../segment-0001.m4s',
+      mediaType: 'video',
+      rangeHeader: null,
+      videoId: 'video-1',
+    })).rejects.toMatchObject({
+      name: 'ValidationError',
+      statusCode: 400,
+    });
+  });
+
+  test('throws a range error with the legacy Content-Range header for invalid ranges', async () => {
+    const { PlaybackMediaSegmentService } = await import('./playback-media-segment.service');
+    const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-segment-'));
+    process.env.STORAGE_DIR = rootDir;
+    await mkdir(path.join(rootDir, 'data', 'videos', 'video-1', 'video'), { recursive: true });
+    await writeFile(path.join(rootDir, 'data', 'videos', 'video-1', 'video', 'segment-0001.m4s'), 'segment-data');
+
+    const service = new PlaybackMediaSegmentService();
+
+    try {
+      await expect(service.serveSegment({
+        filename: 'segment-0001.m4s',
+        mediaType: 'video',
+        rangeHeader: 'bytes=20-25',
+        videoId: 'video-1',
+      })).rejects.toMatchObject({
+        headers: {
+          'Content-Range': 'bytes */12',
+        },
+        name: 'ValidationError',
+        statusCode: 416,
+      });
+    }
+    finally {
+      await rm(rootDir, { force: true, recursive: true });
+    }
+  });
+
+  test('rejects unsafe playback video ids before touching the filesystem', async () => {
+    const { PlaybackMediaSegmentService } = await import('./playback-media-segment.service');
+    const service = new PlaybackMediaSegmentService();
+
+    await expect(service.serveSegment({
       filename: 'segment-0001.m4s',
       mediaType: 'video',
-      rangeHeader: 'bytes=0-127',
-      videoId: 'video-1',
+      rangeHeader: null,
+      videoId: '../escape',
+    })).rejects.toMatchObject({
+      message: 'Invalid video ID format',
+      name: 'ValidationError',
+      statusCode: 400,
     });
-
-    expect(result).toEqual({
-      headers: {
-        'Content-Length': '128',
-        'Content-Range': 'bytes 0-127/512',
-      },
-      isRangeResponse: true,
-      statusCode: 206,
-      stream,
-    });
-    expect(execute).toHaveBeenCalledOnce();
   });
 });

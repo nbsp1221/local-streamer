@@ -1,5 +1,6 @@
 import { access, readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, test } from 'vitest';
+import { SqliteLibraryVideoMetadataRepository } from '../../../app/modules/library/infrastructure/sqlite/sqlite-library-video-metadata.repository';
 import { createRuntimeTestWorkspace } from '../../support/create-runtime-test-workspace';
 
 const cleanupTasks: Array<() => Promise<void>> = [];
@@ -27,7 +28,7 @@ describe('createRuntimeTestWorkspace', () => {
     await expect(access(`${workspace.storageDir}/data/users.json`)).resolves.toBeUndefined();
     await expect(access(`${workspace.storageDir}/data/videos/68e5f819-15e8-41ef-90ee-8a96769311b7/manifest.mpd`)).resolves.toBeUndefined();
     await expect(access(`${workspace.storageDir}/data/videos/68e5f819-15e8-41ef-90ee-8a96769311b7/video/init.mp4`)).resolves.toBeUndefined();
-    await expect(access(workspace.videoMetadataDbPath)).rejects.toBeDefined();
+    await expect(access(workspace.videoMetadataDbPath)).resolves.toBeUndefined();
 
     const videos = JSON.parse(await readFile(`${workspace.storageDir}/data/videos.json`, 'utf8')) as Array<{
       id: string;
@@ -47,6 +48,12 @@ describe('createRuntimeTestWorkspace', () => {
         videoUrl: '/videos/754c6828-621c-4df6-9cf8-a3d77297b85a/manifest.mpd',
       }),
     ]));
+
+    const metadataRepository = new SqliteLibraryVideoMetadataRepository({
+      dbPath: workspace.videoMetadataDbPath,
+    });
+
+    await expect(metadataRepository.count()).resolves.toBe(3);
   });
 
   test('accepts explicit pending-video seeds for hermetic browser flows', async () => {

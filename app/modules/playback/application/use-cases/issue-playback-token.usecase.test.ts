@@ -56,4 +56,27 @@ describe('IssuePlaybackTokenUseCase', () => {
     });
     expect(issue).not.toHaveBeenCalled();
   });
+
+  test('rejects unsafe playback video ids before minting a token', async () => {
+    const { IssuePlaybackTokenUseCase } = await import('./issue-playback-token.usecase');
+    const issue = vi.fn(async () => 'signed-token');
+    const useCase = new IssuePlaybackTokenUseCase({
+      tokenService: {
+        issue,
+        validate: async () => null,
+      },
+    });
+
+    await expect(useCase.execute({
+      hasSiteSession: true,
+      ipAddress: '203.0.113.10',
+      userAgent: 'vitest',
+      videoId: '../escape',
+    })).rejects.toMatchObject({
+      message: 'Invalid video ID format',
+      name: 'ValidationError',
+      statusCode: 400,
+    });
+    expect(issue).not.toHaveBeenCalled();
+  });
 });

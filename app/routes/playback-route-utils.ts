@@ -59,6 +59,7 @@ export function createPlaybackUnexpectedRouteResponse(
 
   if (mappedStatus) {
     return new Response(getPlaybackErrorMessage(error, options.fallbackMessage), {
+      headers: getPlaybackErrorHeaders(error),
       status: mappedStatus,
     });
   }
@@ -74,6 +75,25 @@ function getPlaybackErrorMessage(error: unknown, fallbackMessage: string): strin
   }
 
   return fallbackMessage;
+}
+
+function getPlaybackErrorHeaders(error: unknown): Record<string, string> | undefined {
+  if (!error || typeof error !== 'object' || !('headers' in error) || typeof error.headers !== 'object' || !error.headers) {
+    return undefined;
+  }
+
+  const safeHeaders: Record<string, string> = {};
+  const playbackErrorHeaders = error.headers as Record<string, unknown>;
+
+  for (const [key, value] of Object.entries(playbackErrorHeaders)) {
+    if (key.toLowerCase() !== 'content-range' || typeof value !== 'string') {
+      continue;
+    }
+
+    safeHeaders['Content-Range'] = value;
+  }
+
+  return Object.keys(safeHeaders).length > 0 ? safeHeaders : undefined;
 }
 
 function getPlaybackErrorStatus(error: unknown): number | null {

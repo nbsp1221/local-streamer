@@ -101,29 +101,64 @@ describe('Phase 2 playback route adapters', () => {
     });
   });
 
+  test('token route rejects unsafe video ids before issuing playback tokens', async () => {
+    const { loader } = await importVideoTokenRoute();
+
+    const response = await loader({
+      params: { videoId: '../escape' },
+      request: new Request('http://localhost/videos/../escape/token', {
+        headers: {
+          'User-Agent': 'vitest',
+        },
+      }),
+    } as never);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: 'Invalid video ID format',
+      success: false,
+    });
+    expect(fakePlaybackServices.issuePlaybackToken.execute).not.toHaveBeenCalled();
+  });
+
   test('manifest, segment, audio segment, and clearkey routes delegate to playback services for valid tokens', async () => {
     fakePlaybackServices.servePlaybackManifest.execute.mockResolvedValue({
       body: '<MPD />',
-      headers: { 'Content-Type': 'application/dash+xml' },
+      headers: {
+        'Content-Length': '7',
+        'Content-Type': 'application/dash+xml',
+      },
       ok: true,
     });
     fakePlaybackServices.servePlaybackMediaSegment.execute
       .mockResolvedValueOnce({
-        headers: { 'Content-Length': '64' },
+        headers: {
+          'Accept-Ranges': 'bytes',
+          'Content-Length': '64',
+          'Content-Type': 'video/mp4',
+        },
         isRangeResponse: false,
         ok: true,
         stream: new ReadableStream<Uint8Array>(),
       })
       .mockResolvedValueOnce({
-        headers: { 'Content-Length': '32' },
+        headers: {
+          'Accept-Ranges': 'bytes',
+          'Content-Length': '32',
+          'Content-Range': 'bytes 0-31/128',
+          'Content-Type': 'audio/iso.segment',
+        },
         isRangeResponse: true,
         ok: true,
         statusCode: 206,
         stream: new ReadableStream<Uint8Array>(),
       });
     fakePlaybackServices.servePlaybackClearKeyLicense.execute.mockResolvedValue({
-      body: '{"keys":[]}',
-      headers: { 'Content-Type': 'application/json' },
+      body: '{"keys":[{"kid":"kid","k":"key","kty":"oct"}],"type":"temporary"}',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Content-Type': 'application/json',
+      },
       ok: true,
     });
 
@@ -181,12 +216,26 @@ describe('Phase 2 playback route adapters', () => {
     expect(videoResponse.status).toBe(200);
     expect(audioResponse.status).toBe(206);
     expect(clearKeyResponse.status).toBe(200);
+    expect(manifestResponse.headers.get('Content-Type')).toBe('application/dash+xml');
+    expect(manifestResponse.headers.get('Content-Length')).toBe('7');
+    await expect(manifestResponse.text()).resolves.toBe('<MPD />');
+    expect(videoResponse.headers.get('Content-Type')).toBe('video/mp4');
+    expect(videoResponse.headers.get('Accept-Ranges')).toBe('bytes');
+    expect(audioResponse.headers.get('Content-Type')).toBe('audio/iso.segment');
+    expect(audioResponse.headers.get('Accept-Ranges')).toBe('bytes');
+    expect(audioResponse.headers.get('Content-Range')).toBe('bytes 0-31/128');
+    expect(clearKeyResponse.headers.get('Content-Type')).toBe('application/json');
+    expect(clearKeyResponse.headers.get('Cache-Control')).toBe('no-cache, no-store, must-revalidate');
+    await expect(clearKeyResponse.text()).resolves.toBe('{"keys":[{"kid":"kid","k":"key","kty":"oct"}],"type":"temporary"}');
   });
 
   test('clearkey action delegates POST license requests to the playback composition root', async () => {
     fakePlaybackServices.servePlaybackClearKeyLicense.execute.mockResolvedValue({
-      body: '{"keys":[]}',
-      headers: { 'Content-Type': 'application/json' },
+      body: '{"keys":[{"kid":"kid","k":"key","kty":"oct"}],"type":"temporary"}',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Content-Type': 'application/json',
+      },
       ok: true,
     });
     const { action } = await importClearKeyRoute();
@@ -203,6 +252,9 @@ describe('Phase 2 playback route adapters', () => {
       videoId: 'video-1',
     });
     expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toBe('application/json');
+    expect(response.headers.get('Cache-Control')).toBe('no-cache, no-store, must-revalidate');
+    await expect(response.text()).resolves.toBe('{"keys":[{"kid":"kid","k":"key","kty":"oct"}],"type":"temporary"}');
   });
 
   test('manifest route accepts Authorization bearer token when the query token is absent', async () => {

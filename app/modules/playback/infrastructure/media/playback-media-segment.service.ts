@@ -1,38 +1,76 @@
+import { createReadStream } from 'node:fs';
+import { stat } from 'node:fs/promises';
+import { join } from 'node:path';
 import type { PlaybackMediaSegmentService as PlaybackMediaSegmentServicePort } from '../../application/ports/playback-media-segment-service.port';
-import { LegacyPlaybackMediaSegmentServiceAdapter } from './legacy-playback-media-segment.service.adapter';
+import { assertValidPlaybackVideoId } from '../../domain/playback-video-id';
+import { getPlaybackStoragePaths } from '../storage/playback-storage-paths.server';
+import {
+  createPlaybackMediaError,
+  getPlaybackSegmentContentType,
+  isValidPlaybackSegmentFilename,
+  parsePlaybackRangeHeader,
+} from './playback-media-segment-helpers';
 
-interface PlaybackMediaSegmentRouteRequest {
-  filename: string;
-  mediaType: 'audio' | 'video';
-  request: Request;
-  videoId: string;
-}
-
-interface PlaybackMediaSegmentUseCaseResult {
-  data?: {
-    headers: Record<string, string>;
-    isRangeResponse?: boolean;
-    statusCode?: number;
-    stream: ReadableStream;
-    success: true;
-  };
-  error?: Error;
-  success: boolean;
-}
-
-interface PlaybackMediaSegmentServiceDependencies {
-  execute?: (input: PlaybackMediaSegmentRouteRequest) => Promise<PlaybackMediaSegmentUseCaseResult>;
-}
-
-// Temporary playback-owned compatibility seam while protected DASH segment delivery still delegates to legacy internals.
 export class PlaybackMediaSegmentService implements PlaybackMediaSegmentServicePort {
-  private readonly delegate: PlaybackMediaSegmentServicePort;
-
-  constructor(deps: PlaybackMediaSegmentServiceDependencies = {}) {
-    this.delegate = new LegacyPlaybackMediaSegmentServiceAdapter(deps);
-  }
-
   async serveSegment(input: Parameters<PlaybackMediaSegmentServicePort['serveSegment']>[0]) {
-    return this.delegate.serveSegment(input);
+    assertValidPlaybackVideoId(input.videoId);
+
+    if (!isValidPlaybackSegmentFilename(input.filename)) {
+      throw createPlaybackMediaError('ValidationError', 'Invalid DASH segment filename', 400);
+    }
+
+    const filePath = join(
+      getPlaybackStoragePaths().videosDir,
+      input.videoId,
+      input.mediaType,
+      input.filename,
+    );
+
+    let fileStats: Awaited<ReturnType<typeof stat>>;
+
+    try {
+      fileStats = await stat(filePath);
+    }
+    catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        throw createPlaybackMediaError('NotFoundError', `${input.mediaType} segment not found`, 404);
+      }
+
+      throw error;
+    }
+
+    const contentType = getPlaybackSegmentContentType(input.filename, input.mediaType);
+
+    if (!input.rangeHeader) {
+      const headers: Record<string, string> = {
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'public, max-age=31536000',
+        'Content-Length': String(fileStats.size),
+        'Content-Type': contentType,
+      };
+
+      return {
+        headers,
+        isRangeResponse: false,
+        stream: createReadStream(filePath) as unknown as ReadableStream,
+      };
+    }
+
+    const { end, start } = parsePlaybackRangeHeader(input.rangeHeader, fileStats.size);
+    const contentLength = (end - start) + 1;
+    const headers: Record<string, string> = {
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': 'public, max-age=31536000',
+      'Content-Length': String(contentLength),
+      'Content-Range': `bytes ${start}-${end}/${fileStats.size}`,
+      'Content-Type': contentType,
+    };
+
+    return {
+      headers,
+      isRangeResponse: true,
+      statusCode: 206,
+      stream: createReadStream(filePath, { end, start }) as unknown as ReadableStream,
+    };
   }
 }

@@ -1,52 +1,110 @@
-import { describe, expect, test, vi } from 'vitest';
+import crypto from 'node:crypto';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+
+const ORIGINAL_STORAGE_DIR = process.env.STORAGE_DIR;
+
+afterEach(() => {
+  vi.resetModules();
+
+  if (ORIGINAL_STORAGE_DIR === undefined) {
+    delete process.env.STORAGE_DIR;
+    return;
+  }
+
+  process.env.STORAGE_DIR = ORIGINAL_STORAGE_DIR;
+});
 
 describe('PlaybackClearKeyService', () => {
-  test('preserves downstream headers and serializes the legacy ClearKey response body unchanged', async () => {
+  test('reads key.bin from the active playback storage path and preserves the ClearKey response contract', async () => {
     const { PlaybackClearKeyService } = await import('./playback-clearkey.service');
-    const execute = vi.fn(async () => ({
-      data: {
-        clearKeyResponse: {
+    const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-clearkey-'));
+    process.env.STORAGE_DIR = rootDir;
+    await mkdir(path.join(rootDir, 'data', 'videos', 'video-1'), { recursive: true });
+    const keyBuffer = Buffer.from('00112233445566778899aabbccddeeff', 'hex');
+    await writeFile(path.join(rootDir, 'data', 'videos', 'video-1', 'key.bin'), keyBuffer);
+
+    const adapter = new PlaybackClearKeyService();
+
+    try {
+      const result = await adapter.serveLicense({
+        videoId: 'video-1',
+      });
+
+      const keyIdHex = crypto.createHash('sha256').update('video-1').digest().subarray(0, 16).toString('hex');
+
+      expect(result).toEqual({
+        body: JSON.stringify({
           keys: [
             {
-              k: 'key',
-              kid: 'kid',
+              k: keyBuffer.toString('base64url'),
+              kid: Buffer.from(keyIdHex, 'hex').toString('base64url'),
               kty: 'oct',
             },
           ],
           type: 'temporary',
-        },
+        }),
         headers: {
-          'Cache-Control': 'no-cache',
+          'Access-Control-Allow-Credentials': 'false',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie',
+          'Access-Control-Allow-Methods': 'GET, POST',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Content-Type': 'application/json',
+          'Expires': '0',
+          'Pragma': 'no-cache',
+          'Referrer-Policy': 'strict-origin-when-cross-origin',
+          'X-Content-Type-Options': 'nosniff',
+          'X-Frame-Options': 'DENY',
         },
-        success: true as const,
-      },
-      success: true,
-    }));
-    const adapter = new PlaybackClearKeyService({
-      execute,
-    });
+      });
+    }
+    finally {
+      await rm(rootDir, { force: true, recursive: true });
+    }
+  });
 
-    const result = await adapter.serveLicense({
-      videoId: 'video-1',
-    });
+  test('throws when the packaged key file is missing', async () => {
+    const { PlaybackClearKeyService } = await import('./playback-clearkey.service');
+    const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-clearkey-'));
+    process.env.STORAGE_DIR = rootDir;
+    await mkdir(path.join(rootDir, 'data', 'videos', 'video-1'), { recursive: true });
 
-    expect(result).toEqual({
-      body: JSON.stringify({
-        keys: [
-          {
-            k: 'key',
-            kid: 'kid',
-            kty: 'oct',
-          },
-        ],
-        type: 'temporary',
-      }),
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Content-Type': 'application/json',
-      },
+    const adapter = new PlaybackClearKeyService();
+
+    try {
+      await expect(adapter.serveLicense({
+        videoId: 'video-1',
+      })).rejects.toMatchObject({
+        name: 'NotFoundError',
+        statusCode: 404,
+      });
+    }
+    finally {
+      await rm(rootDir, { force: true, recursive: true });
+    }
+  });
+
+  test('rejects unsafe playback video ids before touching the filesystem', async () => {
+    const { PlaybackClearKeyService } = await import('./playback-clearkey.service');
+    const adapter = new PlaybackClearKeyService();
+
+    await expect(adapter.serveLicense({
+      videoId: '../escape',
+    })).rejects.toMatchObject({
+      message: 'Invalid video ID format',
+      name: 'ValidationError',
+      statusCode: 400,
     });
-    expect(execute).toHaveBeenCalledOnce();
+  });
+
+  test('preserves the canonical playback key-id derivation algorithm', async () => {
+    const { generatePlaybackKeyId } = await import('./generate-playback-key-id');
+
+    expect(generatePlaybackKeyId('video-1')).toBe(
+      crypto.createHash('sha256').update('video-1').digest().subarray(0, 16).toString('hex'),
+    );
   });
 });
