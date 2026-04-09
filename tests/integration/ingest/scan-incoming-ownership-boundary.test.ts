@@ -5,7 +5,12 @@ import { describe, expect, test } from 'vitest';
 const projectRoot = process.cwd();
 const explicitFiles = [
   join(projectRoot, 'app/routes/api.scan-incoming.ts'),
+  join(projectRoot, 'app/composition/server/ingest.ts'),
   join(projectRoot, 'app/modules/ingest/application/use-cases/scan-incoming-videos.usecase.ts'),
+  join(projectRoot, 'app/modules/ingest/infrastructure/storage/ingest-storage-paths.server.ts'),
+  join(projectRoot, 'app/modules/ingest/infrastructure/pending/json-ingest-pending-video-reader.adapter.ts'),
+  join(projectRoot, 'app/modules/ingest/infrastructure/scan/filesystem-ingest-upload-scan.adapter.ts'),
+  join(projectRoot, 'app/modules/ingest/infrastructure/thumbnail/ffmpeg-ingest-pending-thumbnail-enricher.adapter.ts'),
 ];
 const ingestPortRoot = join(projectRoot, 'app/modules/ingest/application/ports');
 const forbiddenImportPatterns = [
@@ -57,6 +62,9 @@ describe('scan-incoming ownership boundary', () => {
       source.includes('./ingest-legacy-incoming-video-source'),
       'ingest.ts should not import the retired broad incoming-video seam',
     ).toBe(false);
+    expect(source.includes('./ingest-legacy-pending-video-source')).toBe(false);
+    expect(source.includes('./ingest-legacy-upload-scan')).toBe(false);
+    expect(source.includes('./ingest-legacy-pending-thumbnail-enricher')).toBe(false);
   });
 
   test('scan-incoming use case no longer depends on the broad ingest incoming-video source port', async () => {

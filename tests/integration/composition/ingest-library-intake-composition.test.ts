@@ -1,34 +1,34 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const createCanonicalVideoMetadataLegacyStoreMock = vi.fn();
-const createIngestLegacyPendingThumbnailEnricherMock = vi.fn();
-const createIngestLegacyPendingVideoSourceMock = vi.fn();
+const FfmpegIngestPendingThumbnailEnricherAdapterMock = vi.fn();
+const JsonIngestPendingVideoReaderAdapterMock = vi.fn();
 const createIngestLegacyPreparedVideoWorkspaceMock = vi.fn();
-const createIngestLegacyUploadScanMock = vi.fn();
+const FilesystemIngestUploadScanAdapterMock = vi.fn();
 const createIngestLegacyVideoProcessingMock = vi.fn();
 
 vi.mock('~/composition/server/canonical-video-metadata-legacy-store', () => ({
   createCanonicalVideoMetadataLegacyStore: createCanonicalVideoMetadataLegacyStoreMock,
 }));
 
-vi.mock('~/composition/server/ingest-legacy-pending-thumbnail-enricher', () => ({
-  createIngestLegacyPendingThumbnailEnricher: createIngestLegacyPendingThumbnailEnricherMock,
+vi.mock('~/modules/ingest/infrastructure/thumbnail/ffmpeg-ingest-pending-thumbnail-enricher.adapter', () => ({
+  FfmpegIngestPendingThumbnailEnricherAdapter: FfmpegIngestPendingThumbnailEnricherAdapterMock,
 }));
 
 vi.mock('~/composition/server/ingest-legacy-prepared-video-workspace', () => ({
   createIngestLegacyPreparedVideoWorkspace: createIngestLegacyPreparedVideoWorkspaceMock,
 }));
 
-vi.mock('~/composition/server/ingest-legacy-upload-scan', () => ({
-  createIngestLegacyUploadScan: createIngestLegacyUploadScanMock,
+vi.mock('~/modules/ingest/infrastructure/scan/filesystem-ingest-upload-scan.adapter', () => ({
+  FilesystemIngestUploadScanAdapter: FilesystemIngestUploadScanAdapterMock,
 }));
 
 vi.mock('~/composition/server/ingest-legacy-video-processing', () => ({
   createIngestLegacyVideoProcessing: createIngestLegacyVideoProcessingMock,
 }));
 
-vi.mock('~/composition/server/ingest-legacy-pending-video-source', () => ({
-  createIngestLegacyPendingVideoSource: createIngestLegacyPendingVideoSourceMock,
+vi.mock('~/modules/ingest/infrastructure/pending/json-ingest-pending-video-reader.adapter', () => ({
+  JsonIngestPendingVideoReaderAdapter: JsonIngestPendingVideoReaderAdapterMock,
 }));
 
 describe('ingest library-intake composition', () => {

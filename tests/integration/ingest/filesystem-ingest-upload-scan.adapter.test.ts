@@ -17,7 +17,7 @@ function createLogger() {
   };
 }
 
-describe('ingest legacy upload scan', () => {
+describe('FilesystemIngestUploadScanAdapter', () => {
   let tempDir = '';
   let previousStorageDir: string | undefined;
 
@@ -34,6 +34,7 @@ describe('ingest legacy upload scan', () => {
 
     if (tempDir) {
       await rm(tempDir, { force: true, recursive: true });
+      tempDir = '';
     }
   });
 
@@ -43,10 +44,9 @@ describe('ingest legacy upload scan', () => {
     previousStorageDir = process.env.STORAGE_DIR;
     process.env.STORAGE_DIR = storageDir;
     await writeIncomingFile(storageDir, 'fixture-video.mp4');
-    vi.resetModules();
 
-    const { createIngestLegacyUploadScan } = await import('../../../app/composition/server/ingest-legacy-upload-scan');
-    const source = createIngestLegacyUploadScan({
+    const { FilesystemIngestUploadScanAdapter } = await import('../../../app/modules/ingest/infrastructure/scan/filesystem-ingest-upload-scan.adapter');
+    const source = new FilesystemIngestUploadScanAdapter({
       logger: createLogger(),
     });
 
@@ -72,10 +72,9 @@ describe('ingest legacy upload scan', () => {
     await writeIncomingFile(storageDir, 'ignored.txt', 'not-a-video');
     await mkdir(join(storageDir, 'uploads', 'nested'), { recursive: true });
     await writeIncomingFile(storageDir, 'nested/child-video.mp4');
-    vi.resetModules();
 
-    const { createIngestLegacyUploadScan } = await import('../../../app/composition/server/ingest-legacy-upload-scan');
-    const source = createIngestLegacyUploadScan({
+    const { FilesystemIngestUploadScanAdapter } = await import('../../../app/modules/ingest/infrastructure/scan/filesystem-ingest-upload-scan.adapter');
+    const source = new FilesystemIngestUploadScanAdapter({
       logger: createLogger(),
     });
 
@@ -94,10 +93,9 @@ describe('ingest legacy upload scan', () => {
     const storageDir = join(tempDir, 'storage');
     previousStorageDir = process.env.STORAGE_DIR;
     process.env.STORAGE_DIR = storageDir;
-    vi.resetModules();
 
-    const { createIngestLegacyUploadScan } = await import('../../../app/composition/server/ingest-legacy-upload-scan');
-    const source = createIngestLegacyUploadScan({
+    const { FilesystemIngestUploadScanAdapter } = await import('../../../app/modules/ingest/infrastructure/scan/filesystem-ingest-upload-scan.adapter');
+    const source = new FilesystemIngestUploadScanAdapter({
       logger: createLogger(),
     });
 

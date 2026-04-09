@@ -7,11 +7,11 @@ import type { IngestVideoProcessingPort } from '~/modules/ingest/application/por
 import { AddVideoToLibraryUseCase } from '~/modules/ingest/application/use-cases/add-video-to-library.usecase';
 import { LoadPendingUploadSnapshotUseCase } from '~/modules/ingest/application/use-cases/load-pending-upload-snapshot.usecase';
 import { ScanIncomingVideosUseCase } from '~/modules/ingest/application/use-cases/scan-incoming-videos.usecase';
+import { JsonIngestPendingVideoReaderAdapter } from '~/modules/ingest/infrastructure/pending/json-ingest-pending-video-reader.adapter';
+import { FilesystemIngestUploadScanAdapter } from '~/modules/ingest/infrastructure/scan/filesystem-ingest-upload-scan.adapter';
+import { FfmpegIngestPendingThumbnailEnricherAdapter } from '~/modules/ingest/infrastructure/thumbnail/ffmpeg-ingest-pending-thumbnail-enricher.adapter';
 import { createCanonicalVideoMetadataLegacyStore } from './canonical-video-metadata-legacy-store';
-import { createIngestLegacyPendingThumbnailEnricher } from './ingest-legacy-pending-thumbnail-enricher';
-import { createIngestLegacyPendingVideoSource } from './ingest-legacy-pending-video-source';
 import { createIngestLegacyPreparedVideoWorkspace } from './ingest-legacy-prepared-video-workspace';
-import { createIngestLegacyUploadScan } from './ingest-legacy-upload-scan';
 import { createIngestLegacyVideoProcessing } from './ingest-legacy-video-processing';
 
 export interface ServerIngestServices {
@@ -61,10 +61,10 @@ function createLoadPendingUploadSnapshotUseCase(
 export function createServerIngestServices(
   overrides: Partial<ServerIngestServiceDependencies> = {},
 ): ServerIngestServices {
-  const getPendingThumbnailEnricher = createLazyValue(() => overrides.pendingThumbnailEnricher ?? createIngestLegacyPendingThumbnailEnricher());
-  const getPendingVideoReader = createLazyValue(() => overrides.pendingVideoReader ?? createIngestLegacyPendingVideoSource());
+  const getPendingThumbnailEnricher = createLazyValue(() => overrides.pendingThumbnailEnricher ?? new FfmpegIngestPendingThumbnailEnricherAdapter());
+  const getPendingVideoReader = createLazyValue(() => overrides.pendingVideoReader ?? new JsonIngestPendingVideoReaderAdapter());
   const getPreparedVideoWorkspace = createLazyValue(() => overrides.preparedVideoWorkspace ?? createIngestLegacyPreparedVideoWorkspace());
-  const getUploadScan = createLazyValue(() => overrides.uploadScan ?? createIngestLegacyUploadScan());
+  const getUploadScan = createLazyValue(() => overrides.uploadScan ?? new FilesystemIngestUploadScanAdapter());
   const getVideoMetadataWriter = createLazyValue(() => overrides.videoMetadataWriter ?? createCanonicalVideoMetadataLegacyStore());
   const getVideoProcessing = createLazyValue(() => overrides.videoProcessing ?? createIngestLegacyVideoProcessing());
   const getAddVideoToLibrary = createLazyValue(() => new AddVideoToLibraryUseCase({
@@ -95,7 +95,7 @@ export function createServerPendingUploadSnapshotServices(
   overrides: Pick<Partial<ServerIngestServiceDependencies>, 'pendingVideoReader'> = {},
 ): ServerPendingUploadSnapshotServices {
   const pendingVideoReader = overrides.pendingVideoReader ??
-    createIngestLegacyPendingVideoSource();
+    new JsonIngestPendingVideoReaderAdapter();
 
   return {
     loadPendingUploadSnapshot: createLoadPendingUploadSnapshotUseCase(pendingVideoReader),

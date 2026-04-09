@@ -1,19 +1,12 @@
-import path from 'node:path';
-
-function getStorageDir() {
-  return process.env.STORAGE_DIR
-    ? path.resolve(process.env.STORAGE_DIR)
-    : path.resolve(process.cwd(), 'storage');
-}
+import { getStoragePaths } from '~/shared/config/storage-paths.server';
 
 export function getThumbnailStoragePaths() {
-  const storageDir = getStorageDir();
-  const uploadsDir = path.join(storageDir, 'uploads');
+  const { storageDir, thumbnailsDir, uploadsDir, videosDir } = getStoragePaths();
 
   return {
     storageDir,
-    thumbnailsDir: path.join(uploadsDir, 'thumbnails'),
+    thumbnailsDir,
     uploadsDir,
-    videosDir: path.join(storageDir, 'data', 'videos'),
+    videosDir,
   };
 }

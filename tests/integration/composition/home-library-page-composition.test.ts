@@ -219,4 +219,45 @@ describe('home library page composition root', () => {
       },
     });
   });
+
+  test('returns HOME_DATA_UNAVAILABLE when pending.json is malformed in the default ingest path', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'local-streamer-home-pending-malformed-'));
+    const storageDir = join(tempDir, 'storage');
+    previousStorageDir = process.env.STORAGE_DIR;
+    previousVideoMasterEncryptionSeed = process.env.VIDEO_MASTER_ENCRYPTION_SEED;
+    process.env.STORAGE_DIR = storageDir;
+    delete process.env.VIDEO_MASTER_ENCRYPTION_SEED;
+    await mkdir(join(storageDir, 'data'), { recursive: true });
+    await writeFile(join(storageDir, 'data', 'videos.json'), '[]', 'utf8');
+    await writeFile(join(storageDir, 'data', 'pending.json'), '{ invalid json', 'utf8');
+    vi.resetModules();
+
+    const { createHomeLibraryPageServices } = await import('../../../app/composition/server/home-library-page');
+    const services = createHomeLibraryPageServices({
+      libraryServices: {
+        loadLibraryCatalogSnapshot: {
+          execute: vi.fn(async () => ({
+            ok: true as const,
+            data: {
+              filters: {
+                displayQuery: '',
+                normalizedQuery: '',
+                normalizedTags: [],
+                rawTags: [],
+              },
+              videos: [createFixtureVideo()],
+            },
+          })),
+        },
+      },
+    });
+
+    await expect(services.loadHomeLibraryPageData.execute({
+      rawQuery: '',
+      rawTags: [],
+    })).resolves.toEqual({
+      ok: false,
+      reason: 'HOME_DATA_UNAVAILABLE',
+    });
+  });
 });
