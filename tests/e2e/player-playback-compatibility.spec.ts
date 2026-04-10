@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { loginToPlayer } from './support/player-auth';
 import { getE2ESharedPassword } from '../support/shared-password';
+import { loginToPlayer } from './support/player-auth';
 
 const playbackFixtureVideoId = '68e5f819-15e8-41ef-90ee-8a96769311b7';
 const sharedPassword = getE2ESharedPassword(process.env.AUTH_SHARED_PASSWORD);

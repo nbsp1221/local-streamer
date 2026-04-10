@@ -10,8 +10,8 @@ import { ScanIncomingVideosUseCase } from '~/modules/ingest/application/use-case
 import { JsonIngestPendingVideoReaderAdapter } from '~/modules/ingest/infrastructure/pending/json-ingest-pending-video-reader.adapter';
 import { FilesystemIngestUploadScanAdapter } from '~/modules/ingest/infrastructure/scan/filesystem-ingest-upload-scan.adapter';
 import { FfmpegIngestPendingThumbnailEnricherAdapter } from '~/modules/ingest/infrastructure/thumbnail/ffmpeg-ingest-pending-thumbnail-enricher.adapter';
+import { FilesystemIngestPreparedVideoWorkspaceAdapter } from '~/modules/ingest/infrastructure/workspace/filesystem-ingest-prepared-video-workspace.adapter';
 import { createCanonicalVideoMetadataLegacyStore } from './canonical-video-metadata-legacy-store';
-import { createIngestLegacyPreparedVideoWorkspace } from './ingest-legacy-prepared-video-workspace';
 import { createIngestLegacyVideoProcessing } from './ingest-legacy-video-processing';
 
 export interface ServerIngestServices {
@@ -63,7 +63,7 @@ export function createServerIngestServices(
 ): ServerIngestServices {
   const getPendingThumbnailEnricher = createLazyValue(() => overrides.pendingThumbnailEnricher ?? new FfmpegIngestPendingThumbnailEnricherAdapter());
   const getPendingVideoReader = createLazyValue(() => overrides.pendingVideoReader ?? new JsonIngestPendingVideoReaderAdapter());
-  const getPreparedVideoWorkspace = createLazyValue(() => overrides.preparedVideoWorkspace ?? createIngestLegacyPreparedVideoWorkspace());
+  const getPreparedVideoWorkspace = createLazyValue(() => overrides.preparedVideoWorkspace ?? new FilesystemIngestPreparedVideoWorkspaceAdapter());
   const getUploadScan = createLazyValue(() => overrides.uploadScan ?? new FilesystemIngestUploadScanAdapter());
   const getVideoMetadataWriter = createLazyValue(() => overrides.videoMetadataWriter ?? createCanonicalVideoMetadataLegacyStore());
   const getVideoProcessing = createLazyValue(() => overrides.videoProcessing ?? createIngestLegacyVideoProcessing());

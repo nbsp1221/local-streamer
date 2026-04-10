@@ -6,6 +6,10 @@ const projectRoot = process.cwd();
 const explicitFiles = [
   join(projectRoot, 'app/routes/api.add-to-library.ts'),
   join(projectRoot, 'app/modules/ingest/application/use-cases/add-video-to-library.usecase.ts'),
+  join(projectRoot, 'app/composition/server/ingest.ts'),
+  join(projectRoot, 'app/modules/ingest/infrastructure/storage/ingest-storage-paths.server.ts'),
+  join(projectRoot, 'app/modules/ingest/infrastructure/analysis/ffprobe-ingest-video-analysis.adapter.ts'),
+  join(projectRoot, 'app/modules/ingest/infrastructure/workspace/filesystem-ingest-prepared-video-workspace.adapter.ts'),
 ];
 const ingestPortRoot = join(projectRoot, 'app/modules/ingest/application/ports');
 const files = [
@@ -59,6 +63,16 @@ describe('add-to-library ownership boundary', () => {
     expect(
       source.includes('./ingest-legacy-library-intake'),
       'ingest.ts should not import the retired broad library-intake seam',
+    ).toBe(false);
+  });
+
+  test('ingest composition no longer depends on the legacy prepared-workspace seam', async () => {
+    const filePath = join(projectRoot, 'app/composition/server/ingest.ts');
+    const source = await readFile(filePath, 'utf8');
+
+    expect(
+      source.includes('./ingest-legacy-prepared-video-workspace'),
+      'ingest.ts should not import the retired prepared-workspace seam',
     ).toBe(false);
   });
 

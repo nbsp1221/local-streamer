@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 const createCanonicalVideoMetadataLegacyStoreMock = vi.fn();
 const FfmpegIngestPendingThumbnailEnricherAdapterMock = vi.fn();
 const JsonIngestPendingVideoReaderAdapterMock = vi.fn();
-const createIngestLegacyPreparedVideoWorkspaceMock = vi.fn();
+const FilesystemIngestPreparedVideoWorkspaceAdapterMock = vi.fn();
 const FilesystemIngestUploadScanAdapterMock = vi.fn();
 const createIngestLegacyVideoProcessingMock = vi.fn();
 
@@ -15,8 +15,8 @@ vi.mock('~/modules/ingest/infrastructure/thumbnail/ffmpeg-ingest-pending-thumbna
   FfmpegIngestPendingThumbnailEnricherAdapter: FfmpegIngestPendingThumbnailEnricherAdapterMock,
 }));
 
-vi.mock('~/composition/server/ingest-legacy-prepared-video-workspace', () => ({
-  createIngestLegacyPreparedVideoWorkspace: createIngestLegacyPreparedVideoWorkspaceMock,
+vi.mock('~/modules/ingest/infrastructure/workspace/filesystem-ingest-prepared-video-workspace.adapter', () => ({
+  FilesystemIngestPreparedVideoWorkspaceAdapter: FilesystemIngestPreparedVideoWorkspaceAdapterMock,
 }));
 
 vi.mock('~/modules/ingest/infrastructure/scan/filesystem-ingest-upload-scan.adapter', () => ({
@@ -73,7 +73,7 @@ describe('ingest library-intake composition', () => {
       title: 'Fixture Video',
     });
 
-    expect(createIngestLegacyPreparedVideoWorkspaceMock).not.toHaveBeenCalled();
+    expect(FilesystemIngestPreparedVideoWorkspaceAdapterMock).not.toHaveBeenCalled();
     expect(createIngestLegacyVideoProcessingMock).not.toHaveBeenCalled();
     expect(preparePreparedVideo).toHaveBeenCalledOnce();
     expect(processPreparedVideo).toHaveBeenCalledOnce();

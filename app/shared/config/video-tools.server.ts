@@ -13,3 +13,16 @@ export function getFFmpegPath(): string {
 
   return 'ffmpeg';
 }
+
+export function getFFprobePath(): string {
+  if (process.env.FFPROBE_PATH && existsSync(process.env.FFPROBE_PATH)) {
+    return process.env.FFPROBE_PATH;
+  }
+
+  const localFFprobe = path.join(process.cwd(), 'binaries', 'ffprobe');
+  if (existsSync(localFFprobe)) {
+    return localFFprobe;
+  }
+
+  return 'ffprobe';
+}
