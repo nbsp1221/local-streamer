@@ -1,6 +1,20 @@
 import { readFile } from 'node:fs/promises';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
+const RETIRED_PLAYBACK_FILENAMES = [
+  'legacy-video-catalog.adapter',
+  'legacy-playback-manifest.service.adapter',
+  'legacy-playback-media-segment.service.adapter',
+  'legacy-playback-clearkey.service.adapter',
+] as const;
+
+function expectSourceToExcludeRetiredPlaybackFilenames(source: string) {
+  for (const fileName of RETIRED_PLAYBACK_FILENAMES) {
+    expect(source).not.toContain(fileName);
+    expect(source.match(new RegExp(fileName.replaceAll('.', '\\.'), 'g')) ?? []).toHaveLength(0);
+  }
+}
+
 describe('server playback composition root', () => {
   afterEach(() => {
     vi.resetModules();
@@ -125,10 +139,7 @@ describe('server playback composition root', () => {
   test('does not assemble legacy-named playback infrastructure directly in the composition root', async () => {
     const source = await readFile(new URL('./playback.ts', import.meta.url), 'utf8');
 
-    expect(source).not.toContain('legacy-video-catalog.adapter');
-    expect(source).not.toContain('legacy-playback-manifest.service.adapter');
-    expect(source).not.toContain('legacy-playback-media-segment.service.adapter');
-    expect(source).not.toContain('legacy-playback-clearkey.service.adapter');
+    expectSourceToExcludeRetiredPlaybackFilenames(source);
     expect(source).not.toContain('jsonwebtoken-playback-token.service');
   });
 

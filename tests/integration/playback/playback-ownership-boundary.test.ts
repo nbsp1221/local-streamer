@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { describe, expect, test } from 'vitest';
 
@@ -23,8 +23,25 @@ const PLAYBACK_COMPAT_SEAM_FILES = [
   'app/modules/playback/infrastructure/license/playback-clearkey.service.ts',
 ] as const;
 
+const RETIRED_PLAYBACK_FILES = [
+  'app/modules/playback/infrastructure/catalog/legacy-video-catalog.adapter.ts',
+  'app/modules/playback/infrastructure/media/legacy-playback-manifest.service.adapter.ts',
+  'app/modules/playback/infrastructure/media/legacy-playback-media-segment.service.adapter.ts',
+  'app/modules/playback/infrastructure/license/legacy-playback-clearkey.service.adapter.ts',
+] as const;
+
 function includesLegacyAppImport(source: string) {
   return source.includes('~/legacy/');
+}
+
+async function pathExists(file: string) {
+  try {
+    await access(resolve(PROJECT_ROOT, file));
+    return true;
+  }
+  catch {
+    return false;
+  }
 }
 
 describe('playback ownership boundary', () => {
@@ -50,6 +67,12 @@ describe('playback ownership boundary', () => {
       expect(source.includes('LegacyPlaybackManifestServiceAdapter'), file).toBe(false);
       expect(source.includes('LegacyPlaybackMediaSegmentServiceAdapter'), file).toBe(false);
       expect(source.includes('LegacyPlaybackClearKeyServiceAdapter'), file).toBe(false);
+    }
+  });
+
+  test('retired playback adapter source files no longer exist on disk', async () => {
+    for (const file of RETIRED_PLAYBACK_FILES) {
+      await expect(pathExists(file), file).resolves.toBe(false);
     }
   });
 });

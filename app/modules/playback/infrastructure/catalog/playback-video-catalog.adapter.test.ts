@@ -82,7 +82,7 @@ describe('PlaybackVideoCatalogAdapter', () => {
     });
   });
 
-  test('returns null when the legacy repository cannot resolve the requested video', async () => {
+  test('returns null when the playback repository cannot resolve the requested video', async () => {
     const { PlaybackVideoCatalogAdapter } = await import('./playback-video-catalog.adapter');
     const adapter = new PlaybackVideoCatalogAdapter({
       repository: {

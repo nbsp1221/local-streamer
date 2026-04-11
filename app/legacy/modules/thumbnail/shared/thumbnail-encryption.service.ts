@@ -114,6 +114,10 @@ export class ThumbnailEncryptionService {
         throw new Error(`Decryption failed: ${decryptionResult.error}`);
       }
 
+      if (!ThumbnailCryptoUtils.looksLikeJpeg(decryptionResult.data)) {
+        throw new Error('Decrypted thumbnail is not a valid JPEG image');
+      }
+
       this.deps.logger?.info(`✅ Thumbnail decrypted: ${videoId} (${decryptionResult.data!.length}B)`);
 
       return {

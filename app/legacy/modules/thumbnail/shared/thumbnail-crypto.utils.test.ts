@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ThumbnailCryptoUtils } from './thumbnail-crypto.utils';
 import { THUMBNAIL_IV_SIZE } from './thumbnail-encryption.types';
@@ -5,6 +7,7 @@ import { THUMBNAIL_IV_SIZE } from './thumbnail-encryption.types';
 describe('ThumbnailCryptoUtils', () => {
   const testKey = Buffer.from('0123456789abcdef'); // 16-byte test key for AES-128
   const testImageData = Buffer.from('fake image data for testing');
+  const validJpegBuffer = readFileSync(path.resolve(process.cwd(), 'public/images/video-placeholder.jpg'));
 
   describe('generateIV', () => {
     it('should generate a 16-byte IV', () => {
@@ -104,7 +107,7 @@ describe('ThumbnailCryptoUtils', () => {
       expect(decryptResult.error).toBeUndefined();
     });
 
-    it('should fail with wrong key', () => {
+    it('should not recover the original plaintext with a wrong key', () => {
       const wrongKey = Buffer.from('wrongkey12345678'); // Different key
 
       // Encrypt with correct key
@@ -114,7 +117,12 @@ describe('ThumbnailCryptoUtils', () => {
       // Try to decrypt with wrong key
       const decryptResult = ThumbnailCryptoUtils.decryptWithIVHeader(encryptResult.data!, wrongKey);
 
-      expect(decryptResult.success).toBe(false);
+      if (decryptResult.success) {
+        expect(decryptResult.data!.equals(testImageData)).toBe(false);
+        expect(decryptResult.error).toBeUndefined();
+        return;
+      }
+
       expect(decryptResult.error).toBeDefined();
       expect(decryptResult.data).toBeUndefined();
     });
@@ -153,6 +161,32 @@ describe('ThumbnailCryptoUtils', () => {
       const isValid = ThumbnailCryptoUtils.validateEncryptedFormat(emptyBuffer);
 
       expect(isValid).toBe(false);
+    });
+  });
+
+  describe('looksLikeJpeg', () => {
+    it('accepts a structurally valid JPEG buffer', () => {
+      expect(ThumbnailCryptoUtils.looksLikeJpeg(validJpegBuffer)).toBe(true);
+    });
+
+    it('rejects a non-JPEG buffer even when bytes are present', () => {
+      expect(ThumbnailCryptoUtils.looksLikeJpeg(Buffer.from('not-a-jpeg'))).toBe(false);
+    });
+
+    it('rejects malformed marker sequences that only mimic JPEG structure', () => {
+      expect(
+        ThumbnailCryptoUtils.looksLikeJpeg(
+          Buffer.from('ffd8ffdb0000ffc00000ffda000000ffd9', 'hex'),
+        ),
+      ).toBe(false);
+    });
+
+    it('rejects fake scan payloads that omit any frame marker', () => {
+      expect(
+        ThumbnailCryptoUtils.looksLikeJpeg(
+          Buffer.from('ffd8ffdb0002ffda0002ffd9', 'hex'),
+        ),
+      ).toBe(false);
     });
   });
 

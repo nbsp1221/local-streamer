@@ -4,12 +4,12 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
 import type { VideoRepository } from './interfaces/VideoRepository';
-import { LegacyVideoCatalogAdapter } from '~/modules/playback/infrastructure/catalog/legacy-video-catalog.adapter';
 import { DeleteVideoUseCase } from '~/legacy/modules/video/delete-video/delete-video.usecase';
 import { UpdateVideoUseCase } from '~/legacy/modules/video/update-video/update-video.usecase';
 import { JsonVideoRepository } from './JsonVideoRepository';
 import { SqliteVideoRepository } from './SqliteVideoRepository';
 import { SqliteLibraryVideoMetadataRepository } from '~/modules/library/infrastructure/sqlite/sqlite-library-video-metadata.repository';
+import { PlaybackVideoCatalogAdapter } from '~/modules/playback/infrastructure/catalog/playback-video-catalog.adapter';
 
 describe('SqliteVideoRepository', () => {
   let dbPath: string;
@@ -76,7 +76,7 @@ describe('SqliteVideoRepository', () => {
 
     await writeFile(videosJsonPath, '[]');
 
-    const playbackCatalog = new LegacyVideoCatalogAdapter({
+    const playbackCatalog = new PlaybackVideoCatalogAdapter({
       repository,
     });
     const playerVideo = await playbackCatalog.getPlayerVideo('sqlite-created');

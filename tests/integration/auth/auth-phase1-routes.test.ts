@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { getCookieMap, toRequestCookieHeader } from '../../helpers/cookies';
 
+const VALID_JPEG_FIXTURE_PATH = join(process.cwd(), 'public', 'images', 'video-placeholder.jpg');
+
 interface AuthSessionRow {
   created_at: string;
   expires_at: string;
@@ -1140,7 +1142,7 @@ describe('Phase 1 auth gate routes', () => {
     const videoDir = join(storageDir, 'data', 'videos', videoId);
     const plaintextThumbnailPath = join(videoDir, 'thumbnail.jpg');
     await mkdir(videoDir, { recursive: true });
-    await writeFile(plaintextThumbnailPath, new Uint8Array([1, 2, 3]));
+    await writeFile(plaintextThumbnailPath, await readFile(VALID_JPEG_FIXTURE_PATH));
 
     const [{ Pbkdf2KeyManagerAdapter }, { ThumbnailEncryptionService }] = await Promise.all([
       import('../../../app/legacy/modules/video/security/adapters/pbkdf2-key-manager.adapter'),

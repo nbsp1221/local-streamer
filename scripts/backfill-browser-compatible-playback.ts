@@ -272,7 +272,7 @@ async function reconcileThumbnailEncryption(input: {
   }
 
   const currentDecryption = ThumbnailCryptoUtils.decryptWithIVHeader(currentThumbnail, currentKey);
-  if (currentDecryption.success && looksLikeJpeg(currentDecryption.data)) {
+  if (currentDecryption.success && ThumbnailCryptoUtils.looksLikeJpeg(currentDecryption.data)) {
     return;
   }
 
@@ -282,11 +282,11 @@ async function reconcileThumbnailEncryption(input: {
   }
 
   const decryptWithPreviousKey = ThumbnailCryptoUtils.decryptWithIVHeader(currentThumbnail, previousKey);
-  const previousThumbnail = decryptWithPreviousKey.success && looksLikeJpeg(decryptWithPreviousKey.data)
+  const previousThumbnail = decryptWithPreviousKey.success && ThumbnailCryptoUtils.looksLikeJpeg(decryptWithPreviousKey.data)
     ? decryptWithPreviousKey
     : ThumbnailCryptoUtils.decryptWithIVHeader(input.previous?.data ?? currentThumbnail, previousKey);
 
-  if (!previousThumbnail.success || !looksLikeJpeg(previousThumbnail.data)) {
+  if (!previousThumbnail.success || !ThumbnailCryptoUtils.looksLikeJpeg(previousThumbnail.data)) {
     throw new Error(`Encrypted thumbnail for ${input.videoId} cannot be re-keyed after backfill.`);
   }
 
@@ -428,69 +428,6 @@ async function readStoredKey(targetDir: string): Promise<Buffer | null> {
   catch {
     return null;
   }
-}
-
-function looksLikeJpeg(buffer: Buffer | undefined): buffer is Buffer {
-  if (!buffer || buffer.length < 4) {
-    return false;
-  }
-
-  if (buffer[0] !== 0xFF || buffer[1] !== 0xD8) {
-    return false;
-  }
-
-  if (buffer[buffer.length - 2] !== 0xFF || buffer[buffer.length - 1] !== 0xD9) {
-    return false;
-  }
-
-  const startOfScanIndex = findJpegMarker(buffer, marker => marker === 0xDA);
-
-  if (startOfScanIndex === -1) {
-    return false;
-  }
-
-  const hasFrameMarker = findJpegMarker(
-    buffer,
-    marker => (marker >= 0xC0 && marker <= 0xC3) || (marker >= 0xC5 && marker <= 0xC7) || (marker >= 0xC9 && marker <= 0xCB) || (marker >= 0xCD && marker <= 0xCF),
-    2,
-    startOfScanIndex,
-  ) !== -1;
-
-  if (!hasFrameMarker) {
-    return false;
-  }
-
-  return findJpegMarker(
-    buffer,
-    marker => marker === 0xDB || marker === 0xC4 || marker === 0xDD,
-    2,
-    startOfScanIndex,
-  ) !== -1;
-}
-
-function findJpegMarker(
-  buffer: Buffer,
-  predicate: (marker: number) => boolean,
-  start = 0,
-  end = buffer.length - 1,
-): number {
-  for (let index = Math.max(0, start); index < Math.min(buffer.length - 1, end); index += 1) {
-    if (buffer[index] !== 0xFF) {
-      continue;
-    }
-
-    const marker = buffer[index + 1];
-
-    if (marker === 0x00 || marker === 0xFF) {
-      continue;
-    }
-
-    if (predicate(marker)) {
-      return index;
-    }
-  }
-
-  return -1;
 }
 
 function isMissingFsError(error: unknown): error is NodeJS.ErrnoException {

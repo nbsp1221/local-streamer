@@ -26,10 +26,10 @@ describe('PlaybackClearKeyService', () => {
     const keyBuffer = Buffer.from('00112233445566778899aabbccddeeff', 'hex');
     await writeFile(path.join(rootDir, 'data', 'videos', 'video-1', 'key.bin'), keyBuffer);
 
-    const adapter = new PlaybackClearKeyService();
+    const service = new PlaybackClearKeyService();
 
     try {
-      const result = await adapter.serveLicense({
+      const result = await service.serveLicense({
         videoId: 'video-1',
       });
 
@@ -72,10 +72,10 @@ describe('PlaybackClearKeyService', () => {
     process.env.STORAGE_DIR = rootDir;
     await mkdir(path.join(rootDir, 'data', 'videos', 'video-1'), { recursive: true });
 
-    const adapter = new PlaybackClearKeyService();
+    const service = new PlaybackClearKeyService();
 
     try {
-      await expect(adapter.serveLicense({
+      await expect(service.serveLicense({
         videoId: 'video-1',
       })).rejects.toMatchObject({
         name: 'NotFoundError',
@@ -89,9 +89,9 @@ describe('PlaybackClearKeyService', () => {
 
   test('rejects unsafe playback video ids before touching the filesystem', async () => {
     const { PlaybackClearKeyService } = await import('./playback-clearkey.service');
-    const adapter = new PlaybackClearKeyService();
+    const service = new PlaybackClearKeyService();
 
-    await expect(adapter.serveLicense({
+    await expect(service.serveLicense({
       videoId: '../escape',
     })).rejects.toMatchObject({
       message: 'Invalid video ID format',

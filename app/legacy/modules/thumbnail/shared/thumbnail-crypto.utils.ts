@@ -146,4 +146,263 @@ export class ThumbnailCryptoUtils {
 
     return true; // Likely encrypted data
   }
+
+  static looksLikeJpeg(buffer: Buffer | undefined): buffer is Buffer {
+    if (!buffer || buffer.length < 4) {
+      return false;
+    }
+
+    if (buffer[0] !== 0xFF || buffer[1] !== 0xD8) {
+      return false;
+    }
+
+    if (buffer[buffer.length - 2] !== 0xFF || buffer[buffer.length - 1] !== 0xD9) {
+      return false;
+    }
+
+    let cursor = 2;
+    let sawFrameMarker = false;
+    let sawScanHeaderDependency = false;
+    let sawStartOfScan = false;
+
+    while (cursor < buffer.length) {
+      const segment = readNextJpegSegment(buffer, cursor);
+      if (!segment) {
+        return false;
+      }
+
+      if (segment.marker === 0xD9) {
+        return sawStartOfScan
+          && sawFrameMarker
+          && sawScanHeaderDependency
+          && segment.nextCursor === buffer.length;
+      }
+
+      cursor = segment.nextCursor;
+
+      if (segment.isStandalone) {
+        continue;
+      }
+
+      if (!validateJpegSegment(segment, buffer)) {
+        return false;
+      }
+
+      if (isScanHeaderDependencyMarker(segment.marker)) {
+        sawScanHeaderDependency = true;
+      }
+
+      if (isStartOfFrameMarker(segment.marker)) {
+        sawFrameMarker = true;
+      }
+
+      if (segment.marker === 0xDA) {
+        if (!sawFrameMarker || !sawScanHeaderDependency) {
+          return false;
+        }
+
+        sawStartOfScan = true;
+        cursor = readNextScanMarkerOffset(buffer, segment.segmentEnd);
+
+        if (cursor === -1) {
+          return false;
+        }
+
+        continue;
+      }
+
+      cursor = segment.segmentEnd;
+    }
+
+    return false;
+  }
+}
+
+interface JpegSegment {
+  isStandalone: boolean;
+  marker: number;
+  nextCursor: number;
+  segmentDataStart: number;
+  segmentEnd: number;
+  segmentLength: number;
+}
+
+function readNextJpegMarkerOffset(
+  buffer: Buffer,
+  startIndex: number,
+): number {
+  for (let index = Math.max(startIndex, 0); index < buffer.length - 1; index += 1) {
+    if (buffer[index] === 0xFF && buffer[index + 1] !== 0x00 && buffer[index + 1] !== 0xFF) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function readNextJpegSegment(
+  buffer: Buffer,
+  startIndex: number,
+): JpegSegment | null {
+  const markerOffset = readNextJpegMarkerOffset(buffer, startIndex);
+
+  if (markerOffset === -1 || markerOffset + 1 >= buffer.length) {
+    return null;
+  }
+
+  const marker = buffer[markerOffset + 1];
+  const nextCursor = markerOffset + 2;
+
+  if (marker === 0xD9 || isStandaloneJpegMarker(marker)) {
+    return {
+      isStandalone: true,
+      marker,
+      nextCursor,
+      segmentDataStart: nextCursor,
+      segmentEnd: nextCursor,
+      segmentLength: 0,
+    };
+  }
+
+  if (nextCursor + 1 >= buffer.length) {
+    return null;
+  }
+
+  const segmentLength = buffer.readUInt16BE(nextCursor);
+  if (segmentLength < 2) {
+    return null;
+  }
+
+  const segmentDataStart = nextCursor + 2;
+  const segmentEnd = nextCursor + segmentLength;
+  if (segmentEnd > buffer.length) {
+    return null;
+  }
+
+  return {
+    isStandalone: false,
+    marker,
+    nextCursor,
+    segmentDataStart,
+    segmentEnd,
+    segmentLength,
+  };
+}
+
+function readNextScanMarkerOffset(buffer: Buffer, startIndex: number): number {
+  let cursor = startIndex;
+
+  while (cursor < buffer.length - 1) {
+    if (buffer[cursor] !== 0xFF) {
+      cursor += 1;
+      continue;
+    }
+
+    const marker = buffer[cursor + 1];
+
+    if (marker === 0x00) {
+      cursor += 2;
+      continue;
+    }
+
+    if (marker >= 0xD0 && marker <= 0xD7) {
+      cursor += 2;
+      continue;
+    }
+
+    if (marker === 0xFF) {
+      cursor += 1;
+      continue;
+    }
+
+    return cursor;
+  }
+
+  return -1;
+}
+
+function isStandaloneJpegMarker(marker: number): boolean {
+  return marker === 0x01 || (marker >= 0xD0 && marker <= 0xD8);
+}
+
+function isStartOfFrameMarker(marker: number): boolean {
+  return (marker >= 0xC0 && marker <= 0xC3)
+    || (marker >= 0xC5 && marker <= 0xC7)
+    || (marker >= 0xC9 && marker <= 0xCB)
+    || (marker >= 0xCD && marker <= 0xCF);
+}
+
+function validateJpegSegment(
+  segment: JpegSegment,
+  buffer: Buffer,
+): boolean {
+  if (segment.marker === 0xDA) {
+    return validateStartOfScanSegment(buffer, segment.segmentDataStart, segment.segmentLength);
+  }
+
+  if (isStartOfFrameMarker(segment.marker)) {
+    return validateStartOfFrameSegment(buffer, segment.segmentDataStart, segment.segmentLength);
+  }
+
+  if (segment.marker === 0xDD) {
+    return segment.segmentLength === 4;
+  }
+
+  if (segment.marker === 0xDB) {
+    return segment.segmentLength >= 67;
+  }
+
+  if (segment.marker === 0xC4) {
+    return segment.segmentLength >= 19;
+  }
+
+  return segment.segmentLength >= 2;
+}
+
+function isScanHeaderDependencyMarker(marker: number): boolean {
+  return marker === 0xDB || marker === 0xC4 || marker === 0xDD;
+}
+
+function validateStartOfFrameSegment(
+  buffer: Buffer,
+  segmentDataStart: number,
+  segmentLength: number,
+): boolean {
+  if (segmentLength < 11) {
+    return false;
+  }
+
+  const componentCountOffset = segmentDataStart + 5;
+  if (componentCountOffset >= buffer.length) {
+    return false;
+  }
+
+  const componentCount = buffer[componentCountOffset];
+  if (componentCount < 1) {
+    return false;
+  }
+
+  return segmentLength === 8 + (componentCount * 3);
+}
+
+function validateStartOfScanSegment(
+  buffer: Buffer,
+  segmentDataStart: number,
+  segmentLength: number,
+): boolean {
+  if (segmentLength < 8) {
+    return false;
+  }
+
+  const componentCountOffset = segmentDataStart;
+  if (componentCountOffset >= buffer.length) {
+    return false;
+  }
+
+  const componentCount = buffer[componentCountOffset];
+  if (componentCount < 1) {
+    return false;
+  }
+
+  return segmentLength === 6 + (componentCount * 2);
 }

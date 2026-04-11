@@ -27,10 +27,10 @@ describe('PlaybackManifestService', () => {
     await writeFile(path.join(rootDir, 'data', 'videos', validVideoId, 'manifest.mpd'), '<MPD />');
     await writeFile(path.join(rootDir, 'data', 'videos', validVideoId, 'key.bin'), Buffer.alloc(16));
 
-    const adapter = new PlaybackManifestService();
+    const service = new PlaybackManifestService();
 
     try {
-      const result = await adapter.getManifest({
+      const result = await service.getManifest({
         videoId: validVideoId,
       });
 
@@ -59,10 +59,10 @@ describe('PlaybackManifestService', () => {
     process.env.STORAGE_DIR = rootDir;
     await mkdir(path.join(rootDir, 'data', 'videos', validVideoId), { recursive: true });
 
-    const adapter = new PlaybackManifestService();
+    const service = new PlaybackManifestService();
 
     try {
-      await expect(adapter.getManifest({
+      await expect(service.getManifest({
         videoId: validVideoId,
       })).rejects.toMatchObject({
         message: 'Playback manifest not found',
@@ -82,10 +82,10 @@ describe('PlaybackManifestService', () => {
     await mkdir(path.join(rootDir, 'data', 'videos', validVideoId), { recursive: true });
     await writeFile(path.join(rootDir, 'data', 'videos', validVideoId, 'manifest.mpd'), '<MPD />');
 
-    const adapter = new PlaybackManifestService();
+    const service = new PlaybackManifestService();
 
     try {
-      await expect(adapter.getManifest({
+      await expect(service.getManifest({
         videoId: validVideoId,
       })).rejects.toMatchObject({
         message: 'Video encryption key not found',
@@ -100,9 +100,9 @@ describe('PlaybackManifestService', () => {
 
   test('rejects invalid video IDs before resolving the manifest path', async () => {
     const { PlaybackManifestService } = await import('./playback-manifest.service');
-    const adapter = new PlaybackManifestService();
+    const service = new PlaybackManifestService();
 
-    await expect(adapter.getManifest({
+    await expect(service.getManifest({
       videoId: '../escape',
     })).rejects.toMatchObject({
       message: 'Invalid video ID format',

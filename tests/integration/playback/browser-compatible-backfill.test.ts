@@ -1,4 +1,5 @@
 import { promises as fsPromises } from 'fs';
+import { readFileSync } from 'fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import crypto from 'node:crypto';
 import { tmpdir } from 'os';
@@ -7,10 +8,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { ThumbnailCryptoUtils } from '~/legacy/modules/thumbnail/shared/thumbnail-crypto.utils';
 import { backfillBrowserCompatiblePlayback } from '../../../scripts/backfill-browser-compatible-playback';
 
-const VALID_JPEG_BUFFER = Buffer.from(
-  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxAQEBUQEBAVFRUVFRUVFRUVFRUVFRUVFRUWFhUVFRUYHSggGBolGxUVITEhJSkrLi4uFx8zODMsNygtLisBCgoKDg0OGxAQGi0fHR0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLf/AABEIAAEAAQMBIgACEQEDEQH/xAAXAAADAQAAAAAAAAAAAAAAAAAAAQID/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEAMQAAAByA//xAAYEAADAQEAAAAAAAAAAAAAAAAAAQIRIf/aAAgBAQABBQJfV//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8BP//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8BP//Z',
-  'base64',
-);
+const VALID_JPEG_BUFFER = readFileSync(join(process.cwd(), 'public', 'images', 'video-placeholder.jpg'));
 
 function createApp2JpegVariant(): Buffer {
   const mutated = Buffer.from(VALID_JPEG_BUFFER);
