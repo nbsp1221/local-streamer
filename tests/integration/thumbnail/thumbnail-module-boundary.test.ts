@@ -8,6 +8,10 @@ const allowedLegacyImportFiles = new Set([
     thumbnailRoot,
     'infrastructure/decryption/legacy-thumbnail-decryption.service.adapter.ts',
   ),
+  join(
+    thumbnailRoot,
+    'infrastructure/finalization/legacy-thumbnail-finalizer.adapter.ts',
+  ),
 ]);
 const forbiddenImportPatterns = [
   /(?:from|import\s*\(|require\s*\()\s*['"]~\/legacy(?:\/|['"])/,

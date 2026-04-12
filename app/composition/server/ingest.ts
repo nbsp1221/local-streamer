@@ -8,11 +8,11 @@ import { AddVideoToLibraryUseCase } from '~/modules/ingest/application/use-cases
 import { LoadPendingUploadSnapshotUseCase } from '~/modules/ingest/application/use-cases/load-pending-upload-snapshot.usecase';
 import { ScanIncomingVideosUseCase } from '~/modules/ingest/application/use-cases/scan-incoming-videos.usecase';
 import { JsonIngestPendingVideoReaderAdapter } from '~/modules/ingest/infrastructure/pending/json-ingest-pending-video-reader.adapter';
+import { FfmpegIngestVideoProcessingAdapter } from '~/modules/ingest/infrastructure/processing/ffmpeg-ingest-video-processing.adapter';
 import { FilesystemIngestUploadScanAdapter } from '~/modules/ingest/infrastructure/scan/filesystem-ingest-upload-scan.adapter';
 import { FfmpegIngestPendingThumbnailEnricherAdapter } from '~/modules/ingest/infrastructure/thumbnail/ffmpeg-ingest-pending-thumbnail-enricher.adapter';
 import { FilesystemIngestPreparedVideoWorkspaceAdapter } from '~/modules/ingest/infrastructure/workspace/filesystem-ingest-prepared-video-workspace.adapter';
 import { createCanonicalVideoMetadataLegacyStore } from './canonical-video-metadata-legacy-store';
-import { createIngestLegacyVideoProcessing } from './ingest-legacy-video-processing';
 
 export interface ServerIngestServices {
   addVideoToLibrary: AddVideoToLibraryUseCase;
@@ -66,7 +66,7 @@ export function createServerIngestServices(
   const getPreparedVideoWorkspace = createLazyValue(() => overrides.preparedVideoWorkspace ?? new FilesystemIngestPreparedVideoWorkspaceAdapter());
   const getUploadScan = createLazyValue(() => overrides.uploadScan ?? new FilesystemIngestUploadScanAdapter());
   const getVideoMetadataWriter = createLazyValue(() => overrides.videoMetadataWriter ?? createCanonicalVideoMetadataLegacyStore());
-  const getVideoProcessing = createLazyValue(() => overrides.videoProcessing ?? createIngestLegacyVideoProcessing());
+  const getVideoProcessing = createLazyValue(() => overrides.videoProcessing ?? new FfmpegIngestVideoProcessingAdapter());
   const getAddVideoToLibrary = createLazyValue(() => new AddVideoToLibraryUseCase({
     preparedVideoWorkspace: getPreparedVideoWorkspace(),
     videoProcessing: getVideoProcessing(),

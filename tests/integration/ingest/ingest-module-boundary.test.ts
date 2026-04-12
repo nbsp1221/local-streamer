@@ -3,6 +3,12 @@ import { join, relative } from 'node:path';
 import { describe, expect, test } from 'vitest';
 
 const ingestRoot = join(process.cwd(), 'app/modules/ingest');
+const allowedLegacyImportFiles = new Set([
+  join(
+    ingestRoot,
+    'infrastructure/processing/ffmpeg-ingest-video-processing.adapter.ts',
+  ),
+]);
 const forbiddenImportPatterns = [
   /(?:from|import\s*\(|require\s*\()\s*['"]~\/legacy(?:\/|['"])/,
   /(?:from|import\s*\(|require\s*\()\s*['"]app\/legacy(?:\/|['"])/,
@@ -31,6 +37,10 @@ describe('ingest module boundary', () => {
     const files = await collectIngestFiles(ingestRoot);
 
     for (const filePath of files) {
+      if (allowedLegacyImportFiles.has(filePath)) {
+        continue;
+      }
+
       const source = await readFile(filePath, 'utf8');
       const hasForbiddenImport = forbiddenImportPatterns.some(pattern => pattern.test(source));
 

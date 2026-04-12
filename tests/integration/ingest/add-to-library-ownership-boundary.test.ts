@@ -76,6 +76,26 @@ describe('add-to-library ownership boundary', () => {
     ).toBe(false);
   });
 
+  test('ingest composition no longer depends on the legacy video-processing seam', async () => {
+    const filePath = join(projectRoot, 'app/composition/server/ingest.ts');
+    const source = await readFile(filePath, 'utf8');
+
+    expect(
+      source.includes('./ingest-legacy-video-processing'),
+      'ingest.ts should not import the retired video-processing seam',
+    ).toBe(false);
+  });
+
+  test('ingest composition no longer depends on the broad legacy video-processing seam', async () => {
+    const filePath = join(projectRoot, 'app/composition/server/ingest.ts');
+    const source = await readFile(filePath, 'utf8');
+
+    expect(
+      source.includes('./ingest-legacy-video-processing'),
+      'ingest.ts should not import the retired broad video-processing seam',
+    ).toBe(false);
+  });
+
   test('add-to-library use case no longer depends on the broad ingest library-intake port', async () => {
     const filePath = join(projectRoot, 'app/modules/ingest/application/use-cases/add-video-to-library.usecase.ts');
     const source = await readFile(filePath, 'utf8');

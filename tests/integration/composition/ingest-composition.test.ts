@@ -5,7 +5,7 @@ const FfmpegIngestPendingThumbnailEnricherAdapterMock = vi.fn();
 const JsonIngestPendingVideoReaderAdapterMock = vi.fn();
 const FilesystemIngestUploadScanAdapterMock = vi.fn();
 const FilesystemIngestPreparedVideoWorkspaceAdapterMock = vi.fn();
-const createIngestLegacyVideoProcessingMock = vi.fn();
+const FfmpegIngestVideoProcessingAdapterMock = vi.fn();
 
 vi.mock('~/composition/server/canonical-video-metadata-legacy-store', () => ({
   createCanonicalVideoMetadataLegacyStore: createCanonicalVideoMetadataLegacyStoreMock,
@@ -23,8 +23,8 @@ vi.mock('~/modules/ingest/infrastructure/scan/filesystem-ingest-upload-scan.adap
   FilesystemIngestUploadScanAdapter: FilesystemIngestUploadScanAdapterMock,
 }));
 
-vi.mock('~/composition/server/ingest-legacy-video-processing', () => ({
-  createIngestLegacyVideoProcessing: createIngestLegacyVideoProcessingMock,
+vi.mock('~/modules/ingest/infrastructure/processing/ffmpeg-ingest-video-processing.adapter', () => ({
+  FfmpegIngestVideoProcessingAdapter: FfmpegIngestVideoProcessingAdapterMock,
 }));
 
 vi.mock('~/modules/ingest/infrastructure/pending/json-ingest-pending-video-reader.adapter', () => ({
@@ -166,7 +166,7 @@ describe('server ingest composition root', () => {
       preparePreparedVideo: prepareVideoForLibrary,
       recoverPreparedVideo: recoverFailedPreparedVideo,
     }));
-    createIngestLegacyVideoProcessingMock.mockReturnValue({
+    FfmpegIngestVideoProcessingAdapterMock.mockReturnValue({
       finalizeSuccessfulVideo: finalizeSuccessfulPreparedVideo,
       processPreparedVideo,
     });
@@ -211,7 +211,7 @@ describe('server ingest composition root', () => {
     expect(FilesystemIngestUploadScanAdapterMock).toHaveBeenCalledOnce();
     expect(FfmpegIngestPendingThumbnailEnricherAdapterMock).toHaveBeenCalledOnce();
     expect(FilesystemIngestPreparedVideoWorkspaceAdapterMock).toHaveBeenCalledOnce();
-    expect(createIngestLegacyVideoProcessingMock).toHaveBeenCalledOnce();
+    expect(FfmpegIngestVideoProcessingAdapterMock).toHaveBeenCalledOnce();
     expect(JsonIngestPendingVideoReaderAdapterMock).toHaveBeenCalledOnce();
     expect(createCanonicalVideoMetadataLegacyStoreMock).toHaveBeenCalledOnce();
     expect(readPendingUploads).toHaveBeenCalledOnce();

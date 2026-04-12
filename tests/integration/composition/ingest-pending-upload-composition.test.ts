@@ -5,7 +5,7 @@ const FfmpegIngestPendingThumbnailEnricherAdapterMock = vi.fn();
 const JsonIngestPendingVideoReaderAdapterMock = vi.fn();
 const FilesystemIngestPreparedVideoWorkspaceAdapterMock = vi.fn();
 const FilesystemIngestUploadScanAdapterMock = vi.fn();
-const createIngestLegacyVideoProcessingMock = vi.fn();
+const FfmpegIngestVideoProcessingAdapterMock = vi.fn();
 
 vi.mock('~/composition/server/canonical-video-metadata-legacy-store', () => ({
   createCanonicalVideoMetadataLegacyStore: createCanonicalVideoMetadataLegacyStoreMock,
@@ -23,8 +23,8 @@ vi.mock('~/modules/ingest/infrastructure/scan/filesystem-ingest-upload-scan.adap
   FilesystemIngestUploadScanAdapter: FilesystemIngestUploadScanAdapterMock,
 }));
 
-vi.mock('~/composition/server/ingest-legacy-video-processing', () => ({
-  createIngestLegacyVideoProcessing: createIngestLegacyVideoProcessingMock,
+vi.mock('~/modules/ingest/infrastructure/processing/ffmpeg-ingest-video-processing.adapter', () => ({
+  FfmpegIngestVideoProcessingAdapter: FfmpegIngestVideoProcessingAdapterMock,
 }));
 
 vi.mock('~/modules/ingest/infrastructure/pending/json-ingest-pending-video-reader.adapter', () => ({
@@ -68,7 +68,7 @@ describe('server ingest pending-upload composition root', () => {
     expect(FilesystemIngestUploadScanAdapterMock).not.toHaveBeenCalled();
     expect(FfmpegIngestPendingThumbnailEnricherAdapterMock).not.toHaveBeenCalled();
     expect(FilesystemIngestPreparedVideoWorkspaceAdapterMock).not.toHaveBeenCalled();
-    expect(createIngestLegacyVideoProcessingMock).not.toHaveBeenCalled();
+    expect(FfmpegIngestVideoProcessingAdapterMock).not.toHaveBeenCalled();
     expect(createCanonicalVideoMetadataLegacyStoreMock).not.toHaveBeenCalled();
   });
 
@@ -93,7 +93,7 @@ describe('server ingest pending-upload composition root', () => {
         retryAvailability: 'restored' as const,
       })),
     }));
-    createIngestLegacyVideoProcessingMock.mockReturnValue({
+    FfmpegIngestVideoProcessingAdapterMock.mockReturnValue({
       finalizeSuccessfulVideo: vi.fn(async () => undefined),
       processPreparedVideo: vi.fn(async () => ({
         dashEnabled: true,
@@ -135,7 +135,7 @@ describe('server ingest pending-upload composition root', () => {
     expect(FilesystemIngestUploadScanAdapterMock).not.toHaveBeenCalled();
     expect(FfmpegIngestPendingThumbnailEnricherAdapterMock).not.toHaveBeenCalled();
     expect(FilesystemIngestPreparedVideoWorkspaceAdapterMock).not.toHaveBeenCalled();
-    expect(createIngestLegacyVideoProcessingMock).not.toHaveBeenCalled();
+    expect(FfmpegIngestVideoProcessingAdapterMock).not.toHaveBeenCalled();
     expect(createCanonicalVideoMetadataLegacyStoreMock).not.toHaveBeenCalled();
     await expect(first.loadPendingUploadSnapshot.execute()).resolves.toEqual({
       ok: true,

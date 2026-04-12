@@ -5,7 +5,7 @@ const FfmpegIngestPendingThumbnailEnricherAdapterMock = vi.fn();
 const JsonIngestPendingVideoReaderAdapterMock = vi.fn();
 const FilesystemIngestPreparedVideoWorkspaceAdapterMock = vi.fn();
 const FilesystemIngestUploadScanAdapterMock = vi.fn();
-const createIngestLegacyVideoProcessingMock = vi.fn();
+const FfmpegIngestVideoProcessingAdapterMock = vi.fn();
 
 vi.mock('~/composition/server/canonical-video-metadata-legacy-store', () => ({
   createCanonicalVideoMetadataLegacyStore: createCanonicalVideoMetadataLegacyStoreMock,
@@ -23,8 +23,8 @@ vi.mock('~/modules/ingest/infrastructure/scan/filesystem-ingest-upload-scan.adap
   FilesystemIngestUploadScanAdapter: FilesystemIngestUploadScanAdapterMock,
 }));
 
-vi.mock('~/composition/server/ingest-legacy-video-processing', () => ({
-  createIngestLegacyVideoProcessing: createIngestLegacyVideoProcessingMock,
+vi.mock('~/modules/ingest/infrastructure/processing/ffmpeg-ingest-video-processing.adapter', () => ({
+  FfmpegIngestVideoProcessingAdapter: FfmpegIngestVideoProcessingAdapterMock,
 }));
 
 vi.mock('~/modules/ingest/infrastructure/pending/json-ingest-pending-video-reader.adapter', () => ({
@@ -87,7 +87,7 @@ describe('ingest scan-incoming composition', () => {
     expect(FfmpegIngestPendingThumbnailEnricherAdapterMock).not.toHaveBeenCalled();
     expect(JsonIngestPendingVideoReaderAdapterMock).not.toHaveBeenCalled();
     expect(FilesystemIngestPreparedVideoWorkspaceAdapterMock).not.toHaveBeenCalled();
-    expect(createIngestLegacyVideoProcessingMock).not.toHaveBeenCalled();
+    expect(FfmpegIngestVideoProcessingAdapterMock).not.toHaveBeenCalled();
     expect(createCanonicalVideoMetadataLegacyStoreMock).not.toHaveBeenCalled();
   });
 });
