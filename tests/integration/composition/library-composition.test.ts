@@ -1,16 +1,21 @@
+import { access, readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-const createCanonicalVideoMetadataLegacyStoreMock = vi.fn();
-const createLegacyArtifactRemovalPortMock = vi.fn();
-const createLegacyMutationPortMock = vi.fn();
+const SqliteCanonicalVideoMetadataAdapterMock = vi.fn();
+const SqliteLibraryVideoMutationAdapterMock = vi.fn();
+const FilesystemLibraryVideoArtifactRemovalAdapterMock = vi.fn();
 
-vi.mock('~/composition/server/canonical-video-metadata-legacy-store', () => ({
-  createCanonicalVideoMetadataLegacyStore: createCanonicalVideoMetadataLegacyStoreMock,
+vi.mock('~/modules/library/infrastructure/sqlite/sqlite-canonical-video-metadata.adapter', () => ({
+  SqliteCanonicalVideoMetadataAdapter: SqliteCanonicalVideoMetadataAdapterMock,
 }));
 
-vi.mock('~/composition/server/library-legacy-video-mutation', () => ({
-  createLibraryLegacyVideoArtifactRemovalPort: createLegacyArtifactRemovalPortMock,
-  createLibraryLegacyVideoMutationPort: createLegacyMutationPortMock,
+vi.mock('~/modules/library/infrastructure/sqlite/sqlite-library-video-mutation.adapter', () => ({
+  SqliteLibraryVideoMutationAdapter: SqliteLibraryVideoMutationAdapterMock,
+}));
+
+vi.mock('~/modules/library/infrastructure/storage/filesystem-library-video-artifact-removal.adapter', () => ({
+  FilesystemLibraryVideoArtifactRemovalAdapter: FilesystemLibraryVideoArtifactRemovalAdapterMock,
 }));
 
 describe('server library composition root', () => {
@@ -73,14 +78,14 @@ describe('server library composition root', () => {
         videoUrl: '/videos/video-1/manifest.mpd',
       },
     ]);
-    createCanonicalVideoMetadataLegacyStoreMock.mockReturnValue({
+    SqliteCanonicalVideoMetadataAdapterMock.mockImplementation(() => ({
       listLibraryVideos,
       writeVideoRecord: vi.fn(),
-    });
-    createLegacyArtifactRemovalPortMock.mockReturnValue({
+    }));
+    FilesystemLibraryVideoArtifactRemovalAdapterMock.mockImplementation(() => ({
       cleanupVideoArtifacts: vi.fn(async () => ({})),
-    });
-    createLegacyMutationPortMock.mockReturnValue({
+    }));
+    SqliteLibraryVideoMutationAdapterMock.mockImplementation(() => ({
       deleteLibraryVideo: vi.fn(async () => ({
         deleted: true,
         title: 'Catalog Fixture',
@@ -101,7 +106,7 @@ describe('server library composition root', () => {
         title: input.title,
         videoUrl: '/videos/video-1/manifest.mpd',
       })),
-    });
+    }));
     vi.resetModules();
 
     const { getServerLibraryServices } = await import('../../../app/composition/server/library');
@@ -109,7 +114,9 @@ describe('server library composition root', () => {
     const second = getServerLibraryServices();
 
     expect(first).toBe(second);
-    expect(createCanonicalVideoMetadataLegacyStoreMock).toHaveBeenCalledOnce();
+    expect(SqliteCanonicalVideoMetadataAdapterMock).toHaveBeenCalledOnce();
+    expect(SqliteLibraryVideoMutationAdapterMock).toHaveBeenCalledOnce();
+    expect(FilesystemLibraryVideoArtifactRemovalAdapterMock).toHaveBeenCalledOnce();
     await expect(first.loadLibraryCatalogSnapshot.execute({
       rawQuery: '',
       rawTags: [],
@@ -130,5 +137,17 @@ describe('server library composition root', () => {
       },
     });
     expect(listLibraryVideos).toHaveBeenCalledOnce();
+  });
+
+  test('library composition root does not import retiring compatibility seam files', async () => {
+    const source = await readFile(resolve(process.cwd(), 'app/composition/server/library.ts'), 'utf8');
+
+    expect(source.includes('./canonical-video-metadata-legacy-store')).toBe(false);
+    expect(source.includes('./library-legacy-video-mutation')).toBe(false);
+  });
+
+  test('retired library compatibility seam files no longer exist on disk', async () => {
+    await expect(access(resolve(process.cwd(), 'app/composition/server/canonical-video-metadata-legacy-store.ts'))).rejects.toBeDefined();
+    await expect(access(resolve(process.cwd(), 'app/composition/server/library-legacy-video-mutation.ts'))).rejects.toBeDefined();
   });
 });

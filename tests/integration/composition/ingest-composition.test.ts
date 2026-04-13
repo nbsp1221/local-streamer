@@ -1,14 +1,16 @@
+import { access, readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-const createCanonicalVideoMetadataLegacyStoreMock = vi.fn();
+const SqliteCanonicalVideoMetadataAdapterMock = vi.fn();
 const FfmpegIngestPendingThumbnailEnricherAdapterMock = vi.fn();
 const JsonIngestPendingVideoReaderAdapterMock = vi.fn();
 const FilesystemIngestUploadScanAdapterMock = vi.fn();
 const FilesystemIngestPreparedVideoWorkspaceAdapterMock = vi.fn();
 const FfmpegIngestVideoProcessingAdapterMock = vi.fn();
 
-vi.mock('~/composition/server/canonical-video-metadata-legacy-store', () => ({
-  createCanonicalVideoMetadataLegacyStore: createCanonicalVideoMetadataLegacyStoreMock,
+vi.mock('~/modules/library/infrastructure/sqlite/sqlite-canonical-video-metadata.adapter', () => ({
+  SqliteCanonicalVideoMetadataAdapter: SqliteCanonicalVideoMetadataAdapterMock,
 }));
 
 vi.mock('~/modules/ingest/infrastructure/thumbnail/ffmpeg-ingest-pending-thumbnail-enricher.adapter', () => ({
@@ -175,10 +177,10 @@ describe('server ingest composition root', () => {
       readPendingUploads,
     }));
     const writeVideoRecord = vi.fn(async () => undefined);
-    createCanonicalVideoMetadataLegacyStoreMock.mockReturnValue({
+    SqliteCanonicalVideoMetadataAdapterMock.mockImplementation(() => ({
       listLibraryVideos: vi.fn(),
       writeVideoRecord,
-    });
+    }));
 
     const { getServerIngestServices } = await import('../../../app/composition/server/ingest');
     const first = getServerIngestServices();
@@ -213,7 +215,7 @@ describe('server ingest composition root', () => {
     expect(FilesystemIngestPreparedVideoWorkspaceAdapterMock).toHaveBeenCalledOnce();
     expect(FfmpegIngestVideoProcessingAdapterMock).toHaveBeenCalledOnce();
     expect(JsonIngestPendingVideoReaderAdapterMock).toHaveBeenCalledOnce();
-    expect(createCanonicalVideoMetadataLegacyStoreMock).toHaveBeenCalledOnce();
+    expect(SqliteCanonicalVideoMetadataAdapterMock).toHaveBeenCalledOnce();
     expect(readPendingUploads).toHaveBeenCalledOnce();
     expect(writeVideoRecord).not.toHaveBeenCalled();
     expect(recoverFailedPreparedVideo).toHaveBeenCalledWith({
@@ -221,5 +223,15 @@ describe('server ingest composition root', () => {
       videoId: expect.any(String),
     });
     expect(finalizeSuccessfulPreparedVideo).not.toHaveBeenCalled();
+  });
+
+  test('ingest composition root does not import the retiring canonical metadata seam file', async () => {
+    const source = await readFile(resolve(process.cwd(), 'app/composition/server/ingest.ts'), 'utf8');
+
+    expect(source.includes('./canonical-video-metadata-legacy-store')).toBe(false);
+  });
+
+  test('retired canonical metadata composition seam file no longer exists on disk', async () => {
+    await expect(access(resolve(process.cwd(), 'app/composition/server/canonical-video-metadata-legacy-store.ts'))).rejects.toBeDefined();
   });
 });

@@ -4,11 +4,9 @@ import type { LibraryVideoSourcePort } from '~/modules/library/application/ports
 import { DeleteLibraryVideoUseCase } from '~/modules/library/application/use-cases/delete-library-video.usecase';
 import { LoadLibraryCatalogSnapshotUseCase } from '~/modules/library/application/use-cases/load-library-catalog-snapshot.usecase';
 import { UpdateLibraryVideoUseCase } from '~/modules/library/application/use-cases/update-library-video.usecase';
-import { createCanonicalVideoMetadataLegacyStore } from './canonical-video-metadata-legacy-store';
-import {
-  createLibraryLegacyVideoArtifactRemovalPort,
-  createLibraryLegacyVideoMutationPort,
-} from './library-legacy-video-mutation';
+import { SqliteCanonicalVideoMetadataAdapter } from '~/modules/library/infrastructure/sqlite/sqlite-canonical-video-metadata.adapter';
+import { SqliteLibraryVideoMutationAdapter } from '~/modules/library/infrastructure/sqlite/sqlite-library-video-mutation.adapter';
+import { FilesystemLibraryVideoArtifactRemovalAdapter } from '~/modules/library/infrastructure/storage/filesystem-library-video-artifact-removal.adapter';
 
 export interface LoadLibraryCatalogSnapshotService {
   execute: LoadLibraryCatalogSnapshotUseCase['execute'];
@@ -32,9 +30,9 @@ function resolveDependencies(
   overrides: Partial<ServerLibraryServiceDependencies>,
 ): ServerLibraryServiceDependencies {
   return {
-    artifactRemovalPort: overrides.artifactRemovalPort ?? createLibraryLegacyVideoArtifactRemovalPort(),
-    mutationPort: overrides.mutationPort ?? createLibraryLegacyVideoMutationPort(),
-    videoSource: overrides.videoSource ?? createCanonicalVideoMetadataLegacyStore(),
+    artifactRemovalPort: overrides.artifactRemovalPort ?? new FilesystemLibraryVideoArtifactRemovalAdapter(),
+    mutationPort: overrides.mutationPort ?? new SqliteLibraryVideoMutationAdapter(),
+    videoSource: overrides.videoSource ?? new SqliteCanonicalVideoMetadataAdapter(),
   };
 }
 

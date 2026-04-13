@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-const createCanonicalVideoMetadataLegacyStoreMock = vi.fn();
+const SqliteCanonicalVideoMetadataAdapterMock = vi.fn();
 const FfmpegIngestPendingThumbnailEnricherAdapterMock = vi.fn();
 const JsonIngestPendingVideoReaderAdapterMock = vi.fn();
 const FilesystemIngestPreparedVideoWorkspaceAdapterMock = vi.fn();
 const FilesystemIngestUploadScanAdapterMock = vi.fn();
 const FfmpegIngestVideoProcessingAdapterMock = vi.fn();
 
-vi.mock('~/composition/server/canonical-video-metadata-legacy-store', () => ({
-  createCanonicalVideoMetadataLegacyStore: createCanonicalVideoMetadataLegacyStoreMock,
+vi.mock('~/modules/library/infrastructure/sqlite/sqlite-canonical-video-metadata.adapter', () => ({
+  SqliteCanonicalVideoMetadataAdapter: SqliteCanonicalVideoMetadataAdapterMock,
 }));
 
 vi.mock('~/modules/ingest/infrastructure/thumbnail/ffmpeg-ingest-pending-thumbnail-enricher.adapter', () => ({
@@ -75,6 +75,7 @@ describe('ingest library-intake composition', () => {
 
     expect(FilesystemIngestPreparedVideoWorkspaceAdapterMock).not.toHaveBeenCalled();
     expect(FfmpegIngestVideoProcessingAdapterMock).not.toHaveBeenCalled();
+    expect(SqliteCanonicalVideoMetadataAdapterMock).not.toHaveBeenCalled();
     expect(preparePreparedVideo).toHaveBeenCalledOnce();
     expect(processPreparedVideo).toHaveBeenCalledOnce();
     expect(finalizeSuccessfulVideo).toHaveBeenCalledOnce();

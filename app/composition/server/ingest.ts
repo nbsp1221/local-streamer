@@ -12,7 +12,7 @@ import { FfmpegIngestVideoProcessingAdapter } from '~/modules/ingest/infrastruct
 import { FilesystemIngestUploadScanAdapter } from '~/modules/ingest/infrastructure/scan/filesystem-ingest-upload-scan.adapter';
 import { FfmpegIngestPendingThumbnailEnricherAdapter } from '~/modules/ingest/infrastructure/thumbnail/ffmpeg-ingest-pending-thumbnail-enricher.adapter';
 import { FilesystemIngestPreparedVideoWorkspaceAdapter } from '~/modules/ingest/infrastructure/workspace/filesystem-ingest-prepared-video-workspace.adapter';
-import { createCanonicalVideoMetadataLegacyStore } from './canonical-video-metadata-legacy-store';
+import { SqliteCanonicalVideoMetadataAdapter } from '~/modules/library/infrastructure/sqlite/sqlite-canonical-video-metadata.adapter';
 
 export interface ServerIngestServices {
   addVideoToLibrary: AddVideoToLibraryUseCase;
@@ -65,7 +65,7 @@ export function createServerIngestServices(
   const getPendingVideoReader = createLazyValue(() => overrides.pendingVideoReader ?? new JsonIngestPendingVideoReaderAdapter());
   const getPreparedVideoWorkspace = createLazyValue(() => overrides.preparedVideoWorkspace ?? new FilesystemIngestPreparedVideoWorkspaceAdapter());
   const getUploadScan = createLazyValue(() => overrides.uploadScan ?? new FilesystemIngestUploadScanAdapter());
-  const getVideoMetadataWriter = createLazyValue(() => overrides.videoMetadataWriter ?? createCanonicalVideoMetadataLegacyStore());
+  const getVideoMetadataWriter = createLazyValue(() => overrides.videoMetadataWriter ?? new SqliteCanonicalVideoMetadataAdapter());
   const getVideoProcessing = createLazyValue(() => overrides.videoProcessing ?? new FfmpegIngestVideoProcessingAdapter());
   const getAddVideoToLibrary = createLazyValue(() => new AddVideoToLibraryUseCase({
     preparedVideoWorkspace: getPreparedVideoWorkspace(),

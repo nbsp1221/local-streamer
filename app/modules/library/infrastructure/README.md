@@ -1,6 +1,6 @@
 # Library Infrastructure
 
-This directory now contains the SQLite-backed canonical video metadata store.
+This directory now contains the active SQLite-backed canonical video metadata infrastructure.
 
 The current compatibility shape is:
 
@@ -8,12 +8,13 @@ The current compatibility shape is:
   `app/modules/library/infrastructure/sqlite`
 - local file persistence uses the single `@libsql/client` adapter path in
   `libsql-video-metadata.database.ts`
-- `app/legacy/repositories/SqliteVideoRepository.ts` adapts that store to the
-  existing `VideoRepository` interface so legacy update/delete/playback flows
-  keep using the same source of truth
-- `app/composition/server/canonical-video-metadata-legacy-store.ts` still
-  depends on `getVideoRepository()`, but that repository is no longer the JSON
-  implementation
+- active composition now depends on library-owned adapters:
+  - `sqlite-canonical-video-metadata.adapter.ts`
+  - `sqlite-library-video-mutation.adapter.ts`
+  - `storage/filesystem-library-video-artifact-removal.adapter.ts`
+- `app/legacy/repositories/SqliteVideoRepository.ts` remains only as a
+  compatibility consumer of the same canonical SQLite metadata source while
+  `app/legacy` still exists
 
 `videos.json` is now a bootstrap input for migration compatibility, not the
 canonical metadata source of truth.

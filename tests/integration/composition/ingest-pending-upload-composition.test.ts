@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-const createCanonicalVideoMetadataLegacyStoreMock = vi.fn();
+const SqliteCanonicalVideoMetadataAdapterMock = vi.fn();
 const FfmpegIngestPendingThumbnailEnricherAdapterMock = vi.fn();
 const JsonIngestPendingVideoReaderAdapterMock = vi.fn();
 const FilesystemIngestPreparedVideoWorkspaceAdapterMock = vi.fn();
 const FilesystemIngestUploadScanAdapterMock = vi.fn();
 const FfmpegIngestVideoProcessingAdapterMock = vi.fn();
 
-vi.mock('~/composition/server/canonical-video-metadata-legacy-store', () => ({
-  createCanonicalVideoMetadataLegacyStore: createCanonicalVideoMetadataLegacyStoreMock,
+vi.mock('~/modules/library/infrastructure/sqlite/sqlite-canonical-video-metadata.adapter', () => ({
+  SqliteCanonicalVideoMetadataAdapter: SqliteCanonicalVideoMetadataAdapterMock,
 }));
 
 vi.mock('~/modules/ingest/infrastructure/thumbnail/ffmpeg-ingest-pending-thumbnail-enricher.adapter', () => ({
@@ -69,14 +69,14 @@ describe('server ingest pending-upload composition root', () => {
     expect(FfmpegIngestPendingThumbnailEnricherAdapterMock).not.toHaveBeenCalled();
     expect(FilesystemIngestPreparedVideoWorkspaceAdapterMock).not.toHaveBeenCalled();
     expect(FfmpegIngestVideoProcessingAdapterMock).not.toHaveBeenCalled();
-    expect(createCanonicalVideoMetadataLegacyStoreMock).not.toHaveBeenCalled();
+    expect(SqliteCanonicalVideoMetadataAdapterMock).not.toHaveBeenCalled();
   });
 
   test('returns a cached default pending-upload snapshot service ready for route composition', async () => {
-    createCanonicalVideoMetadataLegacyStoreMock.mockReturnValue({
+    SqliteCanonicalVideoMetadataAdapterMock.mockImplementation(() => ({
       listLibraryVideos: vi.fn(async () => []),
       writeVideoRecord: vi.fn(async () => undefined),
-    });
+    }));
     FilesystemIngestUploadScanAdapterMock.mockImplementation(() => ({
       discoverUploads: vi.fn(async () => []),
     }));
@@ -136,7 +136,7 @@ describe('server ingest pending-upload composition root', () => {
     expect(FfmpegIngestPendingThumbnailEnricherAdapterMock).not.toHaveBeenCalled();
     expect(FilesystemIngestPreparedVideoWorkspaceAdapterMock).not.toHaveBeenCalled();
     expect(FfmpegIngestVideoProcessingAdapterMock).not.toHaveBeenCalled();
-    expect(createCanonicalVideoMetadataLegacyStoreMock).not.toHaveBeenCalled();
+    expect(SqliteCanonicalVideoMetadataAdapterMock).not.toHaveBeenCalled();
     await expect(first.loadPendingUploadSnapshot.execute()).resolves.toEqual({
       ok: true,
       data: {

@@ -1,18 +1,23 @@
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-const createLegacyMutationPortMock = vi.fn();
-const createLegacyArtifactRemovalPortMock = vi.fn();
+const SqliteLibraryVideoMutationAdapterMock = vi.fn();
+const FilesystemLibraryVideoArtifactRemovalAdapterMock = vi.fn();
 
-vi.mock('~/composition/server/library-legacy-video-mutation', () => ({
-  createLibraryLegacyVideoArtifactRemovalPort: createLegacyArtifactRemovalPortMock,
-  createLibraryLegacyVideoMutationPort: createLegacyMutationPortMock,
+vi.mock('~/modules/library/infrastructure/sqlite/sqlite-library-video-mutation.adapter', () => ({
+  SqliteLibraryVideoMutationAdapter: SqliteLibraryVideoMutationAdapterMock,
+}));
+
+vi.mock('~/modules/library/infrastructure/storage/filesystem-library-video-artifact-removal.adapter', () => ({
+  FilesystemLibraryVideoArtifactRemovalAdapter: FilesystemLibraryVideoArtifactRemovalAdapterMock,
 }));
 
 describe('server library mutation composition root', () => {
   afterEach(() => {
     vi.resetModules();
-    createLegacyArtifactRemovalPortMock.mockReset();
-    createLegacyMutationPortMock.mockReset();
+    SqliteLibraryVideoMutationAdapterMock.mockReset();
+    FilesystemLibraryVideoArtifactRemovalAdapterMock.mockReset();
   });
 
   test('creates prewired update and delete services from the injected mutation port', async () => {
@@ -80,12 +85,12 @@ describe('server library mutation composition root', () => {
       },
       ok: true,
     });
-    expect(createLegacyMutationPortMock).not.toHaveBeenCalled();
-    expect(createLegacyArtifactRemovalPortMock).not.toHaveBeenCalled();
+    expect(SqliteLibraryVideoMutationAdapterMock).not.toHaveBeenCalled();
+    expect(FilesystemLibraryVideoArtifactRemovalAdapterMock).not.toHaveBeenCalled();
   });
 
   test('returns a cached default composition with update and delete services ready for route usage', async () => {
-    createLegacyMutationPortMock.mockReturnValue({
+    SqliteLibraryVideoMutationAdapterMock.mockImplementation(() => ({
       deleteLibraryVideo: vi.fn(async () => ({
         deleted: true,
         title: 'Fixture Video',
@@ -106,10 +111,10 @@ describe('server library mutation composition root', () => {
         title: input.title,
         videoUrl: '/videos/video-1/manifest.mpd',
       })),
-    });
-    createLegacyArtifactRemovalPortMock.mockReturnValue({
+    }));
+    FilesystemLibraryVideoArtifactRemovalAdapterMock.mockImplementation(() => ({
       cleanupVideoArtifacts: vi.fn(async () => ({})),
-    });
+    }));
     vi.resetModules();
 
     const { getServerLibraryServices } = await import('../../../app/composition/server/library');
@@ -119,5 +124,13 @@ describe('server library mutation composition root', () => {
     expect(first).toBe(second);
     expect(first.updateLibraryVideo).toBeDefined();
     expect(first.deleteLibraryVideo).toBeDefined();
+    expect(SqliteLibraryVideoMutationAdapterMock).toHaveBeenCalledOnce();
+    expect(FilesystemLibraryVideoArtifactRemovalAdapterMock).toHaveBeenCalledOnce();
+  });
+
+  test('library write composition root does not import the retiring library mutation seam file', async () => {
+    const source = await readFile(resolve(process.cwd(), 'app/composition/server/library.ts'), 'utf8');
+
+    expect(source.includes('./library-legacy-video-mutation')).toBe(false);
   });
 });
