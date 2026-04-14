@@ -1,0 +1,155 @@
+import { createCipheriv } from 'node:crypto';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+
+const VALID_JPEG_FIXTURE_PATH = join(process.cwd(), 'public', 'images', 'video-placeholder.jpg');
+
+describe('ThumbnailEncryptionService', () => {
+  const originalStorageDir = process.env.STORAGE_DIR;
+  let rootDir: string;
+  let storageDir: string;
+
+  beforeEach(async () => {
+    rootDir = await mkdtemp(join(tmpdir(), 'thumbnail-encryption-service-'));
+    storageDir = join(rootDir, 'storage');
+    process.env.STORAGE_DIR = storageDir;
+  });
+
+  afterEach(async () => {
+    if (originalStorageDir === undefined) {
+      delete process.env.STORAGE_DIR;
+    }
+    else {
+      process.env.STORAGE_DIR = originalStorageDir;
+    }
+
+    await rm(rootDir, { force: true, recursive: true });
+  });
+
+  test('encrypts, decrypts, and detects encrypted thumbnails using the active storage path', async () => {
+    const [{ ThumbnailEncryptionService }, { Pbkdf2ThumbnailKeyManager }] = await Promise.all([
+      import('../../../app/modules/thumbnail/infrastructure/encryption/thumbnail-encryption.service'),
+      import('../../../app/modules/thumbnail/infrastructure/security/pbkdf2-thumbnail-key-manager'),
+    ]);
+    const videoId = '00000000-0000-4000-8000-000000000123';
+    const videoDir = join(storageDir, 'data', 'videos', videoId);
+    const thumbnailPath = join(videoDir, 'thumbnail.jpg');
+    await mkdir(videoDir, { recursive: true });
+    await writeFile(thumbnailPath, await readFile(VALID_JPEG_FIXTURE_PATH));
+
+    const keyManager = new Pbkdf2ThumbnailKeyManager();
+    await keyManager.generateAndStoreKey(videoId);
+
+    const service = new ThumbnailEncryptionService({
+      keyManager,
+      logger: console,
+    });
+
+    await service.encryptThumbnail({
+      thumbnailPath,
+      videoId,
+    });
+
+    await expect(service.hasEncryptedThumbnail(videoId)).resolves.toBe(true);
+    await expect(readFile(thumbnailPath)).resolves.not.toEqual(Buffer.from(await readFile(VALID_JPEG_FIXTURE_PATH)));
+
+    await expect(service.decryptThumbnail({ videoId })).resolves.toMatchObject({
+      mimeType: 'image/jpeg',
+      size: expect.any(Number),
+    });
+  });
+
+  test('decryptThumbnail treats a missing key as a decrypt failure, not as a missing thumbnail', async () => {
+    const [{ ThumbnailEncryptionService }, { Pbkdf2ThumbnailKeyManager }, { unlink }] = await Promise.all([
+      import('../../../app/modules/thumbnail/infrastructure/encryption/thumbnail-encryption.service'),
+      import('../../../app/modules/thumbnail/infrastructure/security/pbkdf2-thumbnail-key-manager'),
+      import('node:fs/promises'),
+    ]);
+    const videoId = '00000000-0000-4000-8000-000000000126';
+    const videoDir = join(storageDir, 'data', 'videos', videoId);
+    const thumbnailPath = join(videoDir, 'thumbnail.jpg');
+    await mkdir(videoDir, { recursive: true });
+    await writeFile(thumbnailPath, await readFile(VALID_JPEG_FIXTURE_PATH));
+
+    const keyManager = new Pbkdf2ThumbnailKeyManager();
+    await keyManager.generateAndStoreKey(videoId);
+    const service = new ThumbnailEncryptionService({
+      keyManager,
+      logger: console,
+    });
+
+    await service.encryptThumbnail({
+      thumbnailPath,
+      videoId,
+    });
+    await unlink(join(videoDir, 'key.bin'));
+
+    await expect(service.decryptThumbnail({ videoId })).rejects.toThrow(
+      /Failed to decrypt thumbnail:/,
+    );
+    await expect(service.decryptThumbnail({ videoId })).rejects.not.toThrow(
+      /Encrypted thumbnail not found/,
+    );
+  });
+
+  test('migrateExistingThumbnail reports missing plaintext, keeps valid encrypted content, and encrypts plaintext in place', async () => {
+    const [{ ThumbnailEncryptionService }, { Pbkdf2ThumbnailKeyManager }] = await Promise.all([
+      import('../../../app/modules/thumbnail/infrastructure/encryption/thumbnail-encryption.service'),
+      import('../../../app/modules/thumbnail/infrastructure/security/pbkdf2-thumbnail-key-manager'),
+    ]);
+    const keyManager = new Pbkdf2ThumbnailKeyManager();
+    const service = new ThumbnailEncryptionService({
+      keyManager,
+      logger: console,
+    });
+    const missingVideoId = '00000000-0000-4000-8000-000000000124';
+
+    await keyManager.generateAndStoreKey(missingVideoId);
+    await expect(service.migrateExistingThumbnail(missingVideoId)).resolves.toBe(false);
+
+    const videoId = '00000000-0000-4000-8000-000000000125';
+    const videoDir = join(storageDir, 'data', 'videos', videoId);
+    const thumbnailPath = join(videoDir, 'thumbnail.jpg');
+    await mkdir(videoDir, { recursive: true });
+    await keyManager.generateAndStoreKey(videoId);
+    await writeFile(thumbnailPath, await readFile(VALID_JPEG_FIXTURE_PATH));
+
+    await expect(service.migrateExistingThumbnail(videoId)).resolves.toBe(true);
+    await expect(service.migrateExistingThumbnail(videoId)).resolves.toBe(true);
+    await expect(service.hasEncryptedThumbnail(videoId)).resolves.toBe(true);
+  });
+
+  test('hasEncryptedThumbnail and decryptThumbnail accept valid encrypted content whose IV starts with jpeg-like bytes', async () => {
+    const [{ ThumbnailEncryptionService }, { Pbkdf2ThumbnailKeyManager }] = await Promise.all([
+      import('../../../app/modules/thumbnail/infrastructure/encryption/thumbnail-encryption.service'),
+      import('../../../app/modules/thumbnail/infrastructure/security/pbkdf2-thumbnail-key-manager'),
+    ]);
+    const videoId = '00000000-0000-4000-8000-000000000127';
+    const videoDir = join(storageDir, 'data', 'videos', videoId);
+    const thumbnailPath = join(videoDir, 'thumbnail.jpg');
+    await mkdir(videoDir, { recursive: true });
+    await writeFile(thumbnailPath, await readFile(VALID_JPEG_FIXTURE_PATH));
+
+    const keyManager = new Pbkdf2ThumbnailKeyManager();
+    await keyManager.generateAndStoreKey(videoId);
+    const plaintext = await readFile(thumbnailPath);
+    const key = await keyManager.retrieveKey(videoId);
+    const iv = Buffer.from([0xff, 0xd8, 0x4e, 0x47, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b]);
+    const cipher = createCipheriv('aes-128-cbc', key, iv);
+    const encrypted = Buffer.concat([iv, cipher.update(plaintext), cipher.final()]);
+    await writeFile(thumbnailPath, encrypted);
+
+    const service = new ThumbnailEncryptionService({
+      keyManager,
+      logger: console,
+    });
+
+    await expect(service.hasEncryptedThumbnail(videoId)).resolves.toBe(true);
+    await expect(service.decryptThumbnail({ videoId })).resolves.toMatchObject({
+      mimeType: 'image/jpeg',
+      size: plaintext.length,
+    });
+  });
+});

@@ -8,13 +8,18 @@ const ORIGINAL_STORAGE_DIR = process.env.STORAGE_DIR;
 
 const mockDecryptThumbnail = vi.fn();
 
-function createDecryptedThumbnailRequest(request: Request) {
+function createDecryptedThumbnailRequest(
+  request: Request,
+  overrides: Partial<{
+    videoId: string;
+  }> = {},
+) {
   return {
     contentSource: 'encrypted-thumbnail',
     eTagPrefix: 'encrypted',
     notFoundMessage: 'Encrypted thumbnail not found',
     request,
-    videoId: 'video-1',
+    videoId: overrides.videoId ?? 'video-1',
   };
 }
 
@@ -36,6 +41,13 @@ async function importThumbnailComposition() {
       decryptThumbnail = mockDecryptThumbnail;
     },
   }));
+
+  return import('../../../app/composition/server/thumbnails');
+}
+
+async function importRealThumbnailComposition() {
+  vi.resetModules();
+  vi.doUnmock('~/modules/thumbnail/infrastructure/decryption/thumbnail-decryption.service');
 
   return import('../../../app/composition/server/thumbnails');
 }
@@ -158,6 +170,19 @@ describe('thumbnail composition ownership', () => {
     const { loadDecryptedThumbnailResponse } = await importThumbnailComposition();
     const response = await loadDecryptedThumbnailResponse(
       createDecryptedThumbnailRequest(new Request('http://localhost/api/thumbnail-encrypted/video-1')),
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.text()).resolves.toBe('Failed to decrypt thumbnail');
+  });
+
+  test('loadDecryptedThumbnailResponse returns 500 for invalid thumbnail ids', async () => {
+    const { loadDecryptedThumbnailResponse } = await importRealThumbnailComposition();
+    const response = await loadDecryptedThumbnailResponse(
+      createDecryptedThumbnailRequest(
+        new Request('http://localhost/api/thumbnail-encrypted/not-a-uuid'),
+        { videoId: 'not-a-uuid' },
+      ),
     );
 
     expect(response.status).toBe(500);

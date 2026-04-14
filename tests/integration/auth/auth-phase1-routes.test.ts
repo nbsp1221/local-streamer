@@ -1144,11 +1144,11 @@ describe('Phase 1 auth gate routes', () => {
     await mkdir(videoDir, { recursive: true });
     await writeFile(plaintextThumbnailPath, await readFile(VALID_JPEG_FIXTURE_PATH));
 
-    const [{ Pbkdf2KeyManagerAdapter }, { ThumbnailEncryptionService }] = await Promise.all([
-      import('../../../app/legacy/modules/video/security/adapters/pbkdf2-key-manager.adapter'),
-      import('../../../app/legacy/modules/thumbnail/shared/thumbnail-encryption.service'),
+    const [{ Pbkdf2ThumbnailKeyManager }, { ThumbnailEncryptionService }] = await Promise.all([
+      import('../../../app/modules/thumbnail/infrastructure/security/pbkdf2-thumbnail-key-manager'),
+      import('../../../app/modules/thumbnail/infrastructure/encryption/thumbnail-encryption.service'),
     ]);
-    const keyManager = new Pbkdf2KeyManagerAdapter();
+    const keyManager = new Pbkdf2ThumbnailKeyManager();
     await keyManager.generateAndStoreKey(videoId);
     const thumbnailEncryptionService = new ThumbnailEncryptionService({
       keyManager,

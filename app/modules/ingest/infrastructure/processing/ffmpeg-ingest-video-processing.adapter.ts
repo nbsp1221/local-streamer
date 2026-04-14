@@ -2,7 +2,7 @@ import type { VideoTranscoder } from '~/legacy/modules/video/transcoding';
 import type { ThumbnailFinalizerPort } from '~/modules/thumbnail/application/ports/thumbnail-finalizer.port';
 import { InternalError } from '~/legacy/lib/errors';
 import { FFmpegVideoTranscoderAdapter } from '~/legacy/modules/video/transcoding';
-import { LegacyThumbnailFinalizerAdapter } from '~/modules/thumbnail/infrastructure/finalization/legacy-thumbnail-finalizer.adapter';
+import { ThumbnailFinalizerAdapter } from '~/modules/thumbnail/infrastructure/finalization/thumbnail-finalizer.adapter';
 import type { ProcessPreparedVideoCommand } from '../../application/ports/ingest-library-intake.port';
 import type { IngestVideoProcessingPort } from '../../application/ports/ingest-video-processing.port';
 import { resolveIngestProcessingEncodingPolicy } from './ingest-processing-encoding-policy';
@@ -25,7 +25,7 @@ export class FfmpegIngestVideoProcessingAdapter implements IngestVideoProcessing
 
   constructor(deps: FfmpegIngestVideoProcessingAdapterDependencies = {}) {
     this.logger = deps.logger ?? console;
-    this.thumbnailFinalizer = deps.thumbnailFinalizer ?? new LegacyThumbnailFinalizerAdapter({
+    this.thumbnailFinalizer = deps.thumbnailFinalizer ?? new ThumbnailFinalizerAdapter({
       logger: this.logger,
     });
     this.videoTranscoder = deps.videoTranscoder ?? new FFmpegVideoTranscoderAdapter();

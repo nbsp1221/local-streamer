@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { TranscodingEngineError } from '../../../../app/legacy/lib/errors';
 
@@ -128,5 +130,17 @@ describe('FfmpegIngestVideoProcessingAdapter', () => {
       title: 'Fixture Video',
       videoId: 'video-123',
     });
+  });
+
+  test('does not default back to the legacy thumbnail finalizer seam', async () => {
+    const source = await readFile(
+      path.resolve(
+        process.cwd(),
+        'app/modules/ingest/infrastructure/processing/ffmpeg-ingest-video-processing.adapter.ts',
+      ),
+      'utf8',
+    );
+
+    expect(source.includes('legacy-thumbnail-finalizer.adapter')).toBe(false);
   });
 });
