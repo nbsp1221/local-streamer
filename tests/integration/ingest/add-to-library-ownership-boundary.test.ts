@@ -9,9 +9,11 @@ const explicitFiles = [
   join(projectRoot, 'app/composition/server/ingest.ts'),
   join(projectRoot, 'app/modules/ingest/infrastructure/storage/ingest-storage-paths.server.ts'),
   join(projectRoot, 'app/modules/ingest/infrastructure/analysis/ffprobe-ingest-video-analysis.adapter.ts'),
+  join(projectRoot, 'app/modules/ingest/infrastructure/processing/ffmpeg-ingest-video-processing.adapter.ts'),
   join(projectRoot, 'app/modules/ingest/infrastructure/workspace/filesystem-ingest-prepared-video-workspace.adapter.ts'),
 ];
 const ingestPortRoot = join(projectRoot, 'app/modules/ingest/application/ports');
+const ingestProcessingRoot = join(projectRoot, 'app/modules/ingest/infrastructure/processing');
 const files = [
   ...explicitFiles,
 ];
@@ -38,11 +40,27 @@ async function collectPortFiles(dir: string): Promise<string[]> {
   return files.flat();
 }
 
+async function collectTypescriptFiles(dir: string): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true });
+  const files = await Promise.all(entries.map(async (entry) => {
+    const fullPath = join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      return collectTypescriptFiles(fullPath);
+    }
+
+    return entry.name.endsWith('.ts') ? [fullPath] : [];
+  }));
+
+  return files.flat();
+}
+
 describe('add-to-library ownership boundary', () => {
   test('active route and application code do not import app/legacy directly', async () => {
     const filesToScan = [
       ...files,
       ...await collectPortFiles(ingestPortRoot),
+      ...await collectTypescriptFiles(ingestProcessingRoot),
     ];
 
     for (const filePath of filesToScan) {

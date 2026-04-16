@@ -26,3 +26,21 @@ export function getFFprobePath(): string {
 
   return 'ffprobe';
 }
+
+export function getShakaPackagerPath(): string {
+  if (process.env.SHAKA_PACKAGER_PATH && existsSync(process.env.SHAKA_PACKAGER_PATH)) {
+    return process.env.SHAKA_PACKAGER_PATH;
+  }
+
+  const localPackager = path.join(process.cwd(), 'binaries', 'packager');
+  if (existsSync(localPackager)) {
+    return localPackager;
+  }
+
+  const localPackagerExe = path.join(process.cwd(), 'binaries', 'packager.exe');
+  if (existsSync(localPackagerExe)) {
+    return localPackagerExe;
+  }
+
+  return 'packager';
+}

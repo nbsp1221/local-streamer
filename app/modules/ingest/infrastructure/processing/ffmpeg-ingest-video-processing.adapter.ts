@@ -1,11 +1,11 @@
-import type { VideoTranscoder } from '~/legacy/modules/video/transcoding';
 import type { ThumbnailFinalizerPort } from '~/modules/thumbnail/application/ports/thumbnail-finalizer.port';
-import { InternalError } from '~/legacy/lib/errors';
-import { FFmpegVideoTranscoderAdapter } from '~/legacy/modules/video/transcoding';
 import { ThumbnailFinalizerAdapter } from '~/modules/thumbnail/infrastructure/finalization/thumbnail-finalizer.adapter';
 import type { ProcessPreparedVideoCommand } from '../../application/ports/ingest-library-intake.port';
 import type { IngestVideoProcessingPort } from '../../application/ports/ingest-video-processing.port';
+import type { IngestVideoTranscoder } from './ingest-video-transcoder';
+import { FfmpegVideoTranscoderAdapter } from './ffmpeg-video-transcoder.adapter';
 import { resolveIngestProcessingEncodingPolicy } from './ingest-processing-encoding-policy';
+import { IngestProcessingError } from './ingest-processing.error';
 
 interface LoggerLike {
   info(message: string, data?: unknown): void;
@@ -15,20 +15,20 @@ interface LoggerLike {
 interface FfmpegIngestVideoProcessingAdapterDependencies {
   logger?: LoggerLike;
   thumbnailFinalizer?: ThumbnailFinalizerPort;
-  videoTranscoder?: Pick<VideoTranscoder, 'transcode'>;
+  videoTranscoder?: Pick<IngestVideoTranscoder, 'transcode'>;
 }
 
 export class FfmpegIngestVideoProcessingAdapter implements IngestVideoProcessingPort {
   private readonly logger: LoggerLike;
   private readonly thumbnailFinalizer: ThumbnailFinalizerPort;
-  private readonly videoTranscoder: Pick<VideoTranscoder, 'transcode'>;
+  private readonly videoTranscoder: Pick<IngestVideoTranscoder, 'transcode'>;
 
   constructor(deps: FfmpegIngestVideoProcessingAdapterDependencies = {}) {
     this.logger = deps.logger ?? console;
     this.thumbnailFinalizer = deps.thumbnailFinalizer ?? new ThumbnailFinalizerAdapter({
       logger: this.logger,
     });
-    this.videoTranscoder = deps.videoTranscoder ?? new FFmpegVideoTranscoderAdapter();
+    this.videoTranscoder = deps.videoTranscoder ?? new FfmpegVideoTranscoderAdapter();
   }
 
   async finalizeSuccessfulVideo(command: { title: string; videoId: string }): Promise<void> {
@@ -70,7 +70,7 @@ export class FfmpegIngestVideoProcessingAdapter implements IngestVideoProcessing
     catch (error) {
       this.logger.error(`Video processing failed for ${command.videoId}`, error);
       const message = error instanceof Error ? error.message : 'Unknown error';
-      throw new InternalError(`Video processing failed: ${message}`);
+      throw new IngestProcessingError(`Video processing failed: ${message}`);
     }
   }
 }
