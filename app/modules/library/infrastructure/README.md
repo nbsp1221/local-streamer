@@ -2,7 +2,7 @@
 
 This directory now contains the active SQLite-backed canonical video metadata infrastructure.
 
-The current compatibility shape is:
+The current runtime shape is:
 
 - durable video metadata lives in SQLite under
   `app/modules/library/infrastructure/sqlite`
@@ -12,9 +12,5 @@ The current compatibility shape is:
   - `sqlite-canonical-video-metadata.adapter.ts`
   - `sqlite-library-video-mutation.adapter.ts`
   - `storage/filesystem-library-video-artifact-removal.adapter.ts`
-- `app/legacy/repositories/SqliteVideoRepository.ts` remains only as a
-  compatibility consumer of the same canonical SQLite metadata source while
-  `app/legacy` still exists
 
-`videos.json` is now a bootstrap input for migration compatibility, not the
-canonical metadata source of truth.
+SQLite is the only runtime source of canonical video metadata.

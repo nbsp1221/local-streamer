@@ -19,7 +19,7 @@ async function importPlayerRoute() {
   return import('../../../app/routes/player.$id');
 }
 
-describe('Phase 2 player route', () => {
+describe('player route', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -27,7 +27,7 @@ describe('Phase 2 player route', () => {
     requireProtectedPageSessionMock.mockResolvedValue({ id: 'session-1' });
   });
 
-  test('loads player data through the playback composition root instead of the legacy repository', async () => {
+  test('loads player data through the playback composition root instead of a route-owned repository', async () => {
     fakePlaybackServices.resolvePlayerVideo.execute.mockResolvedValue({
       ok: true,
       relatedVideos: [],
@@ -36,7 +36,7 @@ describe('Phase 2 player route', () => {
         duration: 120,
         id: 'video-1',
         tags: ['vault'],
-        title: 'Phase 2 Player',
+        title: 'Player Fixture',
         videoUrl: '/videos/video-1/manifest.mpd',
       },
     });
@@ -57,7 +57,7 @@ describe('Phase 2 player route', () => {
         duration: 120,
         id: 'video-1',
         tags: ['vault'],
-        title: 'Phase 2 Player',
+        title: 'Player Fixture',
         videoUrl: '/videos/video-1/manifest.mpd',
       },
     });

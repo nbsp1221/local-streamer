@@ -12,7 +12,7 @@ import { PlaybackVideoCatalogAdapter } from '~/modules/playback/infrastructure/c
 import { PlaybackClearKeyService } from '~/modules/playback/infrastructure/license/playback-clearkey.service';
 import { PlaybackManifestService } from '~/modules/playback/infrastructure/media/playback-manifest.service';
 import { PlaybackMediaSegmentService } from '~/modules/playback/infrastructure/media/playback-media-segment.service';
-import { PlaybackTokenService } from '~/modules/playback/infrastructure/token/playback-token.service';
+import { JsonWebTokenPlaybackTokenService } from '~/modules/playback/infrastructure/token/jsonwebtoken-playback-token.service';
 
 interface ServerPlaybackServices {
   issuePlaybackToken: IssuePlaybackTokenUseCase;
@@ -52,7 +52,7 @@ export function createServerPlaybackServices(
   const getClearKeyService = createLazyValue(() => overrides.clearKeyService ?? new PlaybackClearKeyService());
   const getManifestService = createLazyValue(() => overrides.manifestService ?? new PlaybackManifestService());
   const getMediaSegmentService = createLazyValue(() => overrides.mediaSegmentService ?? new PlaybackMediaSegmentService());
-  const getTokenService = createLazyValue(() => overrides.tokenService ?? new PlaybackTokenService());
+  const getTokenService = createLazyValue(() => overrides.tokenService ?? new JsonWebTokenPlaybackTokenService());
   const getVideoCatalog = createLazyValue(() => overrides.videoCatalog ?? new PlaybackVideoCatalogAdapter());
   const getIssuePlaybackToken = createLazyValue(() => new IssuePlaybackTokenUseCase({
     tokenService: getTokenService(),

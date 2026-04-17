@@ -35,7 +35,7 @@ function buildSmartScanArgs(inputPath: string, outputPath: string): string[] {
   ];
 }
 
-function buildTimestampArgs(inputPath: string, outputPath: string, timestamp = 3): string[] {
+function buildTimestampArgs(inputPath: string, outputPath: string, timestamp = 1): string[] {
   return [
     '-ss',
     String(timestamp),

@@ -41,12 +41,29 @@ export class ResolveAuthSessionUseCase {
       lastAccessedAt: input.now,
     };
 
-    await this.deps.sessionRepository.touch({
-      expiresAt: touchedSession.expiresAt,
-      id: touchedSession.id,
-      lastAccessedAt: touchedSession.lastAccessedAt,
-    });
+    try {
+      await this.deps.sessionRepository.touch({
+        expiresAt: touchedSession.expiresAt,
+        id: touchedSession.id,
+        lastAccessedAt: touchedSession.lastAccessedAt,
+      });
+    }
+    catch (error) {
+      if (!isTransientSessionTouchError(error)) {
+        throw error;
+      }
+    }
 
     return touchedSession;
   }
+}
+
+function isTransientSessionTouchError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const code = 'code' in error ? String(error.code) : '';
+  const errno = 'errno' in error ? Number(error.errno) : Number.NaN;
+  return code === 'SQLITE_BUSY' || errno === 5 || error.message.includes('database is locked');
 }

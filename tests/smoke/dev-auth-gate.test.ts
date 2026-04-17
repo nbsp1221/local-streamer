@@ -21,6 +21,14 @@ const serverLogState = {
 };
 const serverLogReaders: Promise<void>[] = [];
 
+function expectAdminViewerShape(viewer: unknown) {
+  expect(viewer).toEqual(expect.objectContaining({
+    email: expect.stringMatching(/\S/),
+    id: expect.stringMatching(/\S/),
+    role: 'admin',
+  }));
+}
+
 function captureServerOutput(
   stream: number | ReadableStream<Uint8Array> | null | undefined,
   target: keyof typeof serverLogState,
@@ -69,20 +77,6 @@ function seedSmokeStorage(rootDir: string) {
   writeFileSync(join(rootDir, 'data', 'playlist-items.json'), '[]');
   writeFileSync(join(rootDir, 'data', 'playlists.json'), '[]');
   writeFileSync(join(rootDir, 'data', 'sessions.json'), '[]');
-  writeFileSync(join(rootDir, 'data', 'videos.json'), '[]');
-  writeFileSync(
-    join(rootDir, 'data', 'users.json'),
-    JSON.stringify([
-      {
-        id: 'legacy-admin-1',
-        email: 'admin@example.com',
-        passwordHash: 'not-used-by-phase-1',
-        role: 'admin',
-        createdAt: '2025-10-05T17:17:46.248Z',
-        updatedAt: '2025-10-05T17:17:46.248Z',
-      },
-    ]),
-  );
 }
 
 async function waitForServerReady(url: string) {
@@ -142,6 +136,8 @@ beforeAll(async () => {
   server = Bun.spawn(createNoEnvFileBunCommand(['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(port)]), {
     cwd: repoRoot,
     env: createRuntimeTestEnv({
+      AUTH_OWNER_EMAIL: 'admin@example.com',
+      AUTH_OWNER_ID: 'seeded-owner-1',
       AUTH_SHARED_PASSWORD: 'vault-password',
       AUTH_SQLITE_PATH: authDbPath,
       STORAGE_DIR: storageDir,
@@ -191,13 +187,52 @@ describe('Dev auth gate smoke', () => {
     });
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual(expect.objectContaining({
+    const payload = await response.json();
+    expect(payload).toEqual(expect.objectContaining({
       success: true,
-      user: {
-        email: 'admin@example.com',
-        id: 'legacy-admin-1',
-        role: 'admin',
-      },
+    }));
+    expectAdminViewerShape(payload.user);
+  });
+
+  test('authenticated playlist APIs create and list owner playlists in dev', async () => {
+    const cookie = await loginAndGetCookie();
+    const headers = new Headers([
+      ['Content-Type', 'application/json'],
+      ['Cookie', cookie],
+    ]);
+
+    const createResponse = await fetch(`${baseUrl}/api/playlists`, {
+      body: JSON.stringify({
+        name: 'Dev Smoke Playlist',
+        type: 'user_created',
+      }),
+      headers,
+      method: 'POST',
+    });
+
+    expect(createResponse.status).toBe(200);
+    const createPayload = await createResponse.json();
+    expect(createPayload).toEqual(expect.objectContaining({
+      playlistId: expect.any(String),
+      success: true,
+    }));
+
+    const listResponse = await fetch(`${baseUrl}/api/playlists`, {
+      headers: new Headers([
+        ['Cookie', cookie],
+      ]),
+    });
+
+    expect(listResponse.status).toBe(200);
+    const listPayload = await listResponse.json();
+    expect(listPayload).toEqual(expect.objectContaining({
+      playlists: expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Dev Smoke Playlist',
+          ownerId: 'seeded-owner-1',
+        }),
+      ]),
+      success: true,
     }));
   });
 

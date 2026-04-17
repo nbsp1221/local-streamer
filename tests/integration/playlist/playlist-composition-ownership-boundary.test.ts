@@ -1,5 +1,3 @@
-import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createPlaylistRuntimeTestWorkspace, PLAYLIST_OWNER_ID } from '../../support/create-playlist-runtime-test-workspace';
 
@@ -78,8 +76,7 @@ describe('playlist composition ownership boundary', () => {
     }
   });
 
-  test('playlist detail resolves videos from the active metadata store even when videos.json is empty', async () => {
-    await writeFile(join(storageDir, 'data', 'videos.json'), '[]');
+  test('playlist detail resolves videos from the active metadata store without videos.json bootstrap data', async () => {
     const { loader } = await importPlaylistDetailApiRoute();
 
     const response = await loader({

@@ -116,8 +116,10 @@ function PlaybackViewport({ video }: { video: PlaybackCatalogVideo }) {
 
     detail.library = async () => {
       const dashjs = await import('dashjs');
+      const dashNamespace = ((dashjs as { default?: typeof import('dashjs') }).default ?? dashjs) as typeof import('dashjs');
+
       return {
-        default: (dashjs as { default?: unknown }).default ?? dashjs,
+        default: dashNamespace,
       };
     };
 

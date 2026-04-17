@@ -1,8 +1,21 @@
 # Video Encoding Migration Progress
 
+Status: Historical migration log  
+Last reviewed: 2026-04-02  
+
+This document records an earlier encoding-focused migration effort.
+
+Do not use it as the current source of truth for active architecture, ingest ownership, or current refactor sequencing.
+
+Use these documents first instead:
+
+- `docs/roadmap/current-refactor-status.md`
+- `docs/roadmap/personal-video-vault-rearchitecture-phases.md`
+- `docs/architecture/personal-video-vault-target-architecture.md`
+
 ## Overview
 Migration from thick route handlers to Port & Adapter pattern for video encoding system.
-**Current Status**: Phase 2 Complete ✅
+**Historical Snapshot**: Phase 2 Complete ✅
 
 ## Architecture Target
 - **Pattern**: MVC + UseCase + Repository (not full DDD Hexagon - avoiding over-engineering)
@@ -148,7 +161,7 @@ interface TranscodeResult {
 
 ---
 
-### 🟡 Phase 3: Adapter Enhancement (NEXT)
+### 🟡 Phase 3: Adapter Enhancement (Then-planned next step)
 **Duration**: Estimated 2-3 days (reduced due to Phase 2 implementation)  
 **Risk Level**: Low (foundation already established)  
 **Status**: 🚧 Partially complete (stub implementation done)
@@ -241,15 +254,15 @@ interface TranscodeResult {
 - **Performance**: No degradation allowed (benchmark testing)
 - **Safety**: Proper resource cleanup and error handling
 
-## Next Steps
+## Historical Planned Next Steps
 
-### Immediate (Phase 3):
+### Then-planned Phase 3 work:
 1. Implement complete quality-mapping.ts parameter utilization
 2. Remove dependency on existing encoder type abstraction
 3. Add direct FFmpeg parameter control (CRF, preset, tune)
 4. Enhance metadata extraction with richer business information
 
-### Optional Future Enhancements:
+### Optional Future Enhancements At The Time:
 - Additional quality levels (ultra/extreme for specialized use cases)
 - Format-specific optimization hints
 - Progress reporting enhancements
@@ -264,4 +277,4 @@ interface TranscodeResult {
 ---
 
 **Last Updated**: Phase 2 & 4 completed with comprehensive Port & Adapter implementation (2025-08-25)  
-**Next Review**: Before Phase 3 enhancement implementation starts
+**Historical Next Review**: Before Phase 3 enhancement implementation starts

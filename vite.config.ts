@@ -69,18 +69,6 @@ export default defineConfig(({ command }) => ({
           ],
         },
       },
-      {
-        extends: true,
-        test: {
-          name: 'legacy',
-          environment: 'node',
-          include: [
-            'app/legacy/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
-            'tests/Json*.test.ts',
-            'tests/hybrid-upload.test.ts',
-          ],
-        },
-      },
     ],
   },
 }));

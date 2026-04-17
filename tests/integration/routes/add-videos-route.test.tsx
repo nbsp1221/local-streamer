@@ -34,7 +34,7 @@ describe('/add-videos route adapter', () => {
     expect(requireProtectedPageSessionMock).toHaveBeenCalledWith(expect.any(Request));
   });
 
-  test('renders the new page module from app/pages instead of the removed legacy page path', async () => {
+  test('renders the active page module from app/pages', async () => {
     const routeModule = await importAddVideosRoute();
 
     const html = renderToString(

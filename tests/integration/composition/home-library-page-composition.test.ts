@@ -165,7 +165,6 @@ describe('home library page composition root', () => {
     process.env.STORAGE_DIR = storageDir;
     delete process.env.VIDEO_MASTER_ENCRYPTION_SEED;
     await mkdir(join(storageDir, 'data'), { recursive: true });
-    await writeFile(join(storageDir, 'data', 'videos.json'), '[]', 'utf8');
     await writeFile(
       join(storageDir, 'data', 'pending.json'),
       JSON.stringify([
@@ -228,7 +227,6 @@ describe('home library page composition root', () => {
     process.env.STORAGE_DIR = storageDir;
     delete process.env.VIDEO_MASTER_ENCRYPTION_SEED;
     await mkdir(join(storageDir, 'data'), { recursive: true });
-    await writeFile(join(storageDir, 'data', 'videos.json'), '[]', 'utf8');
     await writeFile(join(storageDir, 'data', 'pending.json'), '{ invalid json', 'utf8');
     vi.resetModules();
 

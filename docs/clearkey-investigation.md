@@ -1,7 +1,7 @@
 # ClearKey Playback Warning Investigation
 
 ## Summary
-- **Context**: Opening any DASH/DRM protected video via the Vidstack player emits multiple console warnings and an uncaught `TypeError` originating from `dashjs`.
+- **Context**: Opening any DASH/DRM protected video via the Vidstack player emitted multiple console warnings and an uncaught `TypeError` originating from `dashjs`.
 - **Impact**: Playback still succeeds, but the flood of warnings/errors complicates debugging and may mask real issues. Direct navigation to `/player/:id` can temporarily render the route in an error state because the player initializes before tokens are fetched.
 
 ## Reproduction
@@ -30,9 +30,9 @@ The network log shows the manifest carries two `ContentProtection` blocks with t
 ```
 
 ## Analysis
-- The warnings originate from `dash.js` (v5) filtering capabilities for each `AdaptationSet`. Because our video track is encoded as HEVC (`hev1.1.6.H120.90`), Dash removes the representation if the browser cannot decode HEVC. This is expected on browsers without hardware HEVC decoding.
+- The warnings originated from `dash.js` filtering capabilities for each `AdaptationSet`. Because the original video track was encoded as HEVC (`hev1.1.6.H120.90`), Dash removed the representation if the browser could not decode HEVC. This is expected on browsers without hardware HEVC decoding.
 - The uncaught `TypeError` is triggered inside `ProtectionController` while attempting to convert `ContentProtection` entries into key-system metadata (`dashjs.js` line ~11779). The controller expects a `protectionController` instance to be supplied via its configuration; otherwise `getSupportedKeySystemMetadataFromContentProtection` is undefined.
-  - In our integration we call `detail.onInstance(dashInstance => dashInstance.setProtectionData(...))` immediately. When dash.js processes the manifest before protection is configured, `o3` (internal reference to the protection controller) is `undefined`, producing the TypeError.
+  - In the original integration we called `detail.onInstance(dashInstance => dashInstance.setProtectionData(...))` immediately. When dash.js processed the manifest before protection was configured, `o3` (internal reference to the protection controller) was `undefined`, producing the TypeError.
   - The error is harmless because Dash continues initializing, but it surfaces on every playback.
 - ClearKey warnings surface because the manifest sets `schemeIdUri="urn:uuid:1077efec-c0b2-4d02-ace3-3c1e52e2fb4b"`, the W3C Common PSSH identifier for ClearKey manifests.[^w3c-clearkey] DASH-IF IOP v4.3 specifies that the ClearKey `schemeIdUri` should instead use `urn:uuid:e2719d58-a985-b3c9-781a-b030af78d30e` with `value="ClearKey1.0"`, while the PSSH box may still carry the common system ID (`1077…`).[^dashif] The UUID `edef8ba9-79d6-4ace-a3c8-27dcd51d21ed` actually identifies Widevine, and PlayReady corresponds to `9a04f079-9840-4286-ab92-e65be0885f95`, so pointing `schemeIdUri` at either would mislabel the stream.[^widevine-playready]
 
@@ -56,11 +56,15 @@ The network log shows the manifest carries two `ContentProtection` blocks with t
      });
      ```
    - Alternatively, explicitly create a protection controller via `dash.setProtectionData` only after calling `dash.setProtectionController` (dash.js API) or use Vidstack's upcoming DRM helpers.
-2. **Suppress / handle HEVC capability warnings**
+2. **Keep Vidstack on its documented dash.js support range**
+   - Vidstack's DASH provider documentation expects `dashjs@^4.0` and its internal default loader points at `dashjs@4.7.4`.
+   - Do not inject `dashjs@5.x` into `detail.library`; restore the supported `4.x` contract before debugging higher-level playback issues.
+   - Local dynamic imports remain supported, but any bundler-specific interop wrapper must still resolve to a `dashjs@^4.0` export shape.
+3. **Suppress / handle HEVC capability warnings**
    - Provide an H.264 fallback ladder or detect browser HEVC support before selecting the representation.
-3. **Adjust manifest ClearKey metadata**
+4. **Adjust manifest ClearKey metadata**
    - Configure the packager to emit `schemeIdUri="urn:uuid:e2719d58-a985-b3c9-781a-b030af78d30e"` with `value="ClearKey1.0"`, keeping the `1077…` system ID inside the PSSH payload only. This aligns with DASH-IF IOP guidance[^dashif] and avoids the dash.js warning.
-4. **Fix SSR error path**
+5. **Fix SSR error path**
    - Provide a placeholder `src` (e.g., empty string) or render the `MediaPlayer` only after the token fetch resolves so server rendering does not throw.
 
 ## Next Steps

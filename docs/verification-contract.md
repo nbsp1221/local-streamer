@@ -15,7 +15,7 @@ Use this matrix to decide what must run before reporting a task complete.
 | --- | --- |
 | Documentation-only | `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build` |
 | Pure module or non-runtime-sensitive server logic | `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build` |
-| Browser-visible but not runtime-sensitive UI flow | base verification bundle + `bun run test:e2e -- tests/e2e/home-library-owner-smoke.spec.ts tests/e2e/player-layout.spec.ts` |
+| Browser-visible but not runtime-sensitive UI flow | base verification bundle + `bun run verify:e2e-smoke` |
 | Auth, playback, route wiring, storage, or other runtime-sensitive behavior | base verification bundle + Docker CI-like verification |
 | Runtime-sensitive and browser-visible flow | base verification bundle + Docker CI-like verification + required browser smoke + Playwright MCP or equivalent isolated browser QA when HTTP checks are insufficient |
 
@@ -32,7 +32,7 @@ The base verification bundle is:
 - `typecheck` checks React Router type generation plus TypeScript contracts.
 - `test` covers Vitest plus the Bun auth smoke layers under env-scrubbed conditions.
 - `build` verifies the production build succeeds.
-- `bun run test:e2e -- tests/e2e/home-library-owner-smoke.spec.ts tests/e2e/player-layout.spec.ts` is the required browser smoke layer for browser-visible changes.
+- `bun run verify:e2e-smoke` is the required browser smoke layer for browser-visible changes. It currently covers home owner login, playlist owner flow, player layout, and protected playback compatibility.
 
 ## Parity rules
 
@@ -56,14 +56,17 @@ The authoritative commands for the current repo state are:
 - `bun run verify:ci-faithful`
 - `bun run verify:ci-faithful:docker`
 - `bun run verify:ci-clean-export`
+- `bun run verify:ci-worktree:docker`
 - `bun run lint`
 - `bun run typecheck`
 - `bun run test`
 - `bun run build`
-- `bun run test:e2e -- tests/e2e/home-library-owner-smoke.spec.ts tests/e2e/player-layout.spec.ts`
-- `docker run --rm --user "$(id -u):$(id -g)" -e CI=true -e GITHUB_ACTIONS=true -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -e TZ=Etc/UTC -v "$PWD":/workspace -w /workspace oven/bun:<matching-packageManager-version> bash -lc 'bun install --frozen-lockfile && bun run lint && bun run typecheck && bun run test && bun run build'`
+- `bun run verify:e2e-smoke`
+- `docker run --rm --user "$(id -u):$(id -g)" -e CI=true -e GITHUB_ACTIONS=true -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -e TZ=Etc/UTC -v "$PWD":/workspace -w /workspace oven/bun:<matching-packageManager-version> bash -lc 'bun install --frozen-lockfile && bun run lint && bun run typecheck && bun run test && bun run build'` as explanatory reference only
 
-The Docker command must track the Bun version declared by `package.json` (`bun@1.3.5` at the time of writing) instead of drifting to an arbitrary image tag.
+The authoritative Docker verification surfaces are `bun run verify:ci-faithful:docker` and `bun run verify:ci-clean-export`.
+Use `bun run verify:ci-worktree:docker` only when you must prove the current dirty worktree in a CI-like container without leaving root-owned artifacts in the host repository.
+The raw Docker command above is explanatory reference only and must track the Bun version declared by `package.json` (`bun@1.3.5` at the time of writing) instead of drifting to an arbitrary image tag.
 
 ## CI contract
 

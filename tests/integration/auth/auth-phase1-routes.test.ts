@@ -170,21 +170,25 @@ async function writeJsonFile(filePath: string, value: unknown) {
   await writeFile(filePath, JSON.stringify(value, null, 2));
 }
 
+const SEEDED_OWNER_EMAIL = 'admin@example.com';
+const SEEDED_OWNER_ID = 'seeded-owner-1';
+
 const SEEDED_VIEWER = {
-  email: 'admin@example.com',
-  id: 'legacy-admin-1',
+  email: SEEDED_OWNER_EMAIL,
+  id: SEEDED_OWNER_ID,
   role: 'admin',
 } as const;
 
-const FALLBACK_VIEWER = {
-  email: 'vault@local',
-  id: 'vault-owner',
-  role: 'admin',
-} as const;
+function expectAdminViewerShape(viewer: unknown) {
+  expect(viewer).toEqual(expect.objectContaining({
+    email: expect.stringMatching(/\S/),
+    id: expect.stringMatching(/\S/),
+    role: 'admin',
+  }));
+}
 
 async function seedStorage(storageDir: string, overrides?: {
   playlists?: unknown[];
-  users?: unknown[];
 }) {
   await mkdir(join(storageDir, 'data'), { recursive: true });
   await mkdir(join(storageDir, 'uploads', 'thumbnails'), { recursive: true });
@@ -193,32 +197,20 @@ async function seedStorage(storageDir: string, overrides?: {
   await writeJsonFile(join(storageDir, 'data', 'playlist-items.json'), []);
   await writeJsonFile(join(storageDir, 'data', 'playlists.json'), overrides?.playlists ?? []);
   await writeJsonFile(join(storageDir, 'data', 'sessions.json'), []);
-  await writeJsonFile(join(storageDir, 'data', 'videos.json'), []);
-  await writeJsonFile(
-    join(storageDir, 'data', 'users.json'),
-    overrides?.users ?? [
-      {
-        id: 'legacy-admin-1',
-        email: 'admin@example.com',
-        passwordHash: 'not-used-by-phase-1',
-        role: 'admin',
-        createdAt: '2025-10-05T17:17:46.248Z',
-        updatedAt: '2025-10-05T17:17:46.248Z',
-      },
-    ],
-  );
 }
 
-describe('Phase 1 auth gate routes', () => {
+describe('auth gate routes', () => {
   let authDbPath: string;
   let sqliteDatabaseByPath: Map<string, InMemorySqliteDatabase>;
   let storageDir: string;
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), 'local-streamer-phase1-auth-'));
+    tempDir = await mkdtemp(join(tmpdir(), 'local-streamer-auth-routes-'));
     storageDir = join(tempDir, 'storage');
     await seedStorage(storageDir);
+    process.env.AUTH_OWNER_EMAIL = SEEDED_OWNER_EMAIL;
+    process.env.AUTH_OWNER_ID = SEEDED_OWNER_ID;
     authDbPath = join(tempDir, 'auth.sqlite');
     process.env.AUTH_SHARED_PASSWORD = 'vault-password';
     process.env.AUTH_SQLITE_PATH = authDbPath;
@@ -242,6 +234,8 @@ describe('Phase 1 auth gate routes', () => {
   });
 
   afterEach(async () => {
+    delete process.env.AUTH_OWNER_EMAIL;
+    delete process.env.AUTH_OWNER_ID;
     delete process.env.AUTH_SHARED_PASSWORD;
     delete process.env.AUTH_CLIENT_COOKIE_SECRET;
     delete process.env.AUTH_SQLITE_PATH;
@@ -269,10 +263,10 @@ describe('Phase 1 auth gate routes', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('Set-Cookie')).toContain('site_session=');
-    expect(payload).toEqual({
+    expect(payload).toEqual(expect.objectContaining({
       success: true,
-      user: SEEDED_VIEWER,
-    });
+    }));
+    expectAdminViewerShape(payload.user);
   });
 
   test('protected home route redirects unauthenticated requests to login', async () => {
@@ -296,6 +290,7 @@ describe('Phase 1 auth gate routes', () => {
         method: 'POST',
       }),
     } as never);
+    const loginPayload = await loginResponse.json();
 
     const cookie = toRequestCookieHeader(loginResponse.headers.get('Set-Cookie'));
     expect(cookie).toBeTruthy();
@@ -310,8 +305,9 @@ describe('Phase 1 auth gate routes', () => {
     } as never);
 
     expect(response).toEqual({
-      user: SEEDED_VIEWER,
+      user: loginPayload.user,
     });
+    expectAdminViewerShape(response.user);
   });
 
   test('auth me returns the seeded active viewer for an active session', async () => {
@@ -325,6 +321,7 @@ describe('Phase 1 auth gate routes', () => {
         method: 'POST',
       }),
     } as never);
+    const loginPayload = await loginResponse.json();
 
     const cookie = toRequestCookieHeader(loginResponse.headers.get('Set-Cookie'));
     expect(cookie).toBeTruthy();
@@ -342,8 +339,9 @@ describe('Phase 1 auth gate routes', () => {
     const payload = await response.json();
     expect(payload).toEqual({
       success: true,
-      user: SEEDED_VIEWER,
+      user: loginPayload.user,
     });
+    expectAdminViewerShape(payload.user);
   });
 
   test('logout revokes the active session cookie', async () => {
@@ -1189,8 +1187,8 @@ describe('Phase 1 auth gate routes', () => {
     expect(response.headers.get('X-Content-Source')).toBe('encrypted-thumbnail');
   });
 
-  test('root loader persists and returns the fallback viewer when no users exist', async () => {
-    await seedStorage(storageDir, { users: [] });
+  test('root loader returns the configured viewer when storage has no users file', async () => {
+    await seedStorage(storageDir);
     vi.resetModules();
 
     const { action } = await importLoginAction();
@@ -1217,19 +1215,13 @@ describe('Phase 1 auth gate routes', () => {
     } as never);
 
     expect(response).toEqual({
-      user: FALLBACK_VIEWER,
+      user: SEEDED_VIEWER,
     });
-
-    const users = JSON.parse(await readFile(join(storageDir, 'data', 'users.json'), 'utf8')) as Array<unknown>;
-    expect(users).toEqual([
-      expect.objectContaining(FALLBACK_VIEWER),
-    ]);
   });
 
-  test('playlist creation uses the persisted fallback owner on a clean install without users', async () => {
+  test('playlist creation uses the configured owner on a clean install without users data', async () => {
     await seedStorage(storageDir, {
       playlists: [],
-      users: [],
     });
     vi.resetModules();
 
@@ -1268,7 +1260,7 @@ describe('Phase 1 auth gate routes', () => {
       success: true,
     }));
     await expect(readFile(join(storageDir, 'data', 'playlists.json'), 'utf8')).resolves.toContain(
-      `"ownerId": "${FALLBACK_VIEWER.id}"`,
+      `"ownerId": "${SEEDED_VIEWER.id}"`,
     );
   });
 
@@ -1277,11 +1269,11 @@ describe('Phase 1 auth gate routes', () => {
       playlists: [
         {
           createdAt: '2025-10-05T17:17:46.248Z',
-          description: 'Owned by the compatibility user',
+          description: 'Owned by the seeded owner',
           id: 'playlist-1',
           isPublic: false,
           name: 'Owned Playlist',
-          ownerId: 'legacy-admin-1',
+          ownerId: 'seeded-owner-1',
           type: 'user_created',
           updatedAt: '2025-10-05T17:17:46.248Z',
           videoIds: [],
@@ -1300,6 +1292,7 @@ describe('Phase 1 auth gate routes', () => {
         method: 'POST',
       }),
     } as never);
+    await loginResponse.json();
 
     const cookie = toRequestCookieHeader(loginResponse.headers.get('Set-Cookie'));
     expect(cookie).toBeTruthy();

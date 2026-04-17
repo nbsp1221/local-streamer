@@ -41,13 +41,25 @@ The manual dev server will be available at `http://localhost:5173`.
 
 ## CI-Like Verification
 
-For auth, playback, route wiring, or other runtime-sensitive changes, run a Docker verification pass that matches GitHub Actions more closely than the host shell. Use a Bun image matching the repo `packageManager` Bun version instead of a hardcoded tag:
+For auth, playback, route wiring, or other runtime-sensitive changes, run a Docker verification pass that matches GitHub Actions more closely than the host shell.
+
+Use the built-in authority commands first:
+
+```bash
+bun run verify:ci-faithful:docker
+bun run verify:ci-worktree:docker
+```
+
+- `verify:ci-faithful:docker` checks a clean tracked export and is the closest local match for CI.
+- `verify:ci-worktree:docker` checks the current dirty worktree in an isolated container filesystem so the host repository does not pick up root-owned `.react-router/`, `build/`, or `node_modules/.vite/` artifacts.
+
+Only fall back to an ad hoc raw Docker command when investigating the harness itself. If you do, use a Bun image matching the repo `packageManager` Bun version instead of a hardcoded tag:
 
 ```bash
 docker run --rm --user "$(id -u):$(id -g)" -e CI=true -e GITHUB_ACTIONS=true -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -e TZ=Etc/UTC -v "$PWD":/workspace -w /workspace oven/bun:<matching-packageManager-version> bash -lc 'bun install --frozen-lockfile && bun run lint && bun run typecheck && bun run test && bun run build'
 ```
 
-Use `--user "$(id -u):$(id -g)"` so the container does not leave root-owned files behind in the bind-mounted repository. If you forget this, local `bun run dev`, `bun run typecheck`, or `bun run build` may fail until ownership is fixed for `.react-router/`, `build/`, or `node_modules/.vite/`.
+Use `--user "$(id -u):$(id -g)"` or a read-only/exported workspace so the container does not leave root-owned files behind in the bind-mounted repository. If you forget this, local `bun run dev`, `bun run typecheck`, or `bun run build` may fail until ownership is fixed for `.react-router/`, `build/`, or `node_modules/.vite/`.
 
 When debugging CI-only failures:
 
@@ -60,10 +72,11 @@ When debugging CI-only failures:
 For the required browser smoke layer, run:
 
 ```bash
-bun run test:e2e -- tests/e2e/home-library-owner-smoke.spec.ts tests/e2e/player-layout.spec.ts
+bun run verify:e2e-smoke
 ```
 
 with a `bun` matching the repo `packageManager` contract. That browser smoke path is separate from the non-browser Docker gate above.
+The current required smoke set covers the home owner path, playlist owner flow, player layout, and protected playback compatibility.
 When the change is both browser-visible and runtime-sensitive, follow `docs/browser-qa-contract.md` to decide whether Playwright MCP or equivalent isolated browser QA is additionally required.
 
 ## Test Layers
@@ -92,17 +105,9 @@ Use for:
 - auth/session flows
 - cookie behavior
 - media access denial / response headers
-- temporary compatibility bridges
+- active-owned compatibility cases
 
-### 3. Legacy Regression Tests
-
-```bash
-bun run test:legacy
-```
-
-Use for legacy modules and repositories that still protect current behavior during migration.
-
-### 4. Bun Runtime Smoke
+### 3. Bun Runtime Smoke
 
 ```bash
 bun run test:smoke:bun-auth
@@ -118,7 +123,7 @@ Use for:
 
 This layer exists because Vitest runs in Node while production runs in Bun.
 
-### 5. Dev Runtime Smoke
+### 4. Dev Runtime Smoke
 
 ```bash
 bun run test:smoke:dev-auth
@@ -130,10 +135,11 @@ Use for:
 - catching dev-only loader/runtime regressions such as unsupported `bun:` imports
 - validating that the local development server can complete the basic auth happy path
 
-### 6. Browser Verification
+### 5. Browser Verification
 
 Use Playwright when API checks are not enough.
 Use `docs/browser-qa-contract.md` when deciding whether browser QA is required for a given change.
+Use `bun run verify:e2e-smoke` for the required hermetic browser smoke path.
 
 ## Testing Tools
 
@@ -149,8 +155,6 @@ Use `docs/browser-qa-contract.md` when deciding whether browser QA is required f
 
 ## Test Credentials
 
-The app no longer uses the legacy setup/login flow for Phase 1 validation.
-
 Use:
 
 - **Shared Password:** value from `AUTH_SHARED_PASSWORD`
@@ -159,7 +163,7 @@ Use:
 
 ### Video Files
 
-- Seeded library videos under `storage/data/videos/`
+- Hermetic playback/browser fixtures under `tests/fixtures/playback/`
 - Upload fixtures under `storage/data/test-videos/`
 
 Before running Playwright playback checks against the built server, refresh the known playback fixtures so the test environment does not rely on stale HEVC-only packages:

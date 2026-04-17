@@ -13,7 +13,6 @@ describe('createRuntimeTestWorkspace', () => {
   test('creates an isolated runtime workspace with deterministic seeded storage', async () => {
     const workspace = await createRuntimeTestWorkspace();
     cleanupTasks.push(workspace.cleanup);
-
     expect(workspace.rootDir).not.toContain('/storage');
     expect(workspace.storageDir).toContain(workspace.rootDir);
     expect(workspace.authDbPath).toContain(workspace.rootDir);
@@ -21,22 +20,20 @@ describe('createRuntimeTestWorkspace', () => {
       `${workspace.storageDir}/data/video-metadata.sqlite`,
     );
 
-    await expect(access(`${workspace.storageDir}/data/videos.json`)).resolves.toBeUndefined();
+    await expect(access(`${workspace.storageDir}/data/videos.json`)).rejects.toBeDefined();
     await expect(access(`${workspace.storageDir}/data/pending.json`)).resolves.toBeUndefined();
     await expect(access(`${workspace.storageDir}/data/playlists.json`)).resolves.toBeUndefined();
     await expect(access(`${workspace.storageDir}/data/playlist-items.json`)).resolves.toBeUndefined();
-    await expect(access(`${workspace.storageDir}/data/users.json`)).resolves.toBeUndefined();
     await expect(access(`${workspace.storageDir}/data/videos/68e5f819-15e8-41ef-90ee-8a96769311b7/manifest.mpd`)).resolves.toBeUndefined();
     await expect(access(`${workspace.storageDir}/data/videos/68e5f819-15e8-41ef-90ee-8a96769311b7/video/init.mp4`)).resolves.toBeUndefined();
     await expect(access(workspace.videoMetadataDbPath)).resolves.toBeUndefined();
 
-    const videos = JSON.parse(await readFile(`${workspace.storageDir}/data/videos.json`, 'utf8')) as Array<{
-      id: string;
-      title: string;
-      videoUrl: string;
-    }>;
+    const metadataRepository = new SqliteLibraryVideoMetadataRepository({
+      dbPath: workspace.videoMetadataDbPath,
+    });
 
-    expect(videos).toEqual(expect.arrayContaining([
+    await expect(metadataRepository.count()).resolves.toBe(2);
+    await expect(metadataRepository.findAll()).resolves.toEqual(expect.arrayContaining([
       expect.objectContaining({
         id: '68e5f819-15e8-41ef-90ee-8a96769311b7',
         title: 'playtime',
@@ -48,12 +45,11 @@ describe('createRuntimeTestWorkspace', () => {
         videoUrl: '/videos/754c6828-621c-4df6-9cf8-a3d77297b85a/manifest.mpd',
       }),
     ]));
-
-    const metadataRepository = new SqliteLibraryVideoMetadataRepository({
-      dbPath: workspace.videoMetadataDbPath,
-    });
-
-    await expect(metadataRepository.count()).resolves.toBe(3);
+    await expect(metadataRepository.findAll()).resolves.not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: '01a5c843-7f3e-4af7-9f3d-8cb6a2691d55',
+      }),
+    ]));
   });
 
   test('accepts explicit pending-video seeds for hermetic browser flows', async () => {

@@ -33,7 +33,7 @@ async function handleClearKeyRequest(request: Request, videoId: string) {
   catch (error) {
     return createPlaybackUnexpectedRouteResponse(error, {
       fallbackMessage: 'Clear Key license access denied',
-      fallbackStatus: 403,
+      fallbackStatus: 500,
     });
   }
 }

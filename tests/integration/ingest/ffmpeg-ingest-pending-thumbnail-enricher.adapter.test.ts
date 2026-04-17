@@ -124,4 +124,45 @@ describe('FfmpegIngestPendingThumbnailEnricherAdapter', () => {
     expect(files.map(file => file.id).sort()).toEqual(['first-video', 'second-video']);
     expect(logger.warn).toHaveBeenCalledOnce();
   });
+
+  test('uses an early timestamp fallback when smart-scan does not produce a preview file', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'local-streamer-ingest-thumbnail-enricher-'));
+    const storageDir = join(tempDir, 'storage');
+    previousStorageDir = process.env.STORAGE_DIR;
+    process.env.STORAGE_DIR = storageDir;
+    await writeIncomingFile(storageDir, 'short-video.mp4');
+
+    const executeFFmpegCommand = vi.fn(async ({ args }: { args: string[] }) => {
+      const outputPath = args[args.length - 1];
+
+      if (args.includes('-ss')) {
+        await mkdir(path.dirname(outputPath), { recursive: true });
+        await writeFile(outputPath, Buffer.from([0xff, 0xd8, 0xff, 0xd9]));
+      }
+
+      return { exitCode: 0, stderr: '', stdout: '' };
+    });
+
+    const { FfmpegIngestPendingThumbnailEnricherAdapter } = await import('../../../app/modules/ingest/infrastructure/thumbnail/ffmpeg-ingest-pending-thumbnail-enricher.adapter');
+    const enricher = new FfmpegIngestPendingThumbnailEnricherAdapter({
+      executeFFmpegCommand,
+      logger: createLogger(),
+    });
+
+    const files = await enricher.enrichPendingUploads([
+      createDiscoveredUpload({ filename: 'short-video.mp4', id: 'short-video' }),
+    ]);
+
+    expect(files).toEqual([
+      expect.objectContaining({
+        id: 'short-video',
+        thumbnailUrl: '/api/thumbnail-preview/short-video.jpg',
+      }),
+    ]);
+    expect(executeFFmpegCommand).toHaveBeenCalledTimes(2);
+    expect(executeFFmpegCommand.mock.calls[1]?.[0].args).toContain('-ss');
+    expect(executeFFmpegCommand.mock.calls[1]?.[0].args[
+      executeFFmpegCommand.mock.calls[1]?.[0].args.indexOf('-ss') + 1
+    ]).toBe('1');
+  });
 });

@@ -61,49 +61,6 @@ export class SqliteLibraryVideoMetadataRepository {
     return this.databasePromise;
   }
 
-  async bootstrapFromVideos(videos: LibraryVideo[]): Promise<void> {
-    const database = await this.getDatabase();
-    await database.transaction(async (transaction) => {
-      let sortIndex = videos.length;
-
-      await transaction.exec('DELETE FROM library_videos');
-
-      for (const video of videos) {
-        await transaction.prepare(`
-          INSERT INTO library_videos (
-            id,
-            title,
-            description,
-            duration,
-            video_url,
-            thumbnail_url,
-            tags_json,
-            created_at,
-            sort_index
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          video.id,
-          video.title,
-          video.description ?? null,
-          video.duration,
-          video.videoUrl,
-          video.thumbnailUrl ?? null,
-          JSON.stringify(video.tags),
-          video.createdAt.toISOString(),
-          sortIndex,
-        );
-        sortIndex -= 1;
-      }
-
-      await transaction.prepare(`
-        INSERT OR REPLACE INTO library_video_metadata_state (
-          key,
-          value
-        ) VALUES (?, ?)
-      `).run('legacy_bootstrap_complete', 'true');
-    });
-  }
-
   async count(): Promise<number> {
     const database = await this.getDatabase();
     const row = await database.prepare<{ count: number }>(`
@@ -317,17 +274,6 @@ export class SqliteLibraryVideoMetadataRepository {
     );
 
     return this.findById(id);
-  }
-
-  async isBootstrapComplete(): Promise<boolean> {
-    const database = await this.getDatabase();
-    const row = await database.prepare<{ value: string }>(`
-      SELECT value
-      FROM library_video_metadata_state
-      WHERE key = ?
-    `).get('legacy_bootstrap_complete');
-
-    return row?.value === 'true';
   }
 }
 

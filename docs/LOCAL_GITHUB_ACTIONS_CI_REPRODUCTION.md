@@ -1,5 +1,16 @@
 # Local GitHub Actions CI Reproduction Guide
 
+Status: Active supporting guide  
+Last reviewed: 2026-04-02
+
+Use the authority scripts first:
+
+- `bun run verify:ci-faithful`
+- `bun run verify:ci-clean-export`
+- `bun run verify:ci-faithful:docker`
+
+This guide is for failure investigation when those commands are not enough or when a GitHub Actions failure still needs exact local reproduction.
+
 This guide records the concrete steps that worked when a push passed locally in a dirty workspace but failed in GitHub Actions.
 
 The goal is not "run something close enough." The goal is:
@@ -71,7 +82,7 @@ then reproduce that exact shape first.
 If CI runs:
 
 ```bash
-bun run test:e2e -- tests/e2e/home-library-owner-smoke.spec.ts tests/e2e/player-layout.spec.ts
+bun run verify:e2e-smoke
 ```
 
 then reproduce that exact browser command, not a broader or narrower suite.
@@ -105,7 +116,7 @@ docker run --rm --user "$(id -u):$(id -g)" \
   -e TZ=Etc/UTC \
   -v "$REPRO_DIR":/workspace \
   -w /workspace \
-  oven/bun:1.3.5 \
+  oven/bun:<matching-packageManager-version> \
   bash -lc 'bun install --frozen-lockfile && bun run test'
 ```
 
@@ -130,12 +141,12 @@ docker run --rm --user "$(id -u):$(id -g)" \
   -e TZ=Etc/UTC \
   -v "$REPRO_DIR":/workspace \
   -w /workspace \
-  mcr.microsoft.com/playwright:v1.58.2-noble \
+  mcr.microsoft.com/playwright:<matching-ci-image> \
   bash -lc 'mkdir -p "$HOME/.npm-global" && \
-    npm install -g bun@1.3.5 --prefix "$HOME/.npm-global" >/dev/null 2>&1 && \
+    npm install -g bun@<matching-packageManager-version> --prefix "$HOME/.npm-global" >/dev/null 2>&1 && \
     export PATH="$HOME/.npm-global/bin:$PATH" && \
     bun install --frozen-lockfile >/dev/null && \
-    bun run test:e2e -- tests/e2e/home-library-owner-smoke.spec.ts tests/e2e/player-layout.spec.ts'
+    bun run verify:e2e-smoke'
 ```
 
 One run is not enough for flaky browser smoke.
@@ -154,12 +165,12 @@ for i in $(seq 1 20); do
     -e TZ=Etc/UTC \
     -v "$REPRO_DIR":/workspace \
     -w /workspace \
-    mcr.microsoft.com/playwright:v1.58.2-noble \
+    mcr.microsoft.com/playwright:<matching-ci-image> \
     bash -lc 'mkdir -p "$HOME/.npm-global" && \
-      npm install -g bun@1.3.5 --prefix "$HOME/.npm-global" >/dev/null 2>&1 && \
+      npm install -g bun@<matching-packageManager-version> --prefix "$HOME/.npm-global" >/dev/null 2>&1 && \
       export PATH="$HOME/.npm-global/bin:$PATH" && \
       bun install --frozen-lockfile >/dev/null && \
-      bun run test:e2e -- tests/e2e/home-library-owner-smoke.spec.ts tests/e2e/player-layout.spec.ts' || break
+      bun run verify:e2e-smoke' || break
 done
 ```
 

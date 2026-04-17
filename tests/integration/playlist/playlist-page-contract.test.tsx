@@ -25,11 +25,11 @@ describe.sequential('playlist page contract', () => {
       playlists: [
         {
           createdAt: '2025-10-05T17:17:46.248Z',
-          description: 'Owned by the compatibility user',
+          description: 'Owned by the seeded owner',
           id: 'playlist-1',
           isPublic: false,
           name: 'Owned Playlist',
-          ownerId: 'legacy-admin-1',
+          ownerId: 'seeded-owner-1',
           type: 'user_created',
           updatedAt: '2025-10-05T17:17:46.248Z',
           videoIds: ['video-1', 'video-2'],
@@ -73,14 +73,14 @@ describe.sequential('playlist page contract', () => {
       playlists: [
         {
           createdAt: '2025-10-05T17:17:46.248Z',
-          description: 'Owned by the compatibility user',
+          description: 'Owned by the seeded owner',
           id: 'playlist-1',
           isPublic: false,
           metadata: {
             genre: ['Action'],
           },
           name: 'Owned Playlist',
-          ownerId: 'legacy-admin-1',
+          ownerId: 'seeded-owner-1',
           type: 'user_created',
           updatedAt: '2025-10-05T17:17:46.248Z',
           videoIds: ['68e5f819-15e8-41ef-90ee-8a96769311b7'],

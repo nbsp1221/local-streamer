@@ -140,7 +140,8 @@ describe('server playback composition root', () => {
     const source = await readFile(new URL('./playback.ts', import.meta.url), 'utf8');
 
     expectSourceToExcludeRetiredPlaybackFilenames(source);
-    expect(source).not.toContain('jsonwebtoken-playback-token.service');
+    expect(source).toContain('jsonwebtoken-playback-token.service');
+    expect(source).not.toContain('/token/playback-token.service');
   });
 
   test('does not construct unrelated playback defaults when only token issuance is exercised', async () => {

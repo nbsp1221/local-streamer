@@ -5,8 +5,8 @@ import crypto from 'node:crypto';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { ThumbnailCryptoUtils } from '~/legacy/modules/thumbnail/shared/thumbnail-crypto.utils';
-import { backfillBrowserCompatiblePlayback } from '../../../scripts/backfill-browser-compatible-playback';
+import { backfillBrowserCompatiblePlayback } from '~/modules/playback/infrastructure/backfill/browser-compatible-playback-backfill';
+import * as ThumbnailCryptoUtils from '~/modules/thumbnail/infrastructure/crypto/thumbnail-crypto.utils';
 
 const VALID_JPEG_BUFFER = readFileSync(join(process.cwd(), 'public', 'images', 'video-placeholder.jpg'));
 
@@ -433,15 +433,11 @@ describe('backfillBrowserCompatiblePlayback', () => {
     const originalThumbnail = VALID_JPEG_BUFFER;
     const encryptedThumbnail = ThumbnailCryptoUtils.encryptWithIVHeader(originalThumbnail, originalKey);
 
-    if (!encryptedThumbnail.success || !encryptedThumbnail.data) {
-      throw new Error('failed to seed encrypted thumbnail fixture');
-    }
-
     await mkdir(join(targetDir, 'video'), { recursive: true });
     await mkdir(join(targetDir, 'audio'), { recursive: true });
     await writeFile(join(targetDir, 'video.mp4'), 'source-binary');
     await writeFile(join(targetDir, 'key.bin'), originalKey);
-    await writeFile(join(targetDir, 'thumbnail.jpg'), encryptedThumbnail.data);
+    await writeFile(join(targetDir, 'thumbnail.jpg'), encryptedThumbnail);
     await writeFile(join(targetDir, 'manifest.mpd'), '<Representation id="0" codecs="hev1.1.6.H120.90" />');
 
     const result = await backfillBrowserCompatiblePlayback({
@@ -471,8 +467,7 @@ describe('backfillBrowserCompatiblePlayback', () => {
     const promotedKey = await readFile(join(targetDir, 'key.bin'));
     const decryptedThumbnail = ThumbnailCryptoUtils.decryptWithIVHeader(promotedThumbnail, promotedKey);
 
-    expect(decryptedThumbnail.success).toBe(true);
-    expect(decryptedThumbnail.data).toEqual(originalThumbnail);
+    expect(decryptedThumbnail).toEqual(originalThumbnail);
   });
 
   it('keeps the rebuilt playback package even when thumbnail recovery fails after promotion starts', async () => {
@@ -487,15 +482,11 @@ describe('backfillBrowserCompatiblePlayback', () => {
     const foreignKey = Buffer.from('1234567890abcdef1234567890abcdef', 'hex');
     const encryptedThumbnail = ThumbnailCryptoUtils.encryptWithIVHeader(Buffer.from('thumbnail-payload'), foreignKey);
 
-    if (!encryptedThumbnail.success || !encryptedThumbnail.data) {
-      throw new Error('failed to seed unrecoverable thumbnail fixture');
-    }
-
     await mkdir(join(targetDir, 'video'), { recursive: true });
     await mkdir(join(targetDir, 'audio'), { recursive: true });
     await writeFile(join(targetDir, 'video.mp4'), 'source-binary');
     await writeFile(join(targetDir, 'key.bin'), oldKey);
-    await writeFile(join(targetDir, 'thumbnail.jpg'), encryptedThumbnail.data);
+    await writeFile(join(targetDir, 'thumbnail.jpg'), encryptedThumbnail);
     await writeFile(join(targetDir, 'manifest.mpd'), '<Representation id="0" codecs="hev1.1.6.H120.90" />');
     await writeFile(join(targetDir, 'video', 'segment-0001.m4s'), 'old-video-segment');
     await writeFile(join(targetDir, 'audio', 'segment-0001.m4s'), 'old-audio-segment');
@@ -544,15 +535,11 @@ describe('backfillBrowserCompatiblePlayback', () => {
     const originalThumbnail = createApp2JpegVariant();
     const encryptedThumbnail = ThumbnailCryptoUtils.encryptWithIVHeader(originalThumbnail, originalKey);
 
-    if (!encryptedThumbnail.success || !encryptedThumbnail.data) {
-      throw new Error('failed to seed APP2 encrypted thumbnail fixture');
-    }
-
     await mkdir(join(targetDir, 'video'), { recursive: true });
     await mkdir(join(targetDir, 'audio'), { recursive: true });
     await writeFile(join(targetDir, 'video.mp4'), 'source-binary');
     await writeFile(join(targetDir, 'key.bin'), originalKey);
-    await writeFile(join(targetDir, 'thumbnail.jpg'), encryptedThumbnail.data);
+    await writeFile(join(targetDir, 'thumbnail.jpg'), encryptedThumbnail);
     await writeFile(join(targetDir, 'manifest.mpd'), '<Representation id="0" codecs="hev1.1.6.H120.90" />');
 
     const result = await backfillBrowserCompatiblePlayback({
@@ -582,8 +569,7 @@ describe('backfillBrowserCompatiblePlayback', () => {
     const promotedKey = await readFile(join(targetDir, 'key.bin'));
     const decryptedThumbnail = ThumbnailCryptoUtils.decryptWithIVHeader(promotedThumbnail, promotedKey);
 
-    expect(decryptedThumbnail.success).toBe(true);
-    expect(decryptedThumbnail.data).toEqual(originalThumbnail);
+    expect(decryptedThumbnail).toEqual(originalThumbnail);
   });
 
   it('rejects malformed JPEG-like plaintext during thumbnail recovery and reports a warning instead of a false success', async () => {
@@ -597,15 +583,11 @@ describe('backfillBrowserCompatiblePlayback', () => {
     const malformedThumbnail = Buffer.from('ffd8ffe00002ffdaffd9', 'hex');
     const encryptedThumbnail = ThumbnailCryptoUtils.encryptWithIVHeader(malformedThumbnail, replacementKey);
 
-    if (!encryptedThumbnail.success || !encryptedThumbnail.data) {
-      throw new Error('failed to seed malformed encrypted thumbnail fixture');
-    }
-
     await mkdir(join(targetDir, 'video'), { recursive: true });
     await mkdir(join(targetDir, 'audio'), { recursive: true });
     await writeFile(join(targetDir, 'video.mp4'), 'source-binary');
     await writeFile(join(targetDir, 'key.bin'), replacementKey);
-    await writeFile(join(targetDir, 'thumbnail.jpg'), encryptedThumbnail.data);
+    await writeFile(join(targetDir, 'thumbnail.jpg'), encryptedThumbnail);
     await writeFile(join(targetDir, 'manifest.mpd'), '<Representation id="0" codecs="hev1.1.6.H120.90" />');
 
     const result = await backfillBrowserCompatiblePlayback({

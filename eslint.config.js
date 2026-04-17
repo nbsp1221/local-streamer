@@ -16,7 +16,6 @@ export default defineConfig([
       'build',
       'playwright-report',
       'test-results',
-      'app/legacy/**/*',
       'app/shared/ui/**/*',
       'app/components/ui/**/*',
     ],
@@ -57,8 +56,8 @@ export default defineConfig([
       'no-restricted-imports': ['error', {
         patterns: [
           {
-            group: ['~/components/ui/*', '~/legacy/components/ui/*', '**/legacy/components/ui/*'],
-            message: 'Use shadcn primitives from ~/shared/ui/* instead of legacy or deprecated UI paths.',
+            group: ['~/components/ui/*'],
+            message: 'Use shadcn primitives from ~/shared/ui/* instead of deprecated UI paths.',
           },
           {
             group: ['@radix-ui/*', 'radix-ui'],

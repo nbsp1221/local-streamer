@@ -111,7 +111,7 @@ describe('Home shell contract', () => {
     expect(screen.getAllByDisplayValue('Action')).toHaveLength(2);
   });
 
-  test('preserves q/tag URL state when browse navigation changes the visible legacy genre affordance', async () => {
+  test('preserves q/tag URL state when browse navigation changes the visible genre affordance', async () => {
     const user = userEvent.setup();
 
     function LocationProbe() {

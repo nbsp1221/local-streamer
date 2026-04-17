@@ -17,24 +17,42 @@ describe('createVideoMetadataSqliteDatabase', () => {
     await rm(tempDir, { force: true, recursive: true });
   });
 
-  test('persists rows across reopened adapters instead of falling back to memory', async () => {
+  test('persists video rows across reopened adapters instead of falling back to memory', async () => {
     const firstDatabase = await createVideoMetadataSqliteDatabase({ dbPath });
 
     await firstDatabase.prepare(`
-      INSERT OR REPLACE INTO library_video_metadata_state (
-        key,
-        value
-      ) VALUES (?, ?)
-    `).run('persistence-check', 'stored');
+      INSERT INTO library_videos (
+        id,
+        title,
+        description,
+        duration,
+        video_url,
+        thumbnail_url,
+        tags_json,
+        created_at,
+        sort_index
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      'persistent-video',
+      'Persistent fixture',
+      'Fixture description',
+      120,
+      '/videos/persistent-video/manifest.mpd',
+      '/api/thumbnail/persistent-video',
+      '["vault"]',
+      '2026-03-24T00:00:00.000Z',
+      1,
+    );
 
     const reopenedDatabase = await createVideoMetadataSqliteDatabase({ dbPath });
 
-    await expect(reopenedDatabase.prepare<{ value: string }>(`
-      SELECT value
-      FROM library_video_metadata_state
-      WHERE key = ?
-    `).get('persistence-check')).resolves.toEqual({
-      value: 'stored',
+    await expect(reopenedDatabase.prepare<{ id: string; title: string }>(`
+      SELECT id, title
+      FROM library_videos
+      WHERE id = ?
+    `).get('persistent-video')).resolves.toEqual({
+      id: 'persistent-video',
+      title: 'Persistent fixture',
     });
   });
 
@@ -92,7 +110,7 @@ describe('createVideoMetadataSqliteDatabase', () => {
     );
   });
 
-  test('commits transactional bootstrap-style work atomically', async () => {
+  test('commits transactional metadata writes atomically', async () => {
     const database = await createVideoMetadataSqliteDatabase({ dbPath });
 
     await database.transaction(async (transaction) => {

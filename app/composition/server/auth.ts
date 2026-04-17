@@ -8,7 +8,7 @@ import { ResolveAuthSessionUseCase } from '~/modules/auth/application/use-cases/
 import { EnvSharedPasswordVerifier } from '~/modules/auth/infrastructure/password/env-shared-password.verifier';
 import { InMemoryLoginAttemptGuard } from '~/modules/auth/infrastructure/security/in-memory-login-attempt-guard';
 import { SqliteSessionRepository } from '~/modules/auth/infrastructure/sqlite/sqlite-session.repository';
-import { JsonSiteViewerResolver } from '~/modules/auth/infrastructure/viewer/json-site-viewer.resolver';
+import { ConfigSiteViewerResolver } from '~/modules/auth/infrastructure/viewer/config-site-viewer.resolver';
 import {
   getAuthConfig,
   getAuthCookieConfig,
@@ -44,7 +44,7 @@ function getCachedServerSessionServices(): CachedServerSessionServices {
   const sessionRepository = new SqliteSessionRepository({
     dbPath: sessionConfig.sqlitePath,
   });
-  const siteViewerResolver = new JsonSiteViewerResolver();
+  const siteViewerResolver = new ConfigSiteViewerResolver();
   const resolveAuthSession = new ResolveAuthSessionUseCase({
     sessionRepository,
     sessionTtlMs: sessionConfig.sessionTtlMs,

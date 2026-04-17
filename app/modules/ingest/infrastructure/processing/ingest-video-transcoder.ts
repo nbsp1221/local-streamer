@@ -4,6 +4,7 @@ export interface IngestVideoTranscodeRequest {
   sourcePath: string;
   useGpu: boolean;
   videoId: string;
+  workspaceRootDir?: string;
 }
 
 export type IngestVideoTranscodeResult =

@@ -1,0 +1,96 @@
+import crypto from 'node:crypto';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+import { decryptWithIVHeader, encryptWithIVHeader } from '~/modules/thumbnail/infrastructure/crypto/thumbnail-crypto.utils';
+
+describe('browser-compatible playback backfill module', () => {
+  let rootDir = '';
+  const originalSeed = process.env.VIDEO_MASTER_ENCRYPTION_SEED;
+
+  afterEach(async () => {
+    if (rootDir) {
+      await rm(rootDir, { force: true, recursive: true });
+      rootDir = '';
+    }
+
+    if (originalSeed === undefined) {
+      delete process.env.VIDEO_MASTER_ENCRYPTION_SEED;
+      return;
+    }
+
+    process.env.VIDEO_MASTER_ENCRYPTION_SEED = originalSeed;
+  });
+
+  test('rebuilds an incompatible manifest and re-keys the thumbnail with the canonical playback key', async () => {
+    process.env.VIDEO_MASTER_ENCRYPTION_SEED = 'browser-backfill-test-master-seed';
+    rootDir = await mkdtemp(path.join(tmpdir(), 'browser-backfill-module-'));
+    const videosDir = path.join(rootDir, 'videos');
+    const videoId = 'video-hevc-only';
+    const targetDir = path.join(videosDir, videoId);
+    const previousKey = Buffer.from('00112233445566778899aabbccddeeff', 'hex');
+    const originalThumbnail = Buffer.from(await readFile(path.join(process.cwd(), 'public', 'images', 'video-placeholder.jpg')));
+
+    await mkdir(path.join(targetDir, 'video'), { recursive: true });
+    await mkdir(path.join(targetDir, 'audio'), { recursive: true });
+    await writeFile(path.join(targetDir, 'video.mp4'), 'source-binary');
+    await writeFile(path.join(targetDir, 'manifest.mpd'), '<Representation id="0" codecs="hev1.1.6.H120.90" />');
+    await writeFile(path.join(targetDir, 'key.bin'), previousKey);
+    await writeFile(path.join(targetDir, 'thumbnail.jpg'), encryptWithIVHeader(originalThumbnail, previousKey));
+
+    const { backfillBrowserCompatiblePlayback } = await import('../../../app/modules/playback/infrastructure/backfill/browser-compatible-playback-backfill');
+    const result = await backfillBrowserCompatiblePlayback({
+      createPackage: async ({ stagingDir }) => {
+        const canonicalKeyId = crypto.createHash('sha256').update(videoId).digest().subarray(0, 16).toString('hex');
+        await mkdir(path.join(stagingDir, 'video'), { recursive: true });
+        await mkdir(path.join(stagingDir, 'audio'), { recursive: true });
+        await writeFile(path.join(stagingDir, 'manifest.mpd'), `<ContentProtection cenc:default_KID="${canonicalKeyId}" /><Representation id="0" codecs="avc1.640028" />`);
+        await writeFile(path.join(stagingDir, 'key.bin'), Buffer.from('8899aabbccddeeff0011223344556677', 'hex'));
+        await writeFile(path.join(stagingDir, 'video', 'init.mp4'), 'video-init');
+        await writeFile(path.join(stagingDir, 'video', 'segment-0001.m4s'), 'video-segment');
+        await writeFile(path.join(stagingDir, 'audio', 'init.mp4'), 'audio-init');
+        await writeFile(path.join(stagingDir, 'audio', 'segment-0001.m4s'), 'audio-segment');
+        await writeFile(path.join(stagingDir, 'thumbnail.jpg'), encryptWithIVHeader(Buffer.from('stale-thumbnail'), Buffer.from('8899aabbccddeeff0011223344556677', 'hex')));
+      },
+      logger: {
+        error: () => {},
+        info: () => {},
+        warn: () => {},
+      },
+      videoIds: [videoId],
+      videosDir,
+    });
+
+    expect(result.failed).toEqual([]);
+    expect(result.rebuilt).toEqual([videoId]);
+    expect(result.skipped).toEqual([]);
+    expect(result.warnings).toEqual([]);
+    await expect(readFile(path.join(targetDir, 'manifest.mpd'), 'utf8')).resolves.toContain('avc1.640028');
+
+    const currentKey = await readFile(path.join(targetDir, 'key.bin'));
+    const promotedThumbnail = await readFile(path.join(targetDir, 'thumbnail.jpg'));
+
+    expect(decryptWithIVHeader(promotedThumbnail, currentKey)).toEqual(originalThumbnail);
+  });
+
+  test('runs the active backfill CLI helper with explicit --video-id filters', async () => {
+    const { runBrowserCompatiblePlaybackBackfillCli } = await import('../../../app/modules/playback/infrastructure/backfill/browser-compatible-playback-backfill');
+    const runBackfill = vi.fn(async () => ({
+      failed: [],
+      rebuilt: ['video-a'],
+      skipped: [],
+      warnings: [],
+    }));
+
+    const summary = await runBrowserCompatiblePlaybackBackfillCli({
+      argv: ['--video-id', 'video-a', '--video-id', 'video-b'],
+      runBackfill,
+    });
+
+    expect(runBackfill).toHaveBeenCalledWith({
+      videoIds: ['video-a', 'video-b'],
+    });
+    expect(summary.rebuilt).toEqual(['video-a']);
+  });
+});

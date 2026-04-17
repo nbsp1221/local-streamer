@@ -1,7 +1,8 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { seedLibraryVideoMetadata } from '../../../../../tests/support/seed-library-video-metadata';
 
 const ORIGINAL_STORAGE_DIR = process.env.STORAGE_DIR;
 const ORIGINAL_VIDEO_METADATA_SQLITE_PATH = process.env.VIDEO_METADATA_SQLITE_PATH;
@@ -93,7 +94,7 @@ describe('PlaybackVideoCatalogAdapter', () => {
     await expect(adapter.getPlayerVideo('missing-video')).resolves.toBeNull();
   });
 
-  test('bootstraps SQLite metadata from videos.json when the active metadata store is still empty', async () => {
+  test('reads player video data from the active SQLite metadata store', async () => {
     const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-catalog-'));
     const storageDir = path.join(rootDir, 'storage');
     const dataDir = path.join(storageDir, 'data');
@@ -101,7 +102,7 @@ describe('PlaybackVideoCatalogAdapter', () => {
     process.env.STORAGE_DIR = storageDir;
     process.env.VIDEO_METADATA_SQLITE_PATH = sqlitePath;
     await mkdir(dataDir, { recursive: true });
-    await writeFile(path.join(dataDir, 'videos.json'), JSON.stringify([
+    await seedLibraryVideoMetadata(sqlitePath, [
       {
         createdAt: '2026-03-02T00:00:00.000Z',
         description: 'Bootstrap source',
@@ -112,7 +113,7 @@ describe('PlaybackVideoCatalogAdapter', () => {
         title: 'Current video',
         videoUrl: '/videos/video-1/manifest.mpd',
       },
-    ], null, 2));
+    ]);
 
     try {
       const { PlaybackVideoCatalogAdapter } = await import('./playback-video-catalog.adapter');
@@ -132,7 +133,7 @@ describe('PlaybackVideoCatalogAdapter', () => {
     }
   });
 
-  test('preserves legacy addedAt timestamps when bootstrapping videos.json into SQLite', async () => {
+  test('preserves historical addedAt timestamps seeded into SQLite metadata', async () => {
     const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-catalog-'));
     const storageDir = path.join(rootDir, 'storage');
     const dataDir = path.join(storageDir, 'data');
@@ -140,16 +141,16 @@ describe('PlaybackVideoCatalogAdapter', () => {
     process.env.STORAGE_DIR = storageDir;
     process.env.VIDEO_METADATA_SQLITE_PATH = sqlitePath;
     await mkdir(dataDir, { recursive: true });
-    await writeFile(path.join(dataDir, 'videos.json'), JSON.stringify([
+    await seedLibraryVideoMetadata(sqlitePath, [
       {
         addedAt: '2025-01-02T03:04:05.000Z',
         duration: 120,
         id: 'video-1',
         tags: ['Drama'],
-        title: 'Legacy timestamp video',
+        title: 'Historical timestamp video',
         videoUrl: '/videos/video-1/manifest.mpd',
       },
-    ], null, 2));
+    ]);
 
     try {
       const { PlaybackVideoCatalogAdapter } = await import('./playback-video-catalog.adapter');
@@ -160,7 +161,7 @@ describe('PlaybackVideoCatalogAdapter', () => {
         video: expect.objectContaining({
           createdAt: new Date('2025-01-02T03:04:05.000Z'),
           id: 'video-1',
-          title: 'Legacy timestamp video',
+          title: 'Historical timestamp video',
         }),
       });
     }
@@ -169,7 +170,7 @@ describe('PlaybackVideoCatalogAdapter', () => {
     }
   });
 
-  test('falls back to addedAt when createdAt is an empty legacy string', async () => {
+  test('falls back to addedAt when createdAt is empty during SQLite seeding', async () => {
     const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-catalog-'));
     const storageDir = path.join(rootDir, 'storage');
     const dataDir = path.join(storageDir, 'data');
@@ -177,17 +178,17 @@ describe('PlaybackVideoCatalogAdapter', () => {
     process.env.STORAGE_DIR = storageDir;
     process.env.VIDEO_METADATA_SQLITE_PATH = sqlitePath;
     await mkdir(dataDir, { recursive: true });
-    await writeFile(path.join(dataDir, 'videos.json'), JSON.stringify([
+    await seedLibraryVideoMetadata(sqlitePath, [
       {
         addedAt: '2025-01-02T03:04:05.000Z',
         createdAt: '',
         duration: 120,
         id: 'video-1',
         tags: ['Drama'],
-        title: 'Mixed legacy timestamp video',
+        title: 'Mixed historical timestamp video',
         videoUrl: '/videos/video-1/manifest.mpd',
       },
-    ], null, 2));
+    ]);
 
     try {
       const { PlaybackVideoCatalogAdapter } = await import('./playback-video-catalog.adapter');
@@ -198,7 +199,7 @@ describe('PlaybackVideoCatalogAdapter', () => {
         video: expect.objectContaining({
           createdAt: new Date('2025-01-02T03:04:05.000Z'),
           id: 'video-1',
-          title: 'Mixed legacy timestamp video',
+          title: 'Mixed historical timestamp video',
         }),
       });
     }

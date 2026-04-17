@@ -96,18 +96,20 @@ Optional:
 
 - `AUTH_SQLITE_PATH`: path for the Bun SQLite auth/session database
 - `AUTH_SESSION_TTL_MS`: session lifetime in milliseconds
+- `AUTH_OWNER_ID`: optional config-owned site owner id override (`site-owner` by default)
+- `AUTH_OWNER_EMAIL`: optional config-owned site owner email override (`owner@local` by default)
 
 Notes:
 
-- Phase 1 no longer uses the legacy setup/account-creation flow. `/setup` now redirects to `/login`.
-- Legacy playlist compatibility still exists temporarily. The shared-password session is mapped to an existing legacy admin when available, falls back to the first legacy user if needed, and creates a `vault@local` compatibility admin on clean installs.
+- Use `/login` for the site auth flow.
+- The site owner identity is config-owned through `AUTH_OWNER_ID` and `AUTH_OWNER_EMAIL`.
 
 ## Technology Stack
 
 - **Frontend**: React Router v7 with SSR
 - **Runtime**: Bun (pure Bun, no Node.js)
 - **Styling**: TailwindCSS v4
-- **Metadata/Auth Persistence**: Bun SQLite for auth sessions, JSON legacy storage during migration
+- **Metadata/Auth Persistence**: SQLite for auth sessions and canonical video metadata, plus active-owned JSON persistence for playlists
 - **Video**: FFmpeg for thumbnails and streaming
 - **Streaming**: DASH with AES-128 encryption
 
@@ -118,10 +120,12 @@ The test suite is split by scope:
 - `bun run test:modules`: colocated module and policy tests
 - `bun run test:integration`: route and auth integration tests
 - `bun run test:ui-dom`: jsdom + React Testing Library component tests
-- `bun run test:legacy`: legacy module and repository coverage that still protects current behavior
+- `bun run vitest:ui`: interactive Vitest UI for local debugging only
 - `bun run test:run`: all Vitest projects
 - `bun run test:smoke:dev-auth`: dev-server auth smoke against `bun run dev`
 - `bun run test:smoke:bun-auth`: Bun runtime smoke against the built server
+- `bun run verify:base`: hermetic lint + typecheck + Vitest + Bun smoke + build
+- `bun run verify:e2e-smoke`: required browser smoke command
 
 Why the smoke layers exist:
 
@@ -136,7 +140,7 @@ Smoke split:
 
 Browser verification remains a separate step for UI and playback flows. See [docs/E2E_TESTING_GUIDE.md](docs/E2E_TESTING_GUIDE.md).
 
-If Playwright playback fixtures were packaged before the browser-safe H.264 policy landed, refresh them with:
+If Playwright playback fixtures need to be rebuilt for the browser-safe H.264 policy, refresh them with:
 
 ```bash
 bun run backfill:browser-playback-fixtures

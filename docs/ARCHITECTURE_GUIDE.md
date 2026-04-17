@@ -1,5 +1,29 @@
 # Local Streamer Architecture Guide
 
+Status: Historical reference only  
+Last reviewed: 2026-04-02  
+Superseded by:
+
+- `docs/architecture/personal-video-vault-target-architecture.md`
+- `docs/roadmap/current-refactor-status.md`
+- `docs/roadmap/personal-video-vault-rearchitecture-phases.md`
+
+## Important note
+
+This document reflects an earlier architecture direction and is no longer the source of truth for the live refactor.
+
+Do not use this file to decide the current target architecture, migration order, or active ownership boundaries.
+
+Use it only as historical background for how the project used to reason about its structure.
+
+The current source of truth is:
+
+- north star: `docs/architecture/personal-video-vault-target-architecture.md`
+- current execution state: `docs/roadmap/current-refactor-status.md`
+- phase definitions: `docs/roadmap/personal-video-vault-rearchitecture-phases.md`
+
+---
+
 **Version**: 2.0  
 **Created**: 2025-01-07  
 **Target**: Personal video streaming server  
@@ -14,6 +38,8 @@ This guide consolidates architectural decisions for Local Streamer, a personal v
 - **YAGNI**: You Aren't Gonna Need It - avoid over-engineering
 - **Context-Aware**: Single-user personal project ≠ enterprise application
 - **Maintainable**: Easy to understand and modify for one developer
+
+The remaining sections in this document are archived proposal material from that earlier architecture discussion.
 
 ---
 
@@ -38,7 +64,7 @@ This guide consolidates architectural decisions for Local Streamer, a personal v
 
 ---
 
-## 🏗️ **Chosen Architecture: MVC + UseCase + Repository**
+## 🏗️ **Historical Chosen Architecture: MVC + UseCase + Repository**
 
 ### **Why This Pattern?**
 
@@ -63,7 +89,7 @@ Based on analysis of enterprise patterns and our project context:
 
 ## 📁 **Folder Structure**
 
-### **Current Structure**
+### **Historical Structure At The Time**
 ```
 app/
 ├── routes/api/              # Route handlers (thick, 80+ lines)
@@ -73,7 +99,7 @@ app/
 └── types/                  # ✅ TypeScript definitions
 ```
 
-### **Target Structure**
+### **Historical Target Structure**
 ```
 app/
 ├── modules/                # 🆕 Domain-based organization
@@ -240,7 +266,7 @@ if (result.success) {
 
 ---
 
-## 🔄 **Migration Strategy**
+## 🔄 **Historical Migration Strategy**
 
 ### **Phase 1: Structure Setup (Week 1)**
 ```bash

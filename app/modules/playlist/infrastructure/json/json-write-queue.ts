@@ -22,9 +22,17 @@ export class JsonWriteQueue {
       const dir = path.dirname(filePath);
       const tempPath = `${filePath}.tmp`;
 
-      await fs.mkdir(dir, { recursive: true });
-      await fs.writeFile(tempPath, JSON.stringify(data, null, 2), 'utf8');
-      await fs.rename(tempPath, filePath);
+      try {
+        await fs.mkdir(dir, { recursive: true });
+        await fs.writeFile(tempPath, JSON.stringify(data, null, 2), 'utf8');
+        await fs.rename(tempPath, filePath);
+      }
+      catch (error) {
+        await fs.rm(tempPath, { force: true });
+        throw new Error(
+          `Failed to write JSON file: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     });
   }
 
@@ -38,7 +46,9 @@ export class JsonWriteQueue {
         return defaultValue;
       }
 
-      throw error;
+      throw new Error(
+        `Failed to read JSON file: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -49,6 +59,24 @@ export class JsonWriteQueue {
     catch {
       await this.writeJson(filePath, defaultValue);
     }
+  }
+
+  async exists(filePath: string) {
+    try {
+      await fs.access(filePath);
+      return true;
+    }
+    catch {
+      return false;
+    }
+  }
+
+  getMutexCount() {
+    return this.mutexMap.size;
+  }
+
+  clearMutexes() {
+    this.mutexMap.clear();
   }
 }
 

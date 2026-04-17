@@ -18,13 +18,6 @@ const LIBRARY_VIDEO_METADATA_SCHEMA = `
   )
 `;
 
-const LIBRARY_VIDEO_METADATA_STATE_SCHEMA = `
-  CREATE TABLE IF NOT EXISTS library_video_metadata_state (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-  )
-`;
-
 export interface SqliteRunResult {
   changes: number;
   lastInsertRowid?: bigint;
@@ -144,7 +137,6 @@ export const createVideoMetadataSqliteDatabase: CreateSqliteDatabase = async ({ 
 
   await database.exec('PRAGMA journal_mode = WAL');
   await database.exec(LIBRARY_VIDEO_METADATA_SCHEMA);
-  await database.exec(LIBRARY_VIDEO_METADATA_STATE_SCHEMA);
 
   return database;
 };

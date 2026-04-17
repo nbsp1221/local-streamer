@@ -33,7 +33,7 @@ async function importClearKeyRoute() {
   return import('../../../app/routes/videos.$videoId.clearkey');
 }
 
-describe('Phase 2 playback resource route error mapping', () => {
+describe('playback resource route error mapping', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -105,7 +105,7 @@ describe('Phase 2 playback resource route error mapping', () => {
     await expect(response.text()).resolves.toBe('video segment');
   });
 
-  test('clearkey route maps unexpected upstream errors to the old 403 fallback contract', async () => {
+  test('clearkey route maps unexpected upstream errors to the current playback unexpected-error contract', async () => {
     fakePlaybackServices.servePlaybackClearKeyLicense.execute.mockRejectedValue(
       new Error('upstream clearkey failure'),
     );
@@ -123,9 +123,9 @@ describe('Phase 2 playback resource route error mapping', () => {
       }),
     } as never);
 
-    expect(loaderResponse.status).toBe(403);
+    expect(loaderResponse.status).toBe(500);
     await expect(loaderResponse.text()).resolves.toBe('Clear Key license access denied');
-    expect(actionResponse.status).toBe(403);
+    expect(actionResponse.status).toBe(500);
     await expect(actionResponse.text()).resolves.toBe('Clear Key license access denied');
   });
 });

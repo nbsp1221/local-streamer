@@ -1,11 +1,11 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { vi } from 'vitest';
-import { SqliteLibraryVideoMetadataRepository } from '~/modules/library/infrastructure/sqlite/sqlite-library-video-metadata.repository';
 import { toRequestCookieHeader } from '../helpers/cookies';
 import { createRuntimeTestWorkspace } from './create-runtime-test-workspace';
+import { type SeedLibraryVideoInput, seedLibraryVideoMetadata } from './seed-library-video-metadata';
 
-export const PLAYLIST_OWNER_ID = 'legacy-admin-1';
+export const PLAYLIST_OWNER_ID = 'seeded-owner-1';
 
 interface AuthSessionRow {
   created_at: string;
@@ -113,8 +113,7 @@ class InMemorySqliteDatabase {
 interface PlaylistRuntimeWorkspaceOptions {
   playlistItems?: unknown[];
   playlists?: unknown[];
-  users?: unknown[];
-  videos?: unknown[];
+  videos?: SeedLibraryVideoInput[];
 }
 
 const DEFAULT_VIDEOS = [
@@ -182,25 +181,6 @@ const DEFAULT_PLAYLIST_ITEMS = [
   },
 ];
 
-const DEFAULT_USERS = [
-  {
-    createdAt: '2025-10-05T17:17:46.248Z',
-    email: 'admin@example.com',
-    id: PLAYLIST_OWNER_ID,
-    passwordHash: 'not-used-by-playlist-tests',
-    role: 'admin',
-    updatedAt: '2025-10-05T17:17:46.248Z',
-  },
-  {
-    createdAt: '2025-10-05T17:17:46.248Z',
-    email: 'other@example.com',
-    id: 'other-user',
-    passwordHash: 'not-used-by-playlist-tests',
-    role: 'user',
-    updatedAt: '2025-10-05T17:17:46.248Z',
-  },
-];
-
 interface PlaylistRuntimeWorkspace {
   authDbPath: string;
   cleanup: () => Promise<void>;
@@ -214,10 +194,6 @@ async function writeJsonFile(filePath: string, value: unknown) {
   await writeFile(filePath, JSON.stringify(value, null, 2));
 }
 
-async function readJsonFile<T>(filePath: string): Promise<T> {
-  return JSON.parse(await readFile(filePath, 'utf8')) as T;
-}
-
 export async function createPlaylistRuntimeTestWorkspace(
   options: PlaylistRuntimeWorkspaceOptions = {},
 ): Promise<PlaylistRuntimeWorkspace> {
@@ -227,10 +203,10 @@ export async function createPlaylistRuntimeTestWorkspace(
   await Promise.all([
     writeJsonFile(join(dataDir, 'playlist-items.json'), options.playlistItems ?? DEFAULT_PLAYLIST_ITEMS),
     writeJsonFile(join(dataDir, 'playlists.json'), options.playlists ?? DEFAULT_PLAYLISTS),
-    writeJsonFile(join(dataDir, 'users.json'), options.users ?? DEFAULT_USERS),
-    writeJsonFile(join(dataDir, 'videos.json'), options.videos ?? DEFAULT_VIDEOS),
   ]);
 
+  process.env.AUTH_OWNER_EMAIL = 'admin@example.com';
+  process.env.AUTH_OWNER_ID = PLAYLIST_OWNER_ID;
   process.env.AUTH_SHARED_PASSWORD = 'vault-password';
   process.env.AUTH_SQLITE_PATH = workspace.authDbPath;
   process.env.STORAGE_DIR = workspace.storageDir;
@@ -238,29 +214,10 @@ export async function createPlaylistRuntimeTestWorkspace(
   delete process.env.VIDEO_JWT_SECRET;
   delete process.env.VIDEO_MASTER_ENCRYPTION_SEED;
 
-  const videos = await readJsonFile<Array<{
-    createdAt: string;
-    description?: string;
-    duration: number;
-    id: string;
-    tags?: string[];
-    thumbnailUrl?: string;
-    title: string;
-    videoUrl: string;
-  }>>(join(dataDir, 'videos.json'));
-  const videoMetadataRepository = new SqliteLibraryVideoMetadataRepository({
-    dbPath: workspace.videoMetadataDbPath,
-  });
-  await videoMetadataRepository.bootstrapFromVideos(videos.map(video => ({
-    createdAt: new Date(video.createdAt),
-    description: video.description,
-    duration: video.duration,
-    id: video.id,
-    tags: video.tags ?? [],
-    thumbnailUrl: video.thumbnailUrl,
-    title: video.title,
-    videoUrl: video.videoUrl,
-  })));
+  await seedLibraryVideoMetadata(
+    workspace.videoMetadataDbPath,
+    options.videos ?? DEFAULT_VIDEOS,
+  );
 
   const sqliteDatabaseByPath = new Map<string, InMemorySqliteDatabase>();
   vi.resetModules();
@@ -281,6 +238,8 @@ export async function createPlaylistRuntimeTestWorkspace(
     authDbPath: workspace.authDbPath,
     cleanup: async () => {
       vi.doUnmock('../../app/modules/auth/infrastructure/sqlite/bun-sqlite.database');
+      delete process.env.AUTH_OWNER_EMAIL;
+      delete process.env.AUTH_OWNER_ID;
       delete process.env.AUTH_SHARED_PASSWORD;
       delete process.env.AUTH_SQLITE_PATH;
       delete process.env.STORAGE_DIR;

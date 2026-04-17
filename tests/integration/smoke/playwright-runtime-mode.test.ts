@@ -5,20 +5,23 @@ import {
 } from '../../support/detect-playwright-runtime-mode';
 
 describe('detectPlaywrightRuntimeMode', () => {
-  test('selects hermetic-smoke mode for the required two-spec browser smoke command', () => {
+  test('selects hermetic-smoke mode for the required browser smoke command', () => {
     expect(detectPlaywrightRuntimeMode([
       'playwright',
       'test',
       PLAYWRIGHT_SMOKE_SPEC_PATHS[0],
+      PLAYWRIGHT_SMOKE_SPEC_PATHS[1],
       PLAYWRIGHT_SMOKE_SPEC_PATHS[2],
+      PLAYWRIGHT_SMOKE_SPEC_PATHS[3],
       '--project=chromium',
     ])).toBe('hermetic-smoke');
   });
 
-  test('selects hermetic-smoke mode when the selected spec set matches the required smoke subset', () => {
+  test('selects hermetic-smoke mode when the selected spec set matches the required smoke command', () => {
     expect(detectPlaywrightRuntimeMode([
       'playwright',
       'test',
+      PLAYWRIGHT_SMOKE_SPEC_PATHS[3],
       PLAYWRIGHT_SMOKE_SPEC_PATHS[2],
       PLAYWRIGHT_SMOKE_SPEC_PATHS[1],
       PLAYWRIGHT_SMOKE_SPEC_PATHS[0],
@@ -33,12 +36,14 @@ describe('detectPlaywrightRuntimeMode', () => {
     ])).toBe('developer-full');
   });
 
-  test('selects developer-full mode when any broader playback spec is included', () => {
+  test('selects developer-full mode when any extra spec outside the smoke set is included', () => {
     expect(detectPlaywrightRuntimeMode([
       'playwright',
       'test',
       PLAYWRIGHT_SMOKE_SPEC_PATHS[0],
-      'tests/e2e/player-playback-compatibility.spec.ts',
+      PLAYWRIGHT_SMOKE_SPEC_PATHS[1],
+      PLAYWRIGHT_SMOKE_SPEC_PATHS[2],
+      'tests/e2e/playlist-detail-smoke.spec.ts',
     ])).toBe('developer-full');
   });
 });

@@ -1,9 +1,9 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { SqliteLibraryVideoMetadataRepository } from '~/modules/library/infrastructure/sqlite/sqlite-library-video-metadata.repository';
 import { copyPlaybackFixture } from './copy-playback-fixture';
 import { REQUIRED_BROWSER_PLAYBACK_FIXTURE_IDS } from './playback-fixture-manifest';
+import { seedLibraryVideoMetadata } from './seed-library-video-metadata';
 
 interface RuntimeTestWorkspace {
   authDbPath: string;
@@ -51,27 +51,6 @@ const SEEDED_VIDEOS = [
     title: 'playtime2',
     videoUrl: `/videos/${FILTERED_VIDEO_ID}/manifest.mpd`,
   },
-  {
-    createdAt: '2026-03-09T00:00:00.000Z',
-    description: 'Additional related fixture',
-    duration: 115,
-    id: '01a5c843-7f3e-4af7-9f3d-8cb6a2691d55',
-    tags: ['vault'],
-    thumbnailUrl: '/api/thumbnail/01a5c843-7f3e-4af7-9f3d-8cb6a2691d55',
-    title: 'vault companion',
-    videoUrl: '/videos/01a5c843-7f3e-4af7-9f3d-8cb6a2691d55/manifest.mpd',
-  },
-];
-
-const SEEDED_USERS = [
-  {
-    createdAt: '2025-10-05T17:17:46.248Z',
-    email: 'admin@example.com',
-    id: 'legacy-admin-1',
-    passwordHash: 'not-used-by-phase-1',
-    role: 'admin',
-    updatedAt: '2025-10-05T17:17:46.248Z',
-  },
 ];
 
 export async function createRuntimeTestWorkspace(
@@ -92,8 +71,6 @@ export async function createRuntimeTestWorkspace(
     writeFile(join(dataDir, 'playlist-items.json'), '[]'),
     writeFile(join(dataDir, 'playlists.json'), '[]'),
     writeFile(join(dataDir, 'sessions.json'), '[]'),
-    writeFile(join(dataDir, 'users.json'), JSON.stringify(SEEDED_USERS, null, 2)),
-    writeFile(join(dataDir, 'videos.json'), JSON.stringify(SEEDED_VIDEOS, null, 2)),
   ]);
 
   await Promise.all(
@@ -103,13 +80,7 @@ export async function createRuntimeTestWorkspace(
     })),
   );
 
-  const videoMetadataRepository = new SqliteLibraryVideoMetadataRepository({
-    dbPath: videoMetadataDbPath,
-  });
-  await videoMetadataRepository.bootstrapFromVideos(SEEDED_VIDEOS.map(video => ({
-    ...video,
-    createdAt: new Date(video.createdAt),
-  })));
+  await seedLibraryVideoMetadata(videoMetadataDbPath, SEEDED_VIDEOS);
 
   return {
     authDbPath,

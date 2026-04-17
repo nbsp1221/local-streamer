@@ -14,6 +14,5 @@ export function getPlaylistStoragePaths() {
     dataDir,
     playlistItemsJson: path.join(dataDir, 'playlist-items.json'),
     playlistsJson: path.join(dataDir, 'playlists.json'),
-    videosJson: path.join(dataDir, 'videos.json'),
   };
 }

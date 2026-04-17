@@ -38,24 +38,22 @@ This project started with mixed architectural patterns - direct API calls, busin
 ## DEVELOPMENT AREAS
 
 ### Active Development
-**All areas EXCEPT those listed as legacy below are active and can be modified.**
+**The active app lives in `app/composition`, `app/modules`, `app/shared`, `app/routes`, and the FSD-lite frontend slices.**
 
 Examples of active areas include:
+- **`app/composition/server/`** - Composition root wiring for active modules
 - **`app/modules/`** - Clean Architecture UseCases and domain logic
 - **`app/shared/ui/`** - Canonical shadcn-based UI primitives for new frontend work
 - **`app/shared/lib/`** - Shared frontend helpers such as class merging utilities
 - **`app/pages/`, `app/widgets/`, `app/features/`, `app/entities/`** - New FSD-lite frontend surfaces
-- **`app/repositories/`** - Data access layer with JSON storage
 - **`app/routes/`** - API routes (thin controllers only)
-- **`app/types/`** - TypeScript interfaces and type definitions
 - **`tests/`** - All test files
 - Any new modules you create for the project
 
-### Legacy Areas (MODIFY WITH CAUTION)
+### Compatibility Areas (MODIFY WITH CAUTION)
 
-- **`app/welcome/`** - Legacy welcome components (use `app/routes/home.tsx` instead)
-- **`app/legacy/components/ui/`** - frozen compatibility primitives; do not add new UI work here
 - **`app/shared/ui/` internals** - generated shadcn primitive source; do not manually patch unless the maintainer explicitly asks for it
+- **Auth owner identity** - runtime owner identity is config-owned through `AUTH_OWNER_ID` / `AUTH_OWNER_EMAIL` (`site-owner` / `owner@local` defaults)
 - **Direct API calls in components** - Use custom hooks instead
 - **Business logic in routes** - Move to UseCases in `app/modules/`
 
@@ -135,15 +133,18 @@ bun run test:run -- --coverage
 bun run build && bun run start
 ```
 
-### Video Processing Commands
+### Video Processing And Debug Commands
 
 ```bash
 # Download required binaries (first time setup)
 bun run download:ffmpeg  # Download FFmpeg for video processing
 bun run download:shaka   # Download Shaka Packager for DASH
 
-# Initialize data directories
-bun run init-data       # Create required data directories
+# Refresh tracked browser playback fixtures
+bun run backfill:browser-playback-fixtures
+
+# Interactive Vitest UI (developer-only)
+bun run vitest:ui
 ```
 
 ### Avoid These Commands
@@ -472,15 +473,14 @@ export async function action({ request }: Route.ActionArgs) {
 # Run all tests with coverage
 bun run test:run -- --coverage
 
-# Test specific modules
-bun test tests/modules/video/
-bun test tests/repositories/
+# Focused Vitest projects
+bun run test:modules
+bun run test:integration
+bun run test:ui-dom
+bun run vitest:ui
 
-# Integration testing
-bun test tests/ --grep "integration"
-
-# Performance testing
-bun test tests/performance/
+# Full required verification
+bun run verify:base
 ```
 
 ## DEVELOPMENT WORKFLOW
@@ -661,17 +661,15 @@ app/
 │   │       ├── playlist.repository.port.ts
 │   │       └── playlist-validation.service.ts
 │   ├── auth/
-│   │   ├── commands/
-│   │   │   ├── login/
-│   │   │   ├── logout/
-│   │   │   └── setup-user/
-│   │   ├── queries/
-│   │   │   ├── get-user/
-│   │   │   └── validate-session/
-│   │   └── domain/
-│   │       ├── user.entity.ts
-│   │       ├── session.entity.ts
-│   │       └── auth-token.service.ts
+│   │   ├── application/
+│   │   │   ├── ports/
+│   │   │   └── use-cases/
+│   │   ├── domain/
+│   │   │   ├── session.entity.ts
+│   │   │   └── site-viewer.entity.ts
+│   │   └── infrastructure/
+│   │       ├── sqlite/
+│   │       └── viewer/
 │   └── shared/                # Cross-domain services (Shared Kernel)
 │       ├── domain/
 │       │   ├── jwt-token.service.ts      # JWT generation/validation
@@ -701,26 +699,25 @@ app/
 │   ├── hooks/                 # Shared frontend hooks when truly reusable
 │   ├── store/                 # Shared state if ownership is truly cross-slice
 │   └── types/                 # Shared types when ownership is truly cross-slice
-├── repositories/              # Data access implementations
-│   ├── base/                  # BaseJsonRepository
-│   ├── JsonVideoRepository.ts
-│   ├── JsonPlaylistRepository.ts
-│   └── JsonUserRepository.ts
+├── composition/               # Active composition root
+│   └── server/
+├── modules/                   # Backend feature slices
+│   ├── auth/
+│   ├── ingest/
+│   ├── library/
+│   ├── playback/
+│   ├── playlist/
+│   └── thumbnail/
 ├── routes/                    # API routing (thin layer)
 │   ├── api/                   # RESTful API endpoints
 │   └── pages/                 # React Router SSR pages
-└── legacy/                    # Compatibility zone during migration
 
 tests/
-├── modules/                   # Feature tests (mirrors module structure)
-│   ├── video/
-│   │   ├── commands/
-│   │   └── queries/
-│   ├── playlist/
-│   └── auth/
-├── repositories/              # Data layer tests
-├── integration/               # End-to-end API tests
-└── shared/                    # Shared service tests
+├── integration/               # Route, composition, boundary, and infra tests
+├── smoke/                     # Bun/dev runtime smoke gates
+├── support/                   # Test helpers and isolated workspaces
+├── ui/                        # jsdom + React Testing Library coverage
+└── e2e/                       # Playwright browser tests
 ```
 
 ## IMPORTANT NOTES

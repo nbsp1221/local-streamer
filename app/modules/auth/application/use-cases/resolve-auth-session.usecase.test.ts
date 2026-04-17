@@ -68,4 +68,39 @@ describe('ResolveAuthSessionUseCase', () => {
       lastAccessedAt: new Date('2026-03-07T00:00:10.000Z'),
     });
   });
+
+  test('keeps the current request authorized when touch hits a transient SQLITE_BUSY error', async () => {
+    const session = SessionPolicy.create({
+      id: 'session-3',
+      now: new Date('2026-03-07T00:00:00.000Z'),
+      ttlMs: 60_000,
+    });
+    const touch = vi.fn(async () => {
+      const error = new Error('database is locked');
+      Object.assign(error, {
+        code: 'SQLITE_BUSY',
+        errno: 5,
+      });
+      throw error;
+    });
+    const useCase = new ResolveAuthSessionUseCase({
+      sessionRepository: {
+        findById: async () => session,
+        touch,
+      },
+      sessionTtlMs: 60_000,
+    });
+
+    const result = await useCase.execute({
+      now: new Date('2026-03-07T00:00:10.000Z'),
+      sessionId: 'session-3',
+    });
+
+    expect(result).toEqual({
+      ...session,
+      expiresAt: new Date('2026-03-07T00:01:10.000Z'),
+      lastAccessedAt: new Date('2026-03-07T00:00:10.000Z'),
+    });
+    expect(touch).toHaveBeenCalledTimes(1);
+  });
 });

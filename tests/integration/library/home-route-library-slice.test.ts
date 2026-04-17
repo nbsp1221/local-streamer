@@ -27,7 +27,7 @@ describe('home route library slice adapter', () => {
     requireProtectedPageSessionMock.mockResolvedValue({ id: 'session-1' });
   });
 
-  test('delegates home page loading to the page-level composition root and preserves the legacy loader contract', async () => {
+  test('delegates home page loading to the page-level composition root and preserves the established loader contract', async () => {
     loadHomeLibraryPageDataExecuteMock.mockResolvedValue({
       ok: true,
       data: {
@@ -79,7 +79,7 @@ describe('home route library slice adapter', () => {
     });
   });
 
-  test('returns trimmed bootstrap tags so the legacy HomePage tag matcher keeps working for direct-navigation URLs', async () => {
+  test('returns trimmed bootstrap tags so the current HomePage tag matcher keeps working for direct-navigation URLs', async () => {
     loadHomeLibraryPageDataExecuteMock.mockResolvedValue({
       ok: true,
       data: {

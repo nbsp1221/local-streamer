@@ -199,6 +199,95 @@ describe('FfmpegVideoTranscoderAdapter', () => {
     });
   });
 
+  test('seeks inside short videos when generating a fallback thumbnail', async () => {
+    rootDir = await mkdtemp(path.join(tmpdir(), 'local-streamer-ingest-transcoder-'));
+    const videoId = 'video-short-thumbnail';
+    const videoDir = path.join(rootDir, videoId);
+    const sourcePath = path.join(videoDir, 'video.mp4');
+    const manifestPath = path.join(videoDir, 'manifest.mpd');
+    const videoSegmentDir = path.join(videoDir, 'video');
+    const audioSegmentDir = path.join(videoDir, 'audio');
+    const commandCalls: Array<{ args: string[]; command: string }> = [];
+
+    await mkdir(videoDir, { recursive: true });
+    await writeFile(sourcePath, 'source-video');
+
+    const executeCommand = vi.fn(async (input: { args: string[]; command: string }) => {
+      commandCalls.push(input);
+
+      if (input.command === 'ffmpeg' && input.args.includes('-f')) {
+        const outputPath = input.args.at(-1);
+        if (!outputPath) {
+          throw new Error('missing ffmpeg output path');
+        }
+
+        await writeFile(outputPath, 'intermediate-video');
+        return {
+          exitCode: 0,
+          stderr: '',
+          stdout: '',
+        };
+      }
+
+      if (input.command === 'ffmpeg') {
+        const thumbnailPath = input.args.at(-1);
+        if (!thumbnailPath) {
+          throw new Error('missing thumbnail output path');
+        }
+
+        await writeFile(thumbnailPath, 'generated-thumbnail');
+        return {
+          exitCode: 0,
+          stderr: '',
+          stdout: '',
+        };
+      }
+
+      await mkdir(videoSegmentDir, { recursive: true });
+      await mkdir(audioSegmentDir, { recursive: true });
+      await writeFile(path.join(videoSegmentDir, 'init.mp4'), 'video-init');
+      await writeFile(path.join(videoSegmentDir, 'segment-0001.m4s'), 'video-segment');
+      await writeFile(path.join(audioSegmentDir, 'init.mp4'), 'audio-init');
+      await writeFile(path.join(audioSegmentDir, 'segment-0001.m4s'), 'audio-segment');
+      await writeFile(
+        manifestPath,
+        '<ContentProtection schemeIdUri="urn:uuid:1077efec-c0b2-4d02-ace3-3c1e52e2fb4b"></ContentProtection>',
+      );
+
+      return {
+        exitCode: 0,
+        stderr: '',
+        stdout: '',
+      };
+    });
+
+    const analyze = vi.fn(async () => ({ duration: 3 }));
+    const { FfmpegVideoTranscoderAdapter } = await import('../../../../app/modules/ingest/infrastructure/processing/ffmpeg-video-transcoder.adapter');
+    const adapter = new FfmpegVideoTranscoderAdapter({
+      executeCommand,
+      getShakaPackagerPath: () => 'packager',
+      videoAnalysis: {
+        analyze,
+      },
+    });
+
+    await expect(adapter.transcode({
+      codecFamily: 'h264',
+      quality: 'high',
+      sourcePath,
+      useGpu: false,
+      videoId,
+    })).resolves.toMatchObject({
+      success: true,
+    });
+
+    const thumbnailCommand = commandCalls[2];
+    expect(thumbnailCommand).toBeDefined();
+    expect(thumbnailCommand.command).toBe('ffmpeg');
+    expect(thumbnailCommand.args).toContain('-ss');
+    expect(thumbnailCommand.args[thumbnailCommand.args.indexOf('-ss') + 1]).toBe('1');
+  });
+
   test('returns a failure result instead of throwing when packaging fails', async () => {
     rootDir = await mkdtemp(path.join(tmpdir(), 'local-streamer-ingest-transcoder-'));
     const videoId = 'video-456';

@@ -123,7 +123,7 @@ describe('PlaybackMediaSegmentService', () => {
     });
   });
 
-  test('throws a range error with the legacy Content-Range header for invalid ranges', async () => {
+  test('throws a range error with the current Content-Range header contract for invalid ranges', async () => {
     const { PlaybackMediaSegmentService } = await import('./playback-media-segment.service');
     const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-segment-'));
     process.env.STORAGE_DIR = rootDir;

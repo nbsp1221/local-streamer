@@ -49,7 +49,7 @@ async function importClearKeyRoute() {
   return import('../../../app/routes/videos.$videoId.clearkey');
 }
 
-describe('Phase 2 playback route adapters', () => {
+describe('playback route adapters', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();

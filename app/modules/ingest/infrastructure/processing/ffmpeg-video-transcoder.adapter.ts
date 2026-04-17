@@ -1,6 +1,7 @@
-import crypto from 'node:crypto';
 import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { derivePlaybackEncryptionKey } from '~/modules/playback/infrastructure/license/derive-playback-encryption-key';
+import { generatePlaybackKeyId } from '~/modules/playback/infrastructure/license/generate-playback-key-id';
 import { getShakaPackagerPath } from '~/shared/config/video-tools.server';
 import { executeFFmpegCommand } from '~/shared/lib/server/ffmpeg-process-manager.server';
 import { FfprobeIngestVideoAnalysisAdapter } from '../analysis/ffprobe-ingest-video-analysis.adapter';
@@ -90,10 +91,13 @@ export class FfmpegVideoTranscoderAdapter implements IngestVideoTranscoder {
 
   async transcode(request: IngestVideoTranscodeRequest): Promise<IngestVideoTranscodeResult> {
     try {
-      const workspace = resolveWorkspacePaths(request.sourcePath);
+      const workspace = resolveWorkspacePaths({
+        sourcePath: request.sourcePath,
+        workspaceRootDir: request.workspaceRootDir,
+      });
       const preset = resolveEncodingPreset(request);
       const duration = await this.videoAnalysis.analyze(request.sourcePath).then(result => result.duration);
-      const key = deriveVideoEncryptionKey({
+      const key = derivePlaybackEncryptionKey({
         env: this.env,
         videoId: request.videoId,
       });
@@ -115,7 +119,7 @@ export class FfmpegVideoTranscoderAdapter implements IngestVideoTranscoder {
         args: buildPackagerArgs({
           inputPath: workspace.intermediatePath,
           key,
-          keyId: generateVideoKeyId(request.videoId),
+          keyId: generatePlaybackKeyId(request.videoId),
           manifestPath: workspace.manifestPath,
           outputDir: workspace.rootDir,
           segmentDuration: resolveSegmentDuration(this.env),
@@ -124,6 +128,7 @@ export class FfmpegVideoTranscoderAdapter implements IngestVideoTranscoder {
       });
 
       await ensureThumbnailAsset({
+        duration,
         executeCommand: this.executeCommand,
         sourcePath: request.sourcePath,
         thumbnailPath: workspace.thumbnailPath,
@@ -151,8 +156,11 @@ export class FfmpegVideoTranscoderAdapter implements IngestVideoTranscoder {
   }
 }
 
-function resolveWorkspacePaths(sourcePath: string): WorkspacePaths {
-  const rootDir = path.dirname(sourcePath);
+function resolveWorkspacePaths(input: {
+  sourcePath: string;
+  workspaceRootDir?: string;
+}): WorkspacePaths {
+  const rootDir = input.workspaceRootDir ?? path.dirname(input.sourcePath);
 
   return {
     audioDir: path.join(rootDir, 'audio'),
@@ -268,37 +276,6 @@ function resolveSegmentDuration(env: NodeJS.ProcessEnv): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 10;
 }
 
-function deriveVideoEncryptionKey(input: {
-  env: NodeJS.ProcessEnv;
-  videoId: string;
-}): Buffer {
-  const isTest = input.env.NODE_ENV === 'test' || input.env.VITEST === 'true';
-  const masterSeed = isTest
-    ? 'test-master-seed-for-unit-tests-only'
-    : input.env.VIDEO_MASTER_ENCRYPTION_SEED;
-
-  if (!masterSeed) {
-    throw new Error('VIDEO_MASTER_ENCRYPTION_SEED environment variable is required for video encryption');
-  }
-
-  const saltPrefix = isTest
-    ? 'test-salt'
-    : input.env.KEY_SALT_PREFIX || 'local-streamer-video-v1';
-  const salt = crypto.createHash('sha256')
-    .update(saltPrefix + input.videoId)
-    .digest();
-
-  return crypto.pbkdf2Sync(masterSeed, salt, 100000, 16, 'sha256');
-}
-
-function generateVideoKeyId(videoId: string): string {
-  return crypto.createHash('sha256')
-    .update(videoId)
-    .digest()
-    .subarray(0, 16)
-    .toString('hex');
-}
-
 async function normalizeManifest(manifestPath: string) {
   const manifest = await readFile(manifestPath, 'utf8');
   const normalizedManifest = normalizeClearKeyManifest(manifest);
@@ -309,6 +286,7 @@ async function normalizeManifest(manifestPath: string) {
 }
 
 async function ensureThumbnailAsset(input: {
+  duration: number;
   executeCommand: NonNullable<FfmpegVideoTranscoderAdapterDependencies['executeCommand']>;
   sourcePath: string;
   thumbnailPath: string;
@@ -321,9 +299,22 @@ async function ensureThumbnailAsset(input: {
     args: buildThumbnailArgs({
       outputPath: input.thumbnailPath,
       sourcePath: input.sourcePath,
+      timestampSeconds: resolveThumbnailTimestampSeconds(input.duration),
     }),
     command: 'ffmpeg',
   });
+}
+
+function resolveThumbnailTimestampSeconds(duration: number) {
+  if (!Number.isFinite(duration) || duration <= 0) {
+    return 0;
+  }
+
+  if (duration > 6) {
+    return 3;
+  }
+
+  return Math.max(0, Math.floor(duration / 2));
 }
 
 async function verifyPackagedPlaybackAssets(workspace: WorkspacePaths) {

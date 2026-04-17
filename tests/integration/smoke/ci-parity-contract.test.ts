@@ -21,8 +21,10 @@ describe('CI parity contract', () => {
     expect(workflow).toContain('bun run verify:e2e-smoke');
     expect(packageJson).toContain('"test:e2e":');
     expect(packageJson).toContain('"verify:e2e-smoke":');
+    expect(packageJson).toContain('tests/e2e/playlist-owner-smoke.spec.ts');
     expect(packageJson).toContain('"verify:ci-faithful":');
     expect(packageJson).toContain('"verify:ci-faithful:docker":');
+    expect(packageJson).toContain('"verify:ci-worktree:docker":');
   });
 
   test('keeps Bun version enforcement at install time instead of repeating a custom prefix across every verification script', async () => {

@@ -13,7 +13,7 @@ vi.mock('~/shared/hooks/use-root-user', () => ({
 }));
 
 describe('AddVideosShell', () => {
-  test('preserves the current protected shell structure around the add-videos page without a legacy layout import', () => {
+  test('preserves the current protected shell structure around the add-videos page without a retired layout import', () => {
     render(
       <MemoryRouter initialEntries={['/add-videos']}>
         <AddVideosShell pendingCount={3}>
