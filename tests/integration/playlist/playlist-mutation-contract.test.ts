@@ -96,6 +96,62 @@ describe.sequential('playlist mutation contract', () => {
     }
   });
 
+  test('rejects non-owner playlist updates with 403 and leaves storage unchanged', async () => {
+    const workspace = await createPlaylistRuntimeTestWorkspace({
+      playlists: [
+        {
+          createdAt: '2025-10-05T17:17:46.248Z',
+          description: 'Owned by the seeded owner',
+          id: 'playlist-1',
+          isPublic: false,
+          name: 'Owned Playlist',
+          ownerId: 'seeded-owner-1',
+          type: 'user_created',
+          updatedAt: '2025-10-05T17:17:46.248Z',
+          videoIds: [],
+        },
+      ],
+    });
+
+    try {
+      const cookie = await workspace.login();
+      const playlistsPath = join(workspace.storageDir, 'data', 'playlists.json');
+      const playlistsBefore = await readFile(playlistsPath, 'utf8');
+
+      process.env.AUTH_OWNER_ID = 'intruder-owner';
+      process.env.AUTH_OWNER_EMAIL = 'intruder@example.com';
+      vi.resetModules();
+
+      const { action } = await importPlaylistDetailRoute();
+      const response = await action({
+        params: { id: 'playlist-1' },
+        request: new Request('http://localhost/api/playlists/playlist-1', {
+          body: JSON.stringify({
+            description: 'Should not persist',
+            name: 'Hijacked Playlist',
+          }),
+          headers: new Headers([
+            ['Content-Type', 'application/json'],
+            ['Cookie', cookie],
+          ]),
+          method: 'PUT',
+        }),
+      } as never);
+
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toEqual({
+        success: false,
+        error: 'User "intruder-owner" does not have permission to update playlist "playlist-1"',
+      });
+
+      const playlistsAfter = await readFile(playlistsPath, 'utf8');
+      expect(playlistsAfter).toBe(playlistsBefore);
+    }
+    finally {
+      await workspace.cleanup();
+    }
+  });
+
   test('adds, reorders, and removes playlist items with the current response contracts', async () => {
     const workspace = await createPlaylistRuntimeTestWorkspace({
       playlistItems: [
@@ -321,6 +377,206 @@ describe.sequential('playlist mutation contract', () => {
           videoId: '68e5f819-15e8-41ef-90ee-8a96769311b7',
         }),
       ]);
+    }
+    finally {
+      await workspace.cleanup();
+    }
+  });
+
+  test('rejects invalid reorder payloads with the current 400 response body', async () => {
+    const workspace = await createPlaylistRuntimeTestWorkspace({
+      playlistItems: [
+        {
+          addedAt: '2025-10-05T17:17:46.248Z',
+          addedBy: 'seeded-owner-1',
+          playlistId: 'playlist-1',
+          position: 1,
+          videoId: 'playlist-video-1',
+        },
+      ],
+      playlists: [
+        {
+          createdAt: '2025-10-05T17:17:46.248Z',
+          description: 'Owned by the seeded owner',
+          id: 'playlist-1',
+          isPublic: false,
+          name: 'Owned Playlist',
+          ownerId: 'seeded-owner-1',
+          type: 'user_created',
+          updatedAt: '2025-10-05T17:17:46.248Z',
+          videoIds: ['playlist-video-1'],
+        },
+      ],
+    });
+
+    try {
+      const cookie = await workspace.login();
+      const { action } = await importPlaylistItemsRoute();
+
+      const response = await action({
+        params: { id: 'playlist-1' },
+        request: new Request('http://localhost/api/playlists/playlist-1/items', {
+          body: JSON.stringify({
+            newOrder: [],
+          }),
+          headers: new Headers([
+            ['Content-Type', 'application/json'],
+            ['Cookie', cookie],
+          ]),
+          method: 'PUT',
+        }),
+      } as never);
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        success: false,
+        error: 'New order cannot be empty',
+      });
+    }
+    finally {
+      await workspace.cleanup();
+    }
+  });
+
+  test('returns 404 when updating a missing playlist', async () => {
+    const workspace = await createPlaylistRuntimeTestWorkspace();
+
+    try {
+      const cookie = await workspace.login();
+      const { action } = await importPlaylistDetailRoute();
+
+      const response = await action({
+        params: { id: 'missing-playlist' },
+        request: new Request('http://localhost/api/playlists/missing-playlist', {
+          body: JSON.stringify({
+            name: 'Missing Playlist',
+          }),
+          headers: new Headers([
+            ['Content-Type', 'application/json'],
+            ['Cookie', cookie],
+          ]),
+          method: 'PUT',
+        }),
+      } as never);
+
+      expect(response.status).toBe(404);
+      await expect(response.json()).resolves.toEqual({
+        success: false,
+        error: 'Playlist with ID "missing-playlist" not found',
+      });
+    }
+    finally {
+      await workspace.cleanup();
+    }
+  });
+
+  test('returns 404 when removing a missing video from an existing playlist', async () => {
+    const workspace = await createPlaylistRuntimeTestWorkspace({
+      playlistItems: [
+        {
+          addedAt: '2025-10-05T17:17:46.248Z',
+          addedBy: 'seeded-owner-1',
+          playlistId: 'playlist-1',
+          position: 1,
+          videoId: 'playlist-video-1',
+        },
+      ],
+      playlists: [
+        {
+          createdAt: '2025-10-05T17:17:46.248Z',
+          description: 'Owned by the seeded owner',
+          id: 'playlist-1',
+          isPublic: false,
+          name: 'Owned Playlist',
+          ownerId: 'seeded-owner-1',
+          type: 'user_created',
+          updatedAt: '2025-10-05T17:17:46.248Z',
+          videoIds: ['playlist-video-1'],
+        },
+      ],
+    });
+
+    try {
+      const cookie = await workspace.login();
+      const { action } = await importPlaylistItemRoute();
+
+      const response = await action({
+        params: {
+          id: 'playlist-1',
+          videoId: 'missing-video',
+        },
+        request: new Request('http://localhost/api/playlists/playlist-1/items/missing-video', {
+          headers: {
+            Cookie: cookie,
+          },
+          method: 'DELETE',
+        }),
+      } as never);
+
+      expect(response.status).toBe(404);
+      await expect(response.json()).resolves.toEqual({
+        success: false,
+        error: 'Video "missing-video" not found in playlist "playlist-1"',
+      });
+    }
+    finally {
+      await workspace.cleanup();
+    }
+  });
+
+  test('rejects unsupported methods on playlist item routes with the current 405 body', async () => {
+    const workspace = await createPlaylistRuntimeTestWorkspace();
+
+    try {
+      const cookie = await workspace.login();
+      const { action } = await importPlaylistItemRoute();
+
+      const response = await action({
+        params: {
+          id: 'playlist-owned-private',
+          videoId: 'playlist-video-1',
+        },
+        request: new Request('http://localhost/api/playlists/playlist-owned-private/items/playlist-video-1', {
+          headers: {
+            Cookie: cookie,
+          },
+          method: 'PUT',
+        }),
+      } as never);
+
+      expect(response.status).toBe(405);
+      await expect(response.json()).resolves.toEqual({
+        success: false,
+        error: 'Method not allowed',
+      });
+    }
+    finally {
+      await workspace.cleanup();
+    }
+  });
+
+  test('playlist items route preserves method-specific 405 bodies', async () => {
+    const workspace = await createPlaylistRuntimeTestWorkspace();
+
+    try {
+      const cookie = await workspace.login();
+      const { action } = await importPlaylistItemsRoute();
+
+      const response = await action({
+        params: { id: 'playlist-owned-private' },
+        request: new Request('http://localhost/api/playlists/playlist-owned-private/items', {
+          headers: {
+            Cookie: cookie,
+          },
+          method: 'DELETE',
+        }),
+      } as never);
+
+      expect(response.status).toBe(405);
+      await expect(response.json()).resolves.toEqual({
+        success: false,
+        error: 'Method DELETE not allowed',
+      });
     }
     finally {
       await workspace.cleanup();

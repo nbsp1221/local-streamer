@@ -21,6 +21,14 @@ async function importPlaylistDetailApiRoute() {
   return import('../../../app/routes/api.playlists.$id');
 }
 
+async function importPlaylistItemsApiRoute() {
+  return import('../../../app/routes/api.playlists.$id.items');
+}
+
+async function importPlaylistItemApiRoute() {
+  return import('../../../app/routes/api.playlists.$id.items.$videoId');
+}
+
 describe('playlist api contract', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -110,6 +118,70 @@ describe('playlist api contract', () => {
     });
   });
 
+  test('create route rejects non-POST methods with the current 405 body', async () => {
+    const { action } = await importPlaylistsApiRoute();
+
+    const response = await action({
+      request: new Request('http://localhost/api/playlists', {
+        method: 'GET',
+      }),
+    } as never);
+
+    expect(response.status).toBe(405);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: 'Method not allowed',
+    });
+    expect(fakePlaylistServices.createPlaylist.execute).not.toHaveBeenCalled();
+  });
+
+  test('create route serializes service failures into the public error envelope and hides reason', async () => {
+    fakePlaylistServices.createPlaylist.execute.mockResolvedValue({
+      error: 'Playlist with name "Vault" already exists for user "owner-1"',
+      reason: 'DUPLICATE_PLAYLIST_NAME',
+      status: 409,
+      success: false,
+    });
+    const { action } = await importPlaylistsApiRoute();
+
+    const response = await action({
+      request: new Request('http://localhost/api/playlists', {
+        body: JSON.stringify({
+          name: 'Vault',
+          type: 'user_created',
+        }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      }),
+    } as never);
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: 'Playlist with name "Vault" already exists for user "owner-1"',
+    });
+  });
+
+  test('list route serializes service failures into the public error envelope and hides reason', async () => {
+    fakePlaylistServices.findPlaylists.execute.mockResolvedValue({
+      error: 'Playlist catalog unavailable',
+      reason: 'PLAYLIST_STORAGE_UNAVAILABLE',
+      status: 503,
+      success: false,
+    });
+    const { loader } = await importPlaylistsApiRoute();
+
+    const response = await loader({
+      request: new Request('http://localhost/api/playlists'),
+    } as never);
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: 'Playlist catalog unavailable',
+    });
+  });
+
   test('detail loader preserves the current success payload shape', async () => {
     fakePlaylistServices.getPlaylistDetails.execute.mockResolvedValue({
       data: {
@@ -185,6 +257,183 @@ describe('playlist api contract', () => {
       success: true,
       videoPagination: expect.objectContaining({ total: 1 }),
     }));
+  });
+
+  test('detail loader returns 400 when params.id is missing without calling playlist services', async () => {
+    const { loader } = await importPlaylistDetailApiRoute();
+
+    const response = await loader({
+      params: {},
+      request: new Request('http://localhost/api/playlists'),
+    } as never);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: 'Playlist ID is required',
+    });
+    expect(fakePlaylistServices.getPlaylistDetails.execute).not.toHaveBeenCalled();
+  });
+
+  test('detail loader serializes service failures into the public error envelope and hides reason', async () => {
+    fakePlaylistServices.getPlaylistDetails.execute.mockResolvedValue({
+      error: 'Playlist not found',
+      reason: 'PLAYLIST_NOT_FOUND',
+      status: 404,
+      success: false,
+    });
+    const { loader } = await importPlaylistDetailApiRoute();
+
+    const response = await loader({
+      params: { id: 'missing-playlist' },
+      request: new Request('http://localhost/api/playlists/missing-playlist'),
+    } as never);
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: 'Playlist not found',
+    });
+  });
+
+  test('playlist detail mutation route preserves method-specific 405 bodies', async () => {
+    const { action } = await importPlaylistDetailApiRoute();
+
+    const response = await action({
+      params: { id: 'playlist-1' },
+      request: new Request('http://localhost/api/playlists/playlist-1', {
+        method: 'PATCH',
+      }),
+    } as never);
+
+    expect(response.status).toBe(405);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: 'Method PATCH not allowed',
+    });
+    expect(fakePlaylistServices.updatePlaylist.execute).not.toHaveBeenCalled();
+    expect(fakePlaylistServices.deletePlaylist.execute).not.toHaveBeenCalled();
+  });
+
+  test('playlist detail update route serializes service failures into the public error envelope and hides reason', async () => {
+    fakePlaylistServices.updatePlaylist.execute.mockResolvedValue({
+      error: 'Playlist with ID "missing-playlist" not found',
+      reason: 'PLAYLIST_NOT_FOUND',
+      status: 404,
+      success: false,
+    });
+    const { action } = await importPlaylistDetailApiRoute();
+
+    const response = await action({
+      params: { id: 'missing-playlist' },
+      request: new Request('http://localhost/api/playlists/missing-playlist', {
+        body: JSON.stringify({ name: 'Vault' }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT',
+      }),
+    } as never);
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: 'Playlist with ID "missing-playlist" not found',
+    });
+  });
+
+  test('playlist detail delete route serializes service failures into the public error envelope and hides reason', async () => {
+    fakePlaylistServices.deletePlaylist.execute.mockResolvedValue({
+      error: 'User "owner-2" does not have permission to delete playlist "playlist-1"',
+      reason: 'PLAYLIST_PERMISSION_DENIED',
+      status: 403,
+      success: false,
+    });
+    const { action } = await importPlaylistDetailApiRoute();
+
+    const response = await action({
+      params: { id: 'playlist-1' },
+      request: new Request('http://localhost/api/playlists/playlist-1', {
+        method: 'DELETE',
+      }),
+    } as never);
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: 'User "owner-2" does not have permission to delete playlist "playlist-1"',
+    });
+  });
+
+  test('playlist items add route serializes service failures into the public error envelope and hides reason', async () => {
+    fakePlaylistServices.addVideoToPlaylist.execute.mockResolvedValue({
+      error: 'Video with ID "missing-video" not found',
+      reason: 'VIDEO_NOT_FOUND',
+      status: 400,
+      success: false,
+    });
+    const { action } = await importPlaylistItemsApiRoute();
+
+    const response = await action({
+      params: { id: 'playlist-1' },
+      request: new Request('http://localhost/api/playlists/playlist-1/items', {
+        body: JSON.stringify({ videoId: 'missing-video' }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      }),
+    } as never);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: 'Video with ID "missing-video" not found',
+    });
+  });
+
+  test('playlist items reorder route serializes service failures into the public error envelope and hides reason', async () => {
+    fakePlaylistServices.reorderPlaylistItems.execute.mockResolvedValue({
+      error: 'New order must contain exactly the same videos as current playlist',
+      reason: 'PLAYLIST_REORDER_ERROR',
+      status: 400,
+      success: false,
+    });
+    const { action } = await importPlaylistItemsApiRoute();
+
+    const response = await action({
+      params: { id: 'playlist-1' },
+      request: new Request('http://localhost/api/playlists/playlist-1/items', {
+        body: JSON.stringify({ newOrder: ['video-2'] }),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'PUT',
+      }),
+    } as never);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: 'New order must contain exactly the same videos as current playlist',
+    });
+  });
+
+  test('playlist item remove route serializes service failures into the public error envelope and hides reason', async () => {
+    fakePlaylistServices.removeVideoFromPlaylist.execute.mockResolvedValue({
+      error: 'Video "missing-video" not found in playlist "playlist-1"',
+      reason: 'VIDEO_NOT_FOUND_IN_PLAYLIST',
+      status: 404,
+      success: false,
+    });
+    const { action } = await importPlaylistItemApiRoute();
+
+    const response = await action({
+      params: { id: 'playlist-1', videoId: 'missing-video' },
+      request: new Request('http://localhost/api/playlists/playlist-1/items/missing-video', {
+        method: 'DELETE',
+      }),
+    } as never);
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      success: false,
+      error: 'Video "missing-video" not found in playlist "playlist-1"',
+    });
   });
 
   test('route returns auth response without touching services when unauthorized', async () => {

@@ -68,6 +68,43 @@ describe.sequential('playlist page contract', () => {
     }
   });
 
+  test('playlists page loader preserves q as searchQuery', async () => {
+    const workspace = await createPlaylistRuntimeTestWorkspace({
+      playlists: [
+        {
+          createdAt: '2025-10-05T17:17:46.248Z',
+          description: 'Owned by the seeded owner',
+          id: 'playlist-1',
+          isPublic: false,
+          name: 'Owned Playlist',
+          ownerId: 'seeded-owner-1',
+          type: 'user_created',
+          updatedAt: '2025-10-05T17:17:46.248Z',
+          videoIds: ['video-1'],
+        },
+      ],
+    });
+
+    try {
+      const cookie = await workspace.login();
+      const { loader } = await importPlaylistsPageRoute();
+      const payload = await loader({
+        request: new Request('http://localhost/playlists?q=vault', {
+          headers: {
+            cookie,
+          },
+        }),
+      } as never);
+
+      expect(payload).toEqual(expect.objectContaining({
+        searchQuery: 'vault',
+      }));
+    }
+    finally {
+      await workspace.cleanup();
+    }
+  });
+
   test('playlist detail loader returns playlist, stats, related playlists, pagination, and permissions', async () => {
     const workspace = await createPlaylistRuntimeTestWorkspace({
       playlists: [
@@ -150,6 +187,57 @@ describe.sequential('playlist page contract', () => {
       catch (error) {
         expect(error).toBeInstanceOf(Response);
         expect((error as Response).status).toBe(404);
+      }
+    }
+    finally {
+      await workspace.cleanup();
+    }
+  });
+
+  test('playlist detail loader preserves 403 failures for private playlists owned by someone else', async () => {
+    const workspace = await createPlaylistRuntimeTestWorkspace({
+      playlists: [
+        {
+          createdAt: '2025-10-05T17:17:46.248Z',
+          description: 'Private playlist owned by another viewer',
+          id: 'playlist-private-other-owner',
+          isPublic: false,
+          name: 'Hidden Vault',
+          ownerId: 'other-user',
+          type: 'user_created',
+          updatedAt: '2025-10-05T17:17:46.248Z',
+          videoIds: ['playlist-video-1'],
+        },
+      ],
+      playlistItems: [
+        {
+          addedAt: '2025-10-05T17:17:46.248Z',
+          addedBy: 'other-user',
+          playlistId: 'playlist-private-other-owner',
+          position: 1,
+          videoId: 'playlist-video-1',
+        },
+      ],
+    });
+
+    try {
+      const cookie = await workspace.login();
+      const { loader } = await importPlaylistDetailPageRoute();
+
+      try {
+        await loader({
+          params: { id: 'playlist-private-other-owner' },
+          request: new Request('http://localhost/playlists/playlist-private-other-owner', {
+            headers: {
+              cookie,
+            },
+          }),
+        } as never);
+        throw new Error('Expected loader to throw');
+      }
+      catch (error) {
+        expect(error).toBeInstanceOf(Response);
+        expect((error as Response).status).toBe(403);
       }
     }
     finally {

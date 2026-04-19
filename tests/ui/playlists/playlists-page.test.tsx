@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { PlaylistsPage } from '../../../app/pages/playlists/ui/PlaylistsPage';
@@ -112,5 +113,51 @@ describe('PlaylistsPage', () => {
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/playlists/playlist-1');
     });
+  });
+
+  test('owns search updates by calling onSearchChange and navigating for search and clear flows', async () => {
+    const user = userEvent.setup();
+    const onSearchChange = vi.fn();
+
+    function SearchHarness() {
+      const [searchQuery, setSearchQuery] = useState('');
+
+      return (
+        <PlaylistsPage
+          playlists={[]}
+          videoCountMap={{}}
+          total={0}
+          searchQuery={searchQuery}
+          onSearchChange={(query) => {
+            onSearchChange(query);
+            setSearchQuery(query);
+          }}
+        />
+      );
+    }
+
+    const router = createMemoryRouter([
+      {
+        path: '/playlists',
+        element: <SearchHarness />,
+      },
+    ], {
+      initialEntries: ['/playlists'],
+    });
+
+    render(
+      <RouterProvider router={router} />,
+    );
+
+    const searchInput = screen.getByRole('searchbox', { name: 'Search library (desktop)' });
+    await user.type(searchInput, 'vault');
+
+    expect(onSearchChange).toHaveBeenLastCalledWith('vault');
+    expect(mockNavigate).toHaveBeenLastCalledWith('/playlists?q=vault');
+
+    await user.clear(searchInput);
+
+    expect(onSearchChange).toHaveBeenLastCalledWith('');
+    expect(mockNavigate).toHaveBeenLastCalledWith('/playlists');
   });
 });
