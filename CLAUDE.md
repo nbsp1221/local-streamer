@@ -47,7 +47,8 @@ Examples of active areas include:
 - **`app/shared/lib/`** - Shared frontend helpers such as class merging utilities
 - **`app/pages/`, `app/widgets/`, `app/features/`, `app/entities/`** - New FSD-lite frontend surfaces
 - **`app/routes/`** - API routes (thin controllers only)
-- **`tests/`** - All test files
+- **`tests/`** - Integration, UI, smoke, and browser test files
+- **`app/modules/**/*.{test,spec}.ts`** - Colocated module tests included in the standard Vitest surface
 - Any new modules you create for the project
 
 ### Compatibility Areas (MODIFY WITH CAUTION)
@@ -78,7 +79,7 @@ Examples of active areas include:
 - **EVERY USECASE MUST HAVE UNIT TESTS** with comprehensive business logic validation
 - **IMMUTABLE DATA PATTERNS** - prefer readonly interfaces and functional updates
 - **DOCSTRINGS REQUIRED** for all public functions and UseCases
-- **75% MINIMUM CODE COVERAGE** - measured by `bun run test:run -- --coverage`
+- **75% COVERAGE TARGET** - inspect with `bun run test:run -- --coverage`; this is a project target, not part of the default CI gate today
 
 ### Security Standards
 
@@ -126,7 +127,7 @@ bun run test        # Full verification: Vitest + Bun smoke layers (required bef
 # Full quality check (run before any commit)
 bun run typecheck && bun run lint && bun run test
 
-# Test with coverage (75% minimum required)
+# Ad hoc coverage inspection against the project target
 bun run test:run -- --coverage
 
 # Build verification

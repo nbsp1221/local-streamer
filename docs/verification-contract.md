@@ -64,7 +64,8 @@ The authoritative commands for the current repo state are:
 - `bun run verify:e2e-smoke`
 - `docker run --rm --user "$(id -u):$(id -g)" -e CI=true -e GITHUB_ACTIONS=true -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -e TZ=Etc/UTC -v "$PWD":/workspace -w /workspace oven/bun:<matching-packageManager-version> bash -lc 'bun install --frozen-lockfile && bun run lint && bun run typecheck && bun run test && bun run build'` as explanatory reference only
 
-The authoritative Docker verification surfaces are `bun run verify:ci-faithful:docker` and `bun run verify:ci-clean-export`.
+The authoritative Docker verification surfaces are `bun run verify:ci-faithful:docker` and `bun run verify:ci-worktree:docker`.
+`bun run verify:ci-clean-export` is an authoritative clean-export parity command, but it is not Docker-backed.
 Use `bun run verify:ci-worktree:docker` only when you must prove the current dirty worktree in a CI-like container without leaving root-owned artifacts in the host repository.
 The raw Docker command above is explanatory reference only and must track the Bun version declared by `package.json` (`bun@1.3.5` at the time of writing) instead of drifting to an arbitrary image tag.
 
@@ -80,11 +81,11 @@ GitHub Actions should run dedicated jobs for:
 
 `test` should run the hermetic input guard before `bun run test`.
 
-`e2e-smoke` should run `bun run verify:e2e-smoke`. Heavier browser suites can remain non-required under `bun run test:e2e` until they are deterministic.
+`e2e-smoke` should run `bun run verify:e2e-smoke`. If broader browser suites are added later, they can remain non-required under `bun run test:e2e` until they are deterministic.
 
 ## Broader browser suite
 
-`bun run test:e2e` remains the broader developer browser suite. It is useful for local browser/playback investigation, but it is not part of the standard hermetic verification contract until the heavier playback compatibility scenarios become deterministic.
+`bun run test:e2e` remains the developer browser entrypoint. In the current repo state it executes the same checked-in specs that `bun run verify:e2e-smoke` targets, while `verify:e2e-smoke` remains the required hermetic smoke wrapper around that suite. If broader browser coverage is added later, it should remain non-required until it is deterministic.
 
 ## Browser QA Escalation
 

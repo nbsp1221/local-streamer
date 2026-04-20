@@ -7,7 +7,7 @@ Personal media server application for streaming local video files through a web 
 - 🎬 Stream local video files through web browser
 - 🔐 Shared-password auth gate with httpOnly site sessions
 - 📁 File management with preparation and library folders
-- 🔒 DASH streaming with AES-128 encryption
+- 🔒 Protected DASH playback with JWT tokens, ClearKey, and encrypted media packaging
 - 🎨 YouTube-inspired UI for video browsing
 - ⚡ Pure Bun runtime for maximum performance
 
@@ -38,7 +38,9 @@ bun run build
 bun start
 ```
 
-`AUTH_SHARED_PASSWORD` is required in both development and production.
+For local auth-only investigation, `AUTH_SHARED_PASSWORD` is sufficient.
+For protected playback routes, also set `VIDEO_JWT_SECRET`.
+For ingest and encrypted playback packaging, also set `VIDEO_MASTER_ENCRYPTION_SEED`.
 
 ## Docker Deployment
 
@@ -88,21 +90,45 @@ Create `.env` file before starting the app:
 cp .env.example .env
 ```
 
-Required:
+Required for the full vault feature set:
 
 - `AUTH_SHARED_PASSWORD`: shared password for unlocking the site
+- `VIDEO_JWT_SECRET`: signing secret for protected playback token issuance
+- `VIDEO_MASTER_ENCRYPTION_SEED`: master seed for deriving per-video encryption keys
 
 Optional:
 
+- `KEY_SALT_PREFIX`: salt prefix used during playback key derivation
+- `VIDEO_METADATA_SQLITE_PATH`: override path for canonical video metadata SQLite storage
 - `AUTH_SQLITE_PATH`: path for the Bun SQLite auth/session database
+- `AUTH_CLIENT_COOKIE_NAME`: override the client identity cookie name
+- `AUTH_SESSION_COOKIE_NAME`: override the auth session cookie name
 - `AUTH_SESSION_TTL_MS`: session lifetime in milliseconds
 - `AUTH_OWNER_ID`: optional config-owned site owner id override (`site-owner` by default)
 - `AUTH_OWNER_EMAIL`: optional config-owned site owner email override (`owner@local` by default)
+- `AUTH_TRUST_PROXY_HEADERS`: trust forwarded client IP headers for rate limiting
+- `AUTH_FAILED_LOGIN_BLOCK_DURATION_MS`: failed-login block duration
+- `AUTH_FAILED_LOGIN_DELAY_MS`: invalid-login response delay
+- `AUTH_FAILED_LOGIN_WINDOW_MS`: failed-login tracking window
+- `AUTH_MAX_FAILED_LOGIN_ATTEMPTS`: failed-login threshold before blocking
+- `FFMPEG_PATH`: override the FFmpeg binary path
+- `FFPROBE_PATH`: override the ffprobe binary path
+- `SHAKA_PACKAGER_PATH`: override the Shaka Packager binary path
 
 Notes:
 
 - Use `/login` for the site auth flow.
+- Auth-only startup and home-library access can work with `AUTH_SHARED_PASSWORD` alone.
 - The site owner identity is config-owned through `AUTH_OWNER_ID` and `AUTH_OWNER_EMAIL`.
+- The protected playback path issues `/videos/:videoId/token`, resolves `/videos/:videoId/manifest.mpd`, and serves `/videos/:videoId/clearkey` for the browser license flow.
+
+## Architecture And Refactor Context
+
+For the current architecture and repo state, start here:
+
+- `docs/roadmap/current-refactor-status.md`
+- `docs/roadmap/personal-video-vault-rearchitecture-phases.md`
+- `docs/architecture/personal-video-vault-target-architecture.md`
 
 ## Technology Stack
 
@@ -111,7 +137,7 @@ Notes:
 - **Styling**: TailwindCSS v4
 - **Metadata/Auth Persistence**: SQLite for auth sessions and canonical video metadata, plus active-owned JSON persistence for playlists
 - **Video**: FFmpeg for thumbnails and streaming
-- **Streaming**: DASH with AES-128 encryption
+- **Streaming**: DASH with JWT token issuance, ClearKey license delivery, and encrypted media packaging
 
 ## Testing
 

@@ -75,7 +75,7 @@ For the required browser smoke layer, run:
 bun run verify:e2e-smoke
 ```
 
-with a `bun` matching the repo `packageManager` contract. That browser smoke path is separate from the non-browser Docker gate above.
+with a `bun` matching the repo `packageManager` contract. The raw non-browser Docker reference above excludes browser smoke, but the Docker authority paths above already include this browser smoke layer because they run `bun run verify:ci-faithful`, which includes `bun run verify:e2e-smoke`.
 The current required smoke set covers the home owner path, playlist owner flow, player layout, and protected playback compatibility.
 When the change is both browser-visible and runtime-sensitive, follow `docs/browser-qa-contract.md` to decide whether Playwright MCP or equivalent isolated browser QA is additionally required.
 
@@ -157,20 +157,23 @@ Use `bun run verify:e2e-smoke` for the required hermetic browser smoke path.
 
 Use:
 
-- **Shared Password:** value from `AUTH_SHARED_PASSWORD`
+- **Shared Password:** the hermetic browser path defaults to the helper value from `tests/support/shared-password.ts`
+- **Ambient auth env:** `AUTH_SHARED_PASSWORD` is only needed when you intentionally run manual local QA outside the hermetic helper flow
 
 ## Test Assets
 
 ### Video Files
 
 - Hermetic playback/browser fixtures under `tests/fixtures/playback/`
-- Upload fixtures under `storage/data/test-videos/`
+- Do not treat repo-local `storage/data/test-videos/` as a hermetic fixture source; `storage/` is ignored and is suitable only for optional local manual QA.
+- For automated upload-oriented coverage, prefer temporary generated fixtures or another tracked test-owned surface instead of `storage/`.
 
-Before running Playwright playback checks against the built server, refresh the known playback fixtures so the test environment does not rely on stale HEVC-only packages:
+For the supported Playwright entrypoints:
 
-```bash
-bun run backfill:browser-playback-fixtures
-```
+- hermetic smoke copies tracked playback fixtures into a temporary runtime workspace
+- developer-full Playwright runs `bun run backfill:browser-playback-fixtures` automatically before starting the built server
+
+Run `bun run backfill:browser-playback-fixtures` manually only when you are investigating playback outside those supported entrypoints.
 
 ## Important Notes
 

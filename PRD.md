@@ -1,10 +1,28 @@
+# Local Streamer PRD
+
+Status: Historical requirements snapshot
+Last reviewed: 2026-04-19
+Superseded by:
+
+- `docs/architecture/personal-video-vault-target-architecture.md`
+- `docs/roadmap/current-refactor-status.md`
+- `docs/roadmap/personal-video-vault-rearchitecture-phases.md`
+
+Important note:
+
+- this document records an early MVP definition and no longer describes the live product in full
+- the current app uses shared-password auth rather than a first-run admin-account bootstrap flow
+- playlists are implemented and are no longer “out of scope”
+- use the documents above for current architecture, refactor state, and ownership boundaries
+- quoted historical statements below are preserved for context and are not authoritative for current development
+
 # 최종 PRD (Product Requirements Document) - Local Streamer
 
 **버전: 2.0**  
 **프로젝트명: Local Streamer**  
 **최종 업데이트: 2025-01-12**
 
-> 문서 목표: 본 문서는 'Local Streamer' MVP(Minimum Viable Product) 개발을 위한 모든 요구사항을 정의한다. 기획, 개발, 디자인 등 모든 관련자는 본 문서를 프로젝트의 최종 설계도로 간주하고 작업을 진행한다.
+> Historical note: at the time this PRD was written, it was intended as the MVP blueprint. It is no longer the current source of truth for the live project.
 
 > **v2.0 업데이트 사항:** 보안 시스템을 XOR 암호화에서 업계 표준인 DASH + AES-128 암호화로 업그레이드하여 보안성과 호환성을 대폭 개선하였다.
 > 

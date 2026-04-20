@@ -1,0 +1,102 @@
+# Current Refactor Status
+
+Status: Current-state reference
+Last updated: 2026-04-19
+Owner: Project maintainer
+Depends on:
+
+- `docs/architecture/personal-video-vault-target-architecture.md`
+- `docs/roadmap/personal-video-vault-rearchitecture-phases.md`
+
+## 1. Purpose
+
+This is the first document to read before changing the codebase during or after the rearchitecture.
+
+It answers:
+
+- what the product currently does
+- whether the rearchitecture is still in flight
+- what compatibility behavior still exists in active-owned code
+- what follow-up work is still worth doing
+
+Use the target architecture document for the stable north star, and use dated plans only for execution details.
+
+## 2. Current Product Snapshot
+
+The product is currently a personal encrypted video vault with these owner-facing flows working in the active application structure:
+
+- shared-password login
+- protected home library browsing
+- title search and tag filtering
+- quick-view metadata editing and deletion from home
+- pending upload visibility on home
+- upload scan from the `uploads` directory
+- add-to-library intake with encoding option selection
+- protected player route with DASH token, manifest, segment, and ClearKey routes
+- playlist listing, creation, detail navigation, and playlist item reads through the active playlist slice
+
+## 3. Refactor Completion Snapshot
+
+Ownership migration is complete.
+
+High-signal facts:
+
+- the main owner flows for `auth`, `home`, `add-videos`, `ingest`, `playback`, and `playlist` are owned by the target structure
+- the repository no longer contains an `app/legacy` tree
+- active code now has zero `~/legacy` imports
+- playback fixture backfill now lives under active playback infrastructure
+- legacy-only behavior suites and repo-cleanliness blockers were removed as part of the final cleanup pass
+- CI and local verification now share hermetic playback/browser fixture inputs instead of relying on ignored repo-local `storage/`
+- playlist application ownership now lives under `app/modules/playlist/*`, with `app/composition/server/playlist.ts` reduced to active composition and response mapping
+
+## 4. Phase Snapshot
+
+| Phase | Status | High-signal note |
+| --- | --- | --- |
+| 0. Legacy Fence | complete | historical isolation step; the old tree has now been removed |
+| 1. Auth Gate + SQLite Foundation | complete | auth gate, SQLite sessions, and config-owned viewer identity are live |
+| 2. Playback Slice | complete | player surface and routes are migrated, active playback infrastructure owns the path, and CI verifies hermetic playback/browser fixtures |
+| 3. Library Slice | complete | home read/write ownership and canonical metadata ownership live in the active structure |
+| 4. Ingest Slice | complete | upload, processing, transcoder, and thumbnail-finalization ownership live in active ingest/thumbnail infrastructure |
+| 5. Playlist and Legacy Cleanup | complete | playlist ownership is migrated, the legacy tree is gone, and only no-reintroduction boundary guards remain |
+
+## 5. Current Runtime Contracts
+
+The legacy tree is gone, and these current runtime contracts remain intentionally active-owned:
+
+### Config-owned auth runtime
+
+- runtime auth no longer depends on `storage/data/users.json`
+- runtime owner identity is config-owned through `AUTH_OWNER_ID` and `AUTH_OWNER_EMAIL`
+- default runtime owner values still come from those config defaults when the env vars are not overridden
+
+### Active-owned JSON persistence
+
+- playlists still persist through active JSON infrastructure under `app/modules/playlist/infrastructure/json`
+- this is no longer a legacy bridge; it is the current owner for playlist persistence
+
+### Playback fixture maintenance
+
+- `bun run backfill:browser-playback-fixtures` remains an active-owned maintenance command for hermetic playback fixtures
+- CLI parsing and runtime behavior live in `app/modules/playback/infrastructure/backfill/browser-compatible-playback-backfill.ts`
+- unexpected ClearKey route failures now use the current playback unexpected-error contract family instead of the retired `403` fallback
+
+## 6. What Is No Longer Pending
+
+These are no longer open rearchitecture tasks:
+
+- deleting `app/legacy`
+- removing legacy-only repository tests
+- removing the legacy Vitest project
+- moving the playback fixture backfill path off legacy helpers
+- clearing direct `~/legacy` imports from active code
+- extracting playlist use-case ownership out of `app/composition/server/playlist.ts`
+
+## 7. Recommended Next Work
+
+The rearchitecture is no longer blocked on repository cleanup. The next useful work is narrow active-owned polish:
+
+1. keep `AUTH_OWNER_ID` and `AUTH_OWNER_EMAIL` defaults aligned across runtime config, docs, and deployment examples
+2. simplify remaining wrapper duplication in `app/composition/server/playlist.ts` only if it produces clearer route-facing contracts
+3. finish browser-visible playlist polish such as play-all, add-to-playlist entry points, and edit flows without reopening migration boundaries
+4. keep browser/runtime verification aligned as playback behavior evolves

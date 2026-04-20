@@ -1,5 +1,20 @@
 # Playlist System Implementation Plan
 
+Status: Historical planning note
+Last reviewed: 2026-04-19
+Superseded by:
+
+- `docs/roadmap/current-refactor-status.md`
+- `app/modules/playlist/*`
+- `app/routes/playlists._index.tsx`
+- `app/routes/playlists.$id.tsx`
+
+Important note:
+
+- this plan reflects an earlier playlist roadmap and should not be used as the current implementation status
+- playlist listing, creation, detail routing, and active application ownership now exist in the live codebase
+- ideas in the remainder of this file should be treated as optional future product work unless they are re-approved
+
 ## 📋 Current Status (Updated: 2025-09-20)
 
 ### ✅ **Phase 1 COMPLETED: MVP Foundation**
