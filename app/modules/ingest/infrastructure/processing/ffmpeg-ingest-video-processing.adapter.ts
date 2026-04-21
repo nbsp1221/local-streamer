@@ -1,7 +1,6 @@
 import type { ThumbnailFinalizerPort } from '~/modules/thumbnail/application/ports/thumbnail-finalizer.port';
 import { ThumbnailFinalizerAdapter } from '~/modules/thumbnail/infrastructure/finalization/thumbnail-finalizer.adapter';
-import type { ProcessPreparedVideoCommand } from '../../application/ports/ingest-library-intake.port';
-import type { IngestVideoProcessingPort } from '../../application/ports/ingest-video-processing.port';
+import type { IngestVideoProcessingPort, ProcessPreparedVideoCommand } from '../../application/ports/ingest-video-processing.port';
 import type { IngestVideoTranscoder } from './ingest-video-transcoder';
 import { FfmpegVideoTranscoderAdapter } from './ffmpeg-video-transcoder.adapter';
 import { resolveIngestProcessingEncodingPolicy } from './ingest-processing-encoding-policy';
@@ -51,6 +50,7 @@ export class FfmpegIngestVideoProcessingAdapter implements IngestVideoProcessing
         ...resolveIngestProcessingEncodingPolicy(command.encodingOptions),
         sourcePath: command.sourcePath,
         videoId: command.videoId,
+        workspaceRootDir: command.workspaceRootDir,
       });
 
       if (transcodeResult.success) {

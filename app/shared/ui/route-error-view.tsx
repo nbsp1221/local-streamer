@@ -26,7 +26,6 @@ export interface RouteErrorViewProps {
   layout?: 'app' | 'standalone';
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
-  pendingCount?: number;
   children?: ReactNode;
 }
 
@@ -61,7 +60,6 @@ export function RouteErrorView({
   layout = 'app',
   searchQuery = '',
   onSearchChange = () => {},
-  pendingCount = 0,
   children,
 }: RouteErrorViewProps) {
   const resolvedTone = toneTokens[tone];
@@ -106,7 +104,7 @@ export function RouteErrorView({
   }
 
   return (
-    <HomeShell pendingCount={pendingCount} searchQuery={searchQuery} onSearchChange={onSearchChange}>
+    <HomeShell searchQuery={searchQuery} onSearchChange={onSearchChange}>
       {content}
     </HomeShell>
   );

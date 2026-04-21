@@ -9,7 +9,6 @@ import {
   HOME_SETTINGS_ITEMS,
 } from '~/entities/home-shell/model/home-navigation';
 import { useRootUser } from '~/shared/hooks/use-root-user';
-import { Badge } from '~/shared/ui/badge';
 import { Button } from '~/shared/ui/button';
 import {
   DropdownMenu,
@@ -37,7 +36,6 @@ interface AddVideosShellProps {
   children: ReactNode;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
-  pendingCount?: number;
 }
 
 function isActiveGenre(pathname: string, search: string, genreId: string, path: string) {
@@ -145,7 +143,6 @@ function AddVideosSidebar() {
 }
 
 function AddVideosHeader({
-  pendingCount = 0,
   searchQuery = '',
   onSearchChange,
 }: Omit<AddVideosShellProps, 'children'>) {
@@ -190,14 +187,6 @@ function AddVideosHeader({
             variant="ghost"
           >
             <Bell className="h-5 w-5" />
-            {pendingCount > 0 ? (
-              <Badge
-                className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center p-0 text-xs"
-                variant="destructive"
-              >
-                {pendingCount}
-              </Badge>
-            ) : null}
           </Button>
 
           {user ? (
@@ -256,7 +245,6 @@ export function AddVideosShell({
   children,
   searchQuery = '',
   onSearchChange,
-  pendingCount = 0,
 }: AddVideosShellProps) {
   return (
     <SidebarProvider defaultOpen={false}>
@@ -265,7 +253,6 @@ export function AddVideosShell({
         <div className="flex flex-1 flex-col">
           <AddVideosHeader
             onSearchChange={onSearchChange}
-            pendingCount={pendingCount}
             searchQuery={searchQuery}
           />
           <main className="flex-1 overflow-y-auto">{children}</main>

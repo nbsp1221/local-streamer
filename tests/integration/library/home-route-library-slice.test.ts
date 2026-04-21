@@ -31,14 +31,6 @@ describe('home route library slice adapter', () => {
     loadHomeLibraryPageDataExecuteMock.mockResolvedValue({
       ok: true,
       data: {
-        pendingVideos: [
-          {
-            filename: 'pending.mp4',
-            id: 'pending-1',
-            size: 128,
-            type: 'video/mp4',
-          },
-        ],
         videos: [
           {
             createdAt: new Date('2026-03-11T00:00:00.000Z'),
@@ -61,14 +53,6 @@ describe('home route library slice adapter', () => {
     expect(getHomeLibraryPageServicesMock).toHaveBeenCalledOnce();
     expect(loadHomeLibraryPageDataExecuteMock).toHaveBeenCalledWith({});
     expect(result).toEqual({
-      pendingVideos: [
-        {
-          filename: 'pending.mp4',
-          id: 'pending-1',
-          size: 128,
-          type: 'video/mp4',
-        },
-      ],
       videos: [
         expect.objectContaining({
           createdAt: '2026-03-11T00:00:00.000Z',
@@ -83,7 +67,6 @@ describe('home route library slice adapter', () => {
     loadHomeLibraryPageDataExecuteMock.mockResolvedValue({
       ok: true,
       data: {
-        pendingVideos: [],
         videos: [
           {
             createdAt: new Date('2026-03-11T00:00:00.000Z'),
@@ -104,7 +87,6 @@ describe('home route library slice adapter', () => {
 
     expect(loadHomeLibraryPageDataExecuteMock).toHaveBeenCalledWith({});
     expect(result).toEqual({
-      pendingVideos: [],
       videos: [
         expect.objectContaining({
           createdAt: '2026-03-11T00:00:00.000Z',

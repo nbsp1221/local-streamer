@@ -34,7 +34,7 @@ export function PlaylistDetailPage({
   permissions,
 }: PlaylistDetailPageProps) {
   return (
-    <HomeShell pendingCount={0} searchQuery="" onSearchChange={() => {}}>
+    <HomeShell searchQuery="" onSearchChange={() => {}}>
       <PlaylistDetailView
         playlist={playlist}
         stats={stats}

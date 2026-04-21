@@ -1,7 +1,4 @@
-import { createReadStream, existsSync, statSync } from 'node:fs';
-import { join } from 'node:path';
 import { ThumbnailDecryptionService } from '~/modules/thumbnail/infrastructure/decryption/thumbnail-decryption.service';
-import { getThumbnailStoragePaths } from '~/modules/thumbnail/infrastructure/storage/thumbnail-storage-paths.server';
 
 interface LoadDecryptedThumbnailResponseInput {
   eTagPrefix: string;
@@ -11,46 +8,10 @@ interface LoadDecryptedThumbnailResponseInput {
   contentSource: string;
 }
 
-interface LoadThumbnailPreviewResponseInput {
-  filename: string;
-}
-
 function createThumbnailDecryptionService() {
   return new ThumbnailDecryptionService({
     logger: console,
   });
-}
-
-export async function loadThumbnailPreviewResponse(
-  input: LoadThumbnailPreviewResponseInput,
-): Promise<Response> {
-  const { thumbnailsDir } = getThumbnailStoragePaths();
-  const thumbnailPath = join(thumbnailsDir, input.filename);
-
-  if (!existsSync(thumbnailPath)) {
-    throw new Response('Thumbnail preview not found', { status: 404 });
-  }
-
-  try {
-    const stat = statSync(thumbnailPath);
-    const fileSize = stat.size;
-    const lastModified = stat.mtime;
-    const stream = createReadStream(thumbnailPath);
-
-    return new Response(stream as unknown as ReadableStream, {
-      headers: {
-        'Cache-Control': 'private, max-age=3600, must-revalidate',
-        'Content-Length': fileSize.toString(),
-        'Content-Type': 'image/jpeg',
-        'ETag': `"preview-${input.filename}-${lastModified.getTime()}"`,
-        'Last-Modified': lastModified.toUTCString(),
-      },
-    });
-  }
-  catch (error) {
-    console.error('Failed to serve thumbnail preview:', error);
-    throw new Response('Failed to read thumbnail preview', { status: 500 });
-  }
 }
 
 export async function loadDecryptedThumbnailResponse(

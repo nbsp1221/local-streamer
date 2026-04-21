@@ -9,7 +9,6 @@ import {
   HOME_SETTINGS_ITEMS,
 } from '~/entities/home-shell/model/home-navigation';
 import { HomeAccountMenu } from '~/features/home-account-menu/ui/HomeAccountMenu';
-import { HomePendingIndicator } from '~/features/home-pending-indicator/ui/HomePendingIndicator';
 import { HomeSearchField } from '~/features/home-search/ui/HomeSearchField';
 import { Button } from '~/shared/ui/button';
 import {
@@ -31,7 +30,6 @@ import {
 
 interface HomeShellProps {
   children: ReactNode;
-  pendingCount: number;
   searchQuery: string;
   onSearchChange: (query: string) => void;
 }
@@ -150,7 +148,6 @@ function HomeNavigation({
 
 function HomeShellContent({
   children,
-  pendingCount,
   searchQuery,
   onSearchChange,
 }: HomeShellProps) {
@@ -211,7 +208,6 @@ function HomeShellContent({
                   <span className="hidden sm:inline">Upload</span>
                 </Link>
               </Button>
-              <HomePendingIndicator pendingCount={pendingCount} />
               <HomeAccountMenu />
             </div>
           </div>

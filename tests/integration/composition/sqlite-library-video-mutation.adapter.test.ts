@@ -13,7 +13,7 @@ describe('sqlite library video mutation adapter', () => {
       duration: 95,
       id: videoId,
       tags: ['Action', 'Drama'],
-      thumbnailUrl: '/uploads/thumbnails/video-1.jpg',
+      thumbnailUrl: '/api/thumbnail/video-1',
       title: 'Fixture Video',
       videoUrl: '/videos/video-1/manifest.mpd',
     }));
@@ -23,7 +23,7 @@ describe('sqlite library video mutation adapter', () => {
       duration: 95,
       id: videoId,
       tags: input.tags as string[],
-      thumbnailUrl: '/uploads/thumbnails/video-1.jpg',
+      thumbnailUrl: '/api/thumbnail/video-1',
       title: input.title as string,
       videoUrl: '/videos/video-1/manifest.mpd',
     }));

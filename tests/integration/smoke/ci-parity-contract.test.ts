@@ -21,6 +21,7 @@ describe('CI parity contract', () => {
     expect(workflow).toContain('bun run verify:e2e-smoke');
     expect(packageJson).toContain('"test:e2e":');
     expect(packageJson).toContain('"verify:e2e-smoke":');
+    expect(packageJson).toContain('tests/e2e/add-videos-owner-upload-smoke.spec.ts');
     expect(packageJson).toContain('tests/e2e/playlist-owner-smoke.spec.ts');
     expect(packageJson).toContain('"verify:ci-faithful":');
     expect(packageJson).toContain('"verify:ci-faithful:docker":');

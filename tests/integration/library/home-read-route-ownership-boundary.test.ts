@@ -27,7 +27,7 @@ describe('home read route ownership boundary', () => {
     }
   });
 
-  test('home page composition depends on ingest-owned pending-upload services instead of the retired home seam', async () => {
+  test('home page composition does not depend on the retired home pending-upload seam', async () => {
     const filePath = join(projectRoot, 'app/composition/server/home-library-page.ts');
     const source = await readFile(filePath, 'utf8');
 

@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { PendingUploadVideo } from '~/entities/pending-video/model/pending-upload-video';
+import { useRef, useState } from 'react';
 import {
   type AddVideosEncodingOptions,
   createDefaultAddVideosEncodingOptions,
 } from '~/features/add-videos-encoding/model/add-videos-encoding-options';
+import {
+  type UploadBrowserFile,
+  uploadBrowserFile as uploadBrowserFileDefault,
+} from './upload-browser-file';
 
 export interface FileMetadataState {
   title: string;
@@ -12,33 +15,54 @@ export interface FileMetadataState {
   encodingOptions: AddVideosEncodingOptions;
 }
 
-interface ScanResponse {
-  success: boolean;
-  files: PendingUploadVideo[];
-  count: number;
-  error?: string;
-}
-
-interface AddResponse {
+interface CommitResponse {
   success: boolean;
   videoId?: string;
   message?: string;
   error?: string;
 }
 
-interface UseAddVideosViewResult {
-  pendingFiles: PendingUploadVideo[];
-  loading: boolean;
+type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
+
+export type AddVideosSessionStatus =
+  | 'uploading'
+  | 'upload_failed'
+  | 'uploaded'
+  | 'adding_to_library'
+  | 'add_failed'
+  | 'completed';
+
+export interface AddVideosSession {
   error: string | null;
+  file: File;
+  filename: string;
+  metadata: FileMetadataState;
+  mimeType: string;
+  progressPercent: number;
+  size: number;
+  stagingId: string | null;
+  status: AddVideosSessionStatus;
   successMessage: string | null;
-  processingFiles: Set<string>;
-  metadataByFilename: Record<string, FileMetadataState>;
-  handleRefresh: () => Promise<void>;
-  handleTitleChange: (filename: string, value: string) => void;
-  handleTagsChange: (filename: string, value: string) => void;
-  handleDescriptionChange: (filename: string, value: string) => void;
-  handleEncodingOptionsChange: (filename: string, options: AddVideosEncodingOptions) => void;
-  handleAddToLibrary: (filename: string) => Promise<void>;
+}
+
+interface UseAddVideosViewDependencies {
+  fetchImpl?: FetchLike;
+  uploadBrowserFile?: UploadBrowserFile;
+}
+
+interface UseAddVideosViewResult {
+  pageError: string | null;
+  session: AddVideosSession | null;
+  canAddToLibrary: boolean;
+  handleAddToLibrary: () => Promise<void>;
+  handleChooseFiles: (files: FileList | File[] | null) => void;
+  handleClearSession: () => void;
+  handleDescriptionChange: (value: string) => void;
+  handleEncodingOptionsChange: (options: AddVideosEncodingOptions) => void;
+  handleRemoveSession: () => Promise<void>;
+  handleRetryUpload: () => void;
+  handleTagsChange: (value: string) => void;
+  handleTitleChange: (value: string) => void;
 }
 
 function createInitialMetadata(filename: string): FileMetadataState {
@@ -50,163 +74,306 @@ function createInitialMetadata(filename: string): FileMetadataState {
   };
 }
 
-export function useAddVideosView(): UseAddVideosViewResult {
-  const [pendingFiles, setPendingFiles] = useState<PendingUploadVideo[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
-  const [metadataByFilename, setMetadataByFilename] = useState<Record<string, FileMetadataState>>({});
+function parseTags(tags: string) {
+  return tags
+    .split(',')
+    .map(tag => tag.trim())
+    .filter(tag => tag.length > 0);
+}
 
-  const handleRefresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    setSuccessMessage(null);
+function createUploadSession(file: File, metadata?: FileMetadataState): AddVideosSession {
+  return {
+    error: null,
+    file,
+    filename: file.name,
+    metadata: metadata ?? createInitialMetadata(file.name),
+    mimeType: file.type || 'application/octet-stream',
+    progressPercent: 0,
+    size: file.size,
+    stagingId: null,
+    status: 'uploading',
+    successMessage: null,
+  };
+}
 
-    try {
-      const response = await fetch('/api/scan-incoming');
-      const data: ScanResponse = await response.json();
+export function useAddVideosView(
+  deps: UseAddVideosViewDependencies = {},
+): UseAddVideosViewResult {
+  const fetchImpl = deps.fetchImpl ?? ((input, init) => fetch(input, init));
+  const uploadBrowserFile = deps.uploadBrowserFile ?? uploadBrowserFileDefault;
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [session, setSession] = useState<AddVideosSession | null>(null);
+  const uploadTokenRef = useRef(0);
+  const abortUploadRef = useRef<(() => void) | null>(null);
 
-      if (!data.success) {
-        setError(data.error || 'Failed to scan files.');
-        return;
+  const resetSession = () => {
+    abortUploadRef.current = null;
+    setSession(null);
+    setPageError(null);
+  };
+
+  const updateSession = (
+    patcher: (current: AddVideosSession) => AddVideosSession,
+  ) => {
+    setSession((current) => {
+      if (!current) {
+        return current;
       }
 
-      setPendingFiles(data.files);
-      setMetadataByFilename((previous) => {
-        const next: Record<string, FileMetadataState> = {};
-
-        data.files.forEach((file) => {
-          next[file.filename] = previous[file.filename] ?? createInitialMetadata(file.filename);
-        });
-
-        return next;
-      });
-    }
-    catch (error) {
-      console.error('Scan error:', error);
-      setError('Network error occurred.');
-    }
-    finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const updateMetadata = useCallback((filename: string, updater: (current: FileMetadataState) => FileMetadataState) => {
-    setMetadataByFilename((previous) => {
-      const current = previous[filename] ?? createInitialMetadata(filename);
-
-      return {
-        ...previous,
-        [filename]: updater(current),
-      };
+      return patcher(current);
     });
-  }, []);
+  };
 
-  const handleTitleChange = useCallback((filename: string, value: string) => {
-    updateMetadata(filename, current => ({ ...current, title: value }));
-  }, [updateMetadata]);
+  const startUpload = (file: File, metadata?: FileMetadataState) => {
+    const uploadToken = uploadTokenRef.current + 1;
+    uploadTokenRef.current = uploadToken;
+    setPageError(null);
+    setSession(createUploadSession(file, metadata));
 
-  const handleTagsChange = useCallback((filename: string, value: string) => {
-    updateMetadata(filename, current => ({ ...current, tags: value }));
-  }, [updateMetadata]);
+    const uploadRequest = uploadBrowserFile(file, {
+      onProgress(uploadedBytes, totalBytes) {
+        if (uploadTokenRef.current !== uploadToken) {
+          return;
+        }
 
-  const handleDescriptionChange = useCallback((filename: string, value: string) => {
-    updateMetadata(filename, current => ({ ...current, description: value }));
-  }, [updateMetadata]);
+        setSession((current) => {
+          if (!current || current.file !== file) {
+            return current;
+          }
 
-  const handleEncodingOptionsChange = useCallback((filename: string, options: AddVideosEncodingOptions) => {
-    updateMetadata(filename, current => ({ ...current, encodingOptions: options }));
-  }, [updateMetadata]);
+          return {
+            ...current,
+            progressPercent: totalBytes > 0
+              ? Math.min(100, Math.round((uploadedBytes / totalBytes) * 100))
+              : current.progressPercent,
+          };
+        });
+      },
+    });
+    abortUploadRef.current = uploadRequest.abort;
 
-  const handleAddToLibrary = useCallback(async (filename: string) => {
-    const metadata = metadataByFilename[filename] ?? createInitialMetadata(filename);
+    void uploadRequest.done
+      .then((result) => {
+        if (uploadTokenRef.current !== uploadToken) {
+          return;
+        }
 
-    if (!metadata.title.trim()) {
-      setError('Please enter a title.');
+        abortUploadRef.current = null;
+        setSession((current) => {
+          if (!current || current.file !== file) {
+            return current;
+          }
+
+          return {
+            ...current,
+            filename: result.filename,
+            mimeType: result.mimeType,
+            progressPercent: 100,
+            size: result.size,
+            stagingId: result.stagingId,
+            status: 'uploaded',
+          };
+        });
+      })
+      .catch((error: unknown) => {
+        if (uploadTokenRef.current !== uploadToken) {
+          return;
+        }
+
+        abortUploadRef.current = null;
+        const message = error instanceof Error ? error.message : 'Upload failed.';
+        setSession((current) => {
+          if (!current || current.file !== file) {
+            return current;
+          }
+
+          return {
+            ...current,
+            error: message,
+            status: 'upload_failed',
+          };
+        });
+      });
+  };
+
+  const handleChooseFiles = (files: FileList | File[] | null) => {
+    const nextFiles = files ? Array.from(files) : [];
+
+    if (nextFiles.length === 0) {
       return;
     }
 
-    setProcessingFiles((previous) => {
-      const next = new Set(previous);
-      next.add(filename);
-      return next;
+    if (nextFiles.length > 1) {
+      setPageError('Only one file can be uploaded at a time.');
+      return;
+    }
+
+    if (session && session.status !== 'completed') {
+      setPageError('Finish or remove the current upload before starting another one.');
+      return;
+    }
+
+    startUpload(nextFiles[0]!);
+  };
+
+  const updateSessionMetadata = (updater: (metadata: FileMetadataState) => FileMetadataState) => {
+    updateSession((current) => {
+      return {
+        ...current,
+        metadata: updater(current.metadata),
+      };
     });
-    setError(null);
-    setSuccessMessage(null);
+  };
+
+  const handleTitleChange = (value: string) => {
+    updateSessionMetadata(current => ({ ...current, title: value }));
+  };
+
+  const handleTagsChange = (value: string) => {
+    updateSessionMetadata(current => ({ ...current, tags: value }));
+  };
+
+  const handleDescriptionChange = (value: string) => {
+    updateSessionMetadata(current => ({ ...current, description: value }));
+  };
+
+  const handleEncodingOptionsChange = (options: AddVideosEncodingOptions) => {
+    updateSessionMetadata(current => ({ ...current, encodingOptions: options }));
+  };
+
+  const handleAddToLibrary = async () => {
+    if (!session || !session.stagingId) {
+      return;
+    }
+
+    if (!session.metadata.title.trim()) {
+      updateSession(current => ({
+        ...current,
+        error: 'Please enter a title.',
+        status: 'add_failed',
+      }));
+      return;
+    }
+
+    updateSession(current => ({
+      ...current,
+      error: null,
+      status: 'adding_to_library',
+      successMessage: null,
+    }));
 
     try {
-      const response = await fetch('/api/add-to-library', {
-        method: 'POST',
+      const response = await fetchImpl(`/api/uploads/${session.stagingId}/commit`, {
+        body: JSON.stringify({
+          description: session.metadata.description.trim() || undefined,
+          encodingOptions: session.metadata.encodingOptions,
+          tags: parseTags(session.metadata.tags),
+          title: session.metadata.title.trim(),
+        }),
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          filename,
-          title: metadata.title.trim(),
-          tags: metadata.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
-          description: metadata.description.trim() || undefined,
-          encodingOptions: metadata.encodingOptions,
-        }),
+        method: 'POST',
       });
+      const data: CommitResponse = await response.json();
 
-      const data: AddResponse = await response.json();
-
-      if (!data.success) {
-        setError(data.error || 'Failed to add to library.');
+      if (!data.success || !data.videoId) {
+        setSession(current => (current
+          ? {
+              ...current,
+              error: data.error || 'Failed to add to library.',
+              status: 'add_failed',
+            }
+          : current));
         return;
       }
 
-      setSuccessMessage(`"${metadata.title}" has been added to the library.`);
-      setPendingFiles(previous => previous.filter(file => file.filename !== filename));
-      setMetadataByFilename((previous) => {
-        const next = { ...previous };
-        delete next[filename];
-        return next;
-      });
+      setSession(current => (current
+        ? {
+            ...current,
+            error: null,
+            status: 'completed',
+            successMessage: `"${current.metadata.title.trim()}" has been added to the library.`,
+          }
+        : current));
     }
     catch (error) {
-      console.error('Add to library error:', error);
-      setError('Network error occurred.');
+      setSession(current => (current
+        ? {
+            ...current,
+            error: error instanceof Error ? error.message : 'Failed to add to library.',
+            status: 'add_failed',
+          }
+        : current));
     }
-    finally {
-      setProcessingFiles((previous) => {
-        const next = new Set(previous);
-        next.delete(filename);
-        return next;
+  };
+
+  const handleRemoveSession = async () => {
+    if (!session) {
+      return;
+    }
+
+    if (session.status === 'adding_to_library') {
+      return;
+    }
+
+    uploadTokenRef.current += 1;
+
+    if (session.status === 'uploading') {
+      abortUploadRef.current?.();
+      resetSession();
+      return;
+    }
+
+    if (session.stagingId && (session.status === 'uploaded' || session.status === 'add_failed')) {
+      const response = await fetchImpl(`/api/uploads/${session.stagingId}`, {
+        method: 'DELETE',
       });
+
+      if (!response.ok) {
+        updateSession(current => ({
+          ...current,
+          error: 'Failed to remove the staged upload.',
+        }));
+        return;
+      }
     }
-  }, [metadataByFilename]);
 
-  useEffect(() => {
-    void handleRefresh();
-  }, [handleRefresh]);
+    resetSession();
+  };
 
-  return useMemo(() => ({
-    pendingFiles,
-    loading,
-    error,
-    successMessage,
-    processingFiles,
-    metadataByFilename,
-    handleRefresh,
-    handleTitleChange,
-    handleTagsChange,
+  const handleRetryUpload = () => {
+    if (!session) {
+      return;
+    }
+
+    startUpload(session.file, session.metadata);
+  };
+
+  const handleClearSession = () => {
+    uploadTokenRef.current += 1;
+    resetSession();
+  };
+
+  const canAddToLibrary = Boolean(
+    session &&
+    (session.status === 'uploaded' || session.status === 'add_failed') &&
+    session.stagingId &&
+    session.metadata.title.trim(),
+  );
+
+  return {
+    pageError,
+    session,
+    canAddToLibrary,
+    handleAddToLibrary,
+    handleChooseFiles,
+    handleClearSession,
     handleDescriptionChange,
     handleEncodingOptionsChange,
-    handleAddToLibrary,
-  }), [
-    pendingFiles,
-    loading,
-    error,
-    successMessage,
-    processingFiles,
-    metadataByFilename,
-    handleRefresh,
-    handleTitleChange,
+    handleRemoveSession,
+    handleRetryUpload,
     handleTagsChange,
-    handleDescriptionChange,
-    handleEncodingOptionsChange,
-    handleAddToLibrary,
-  ]);
+    handleTitleChange,
+  };
 }

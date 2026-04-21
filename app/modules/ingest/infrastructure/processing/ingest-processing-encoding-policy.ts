@@ -1,4 +1,4 @@
-import type { IngestEncodingOptions } from '../../application/ports/ingest-library-intake.port';
+import type { IngestEncodingOptions } from '../../application/ports/ingest-video-processing.port';
 
 export interface IngestProcessingEncodingPolicy {
   codecFamily: 'h264' | 'h265';

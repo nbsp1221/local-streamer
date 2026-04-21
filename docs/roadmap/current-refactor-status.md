@@ -29,9 +29,9 @@ The product is currently a personal encrypted video vault with these owner-facin
 - protected home library browsing
 - title search and tag filtering
 - quick-view metadata editing and deletion from home
-- pending upload visibility on home
-- upload scan from the `uploads` directory
-- add-to-library intake with encoding option selection
+- browser-first upload at `/add-videos`
+- single-file staged upload with explicit `Add to Library` commit
+- encoding option selection during staged upload review
 - protected player route with DASH token, manifest, segment, and ClearKey routes
 - playlist listing, creation, detail navigation, and playlist item reads through the active playlist slice
 

@@ -6,7 +6,7 @@ Personal media server application for streaming local video files through a web 
 
 - 🎬 Stream local video files through web browser
 - 🔐 Shared-password auth gate with httpOnly site sessions
-- 📁 File management with preparation and library folders
+- 📁 Browser-first upload with staged commit into the library
 - 🔒 Protected DASH playback with JWT tokens, ClearKey, and encrypted media packaging
 - 🎨 YouTube-inspired UI for video browsing
 - ⚡ Pure Bun runtime for maximum performance
@@ -63,8 +63,7 @@ docker-compose up -d
 ### Volumes
 
 - `./storage` - Unified storage directory containing all application data
-  - `storage/data/` - Application data and JSON files
-  - `storage/uploads/` - Video upload staging area
+  - `storage/data/` - Application data, staged uploads, SQLite metadata, and packaged video artifacts
 
 ### Commands
 

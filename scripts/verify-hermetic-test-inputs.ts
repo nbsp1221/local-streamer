@@ -24,6 +24,7 @@ const FORBIDDEN_PATTERNS = [
 ] as const;
 
 const REQUIRED_FIXTURE_PATHS = [
+  'tests/fixtures/upload/smoke-upload.mp4',
   'tests/fixtures/playback/68e5f819-15e8-41ef-90ee-8a96769311b7/manifest.mpd',
   'tests/fixtures/playback/68e5f819-15e8-41ef-90ee-8a96769311b7/video/init.mp4',
   'tests/fixtures/playback/68e5f819-15e8-41ef-90ee-8a96769311b7/audio/init.mp4',

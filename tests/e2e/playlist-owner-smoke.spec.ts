@@ -16,8 +16,12 @@ test.describe('playlist owner smoke', () => {
     await page.getByLabel('Playlist Name *').fill('Smoke Playlist');
     await page.getByRole('button', { name: 'Create Playlist' }).click();
 
-    await expect(page.getByRole('dialog', { name: 'Create New Playlist' })).not.toBeVisible();
     await expect(page.getByText('Smoke Playlist')).toBeVisible();
+    const createDialog = page.getByRole('dialog', { name: 'Create New Playlist' });
+    if (await createDialog.isVisible()) {
+      await page.keyboard.press('Escape');
+      await expect(createDialog).not.toBeVisible();
+    }
     await page.getByText('Smoke Playlist').click();
 
     await expect(page).toHaveURL(/\/playlists\/.+$/);

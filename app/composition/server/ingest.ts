@@ -1,40 +1,36 @@
-import type { IngestPendingThumbnailEnricherPort } from '~/modules/ingest/application/ports/ingest-pending-thumbnail-enricher.port';
-import type { IngestPendingVideoReaderPort } from '~/modules/ingest/application/ports/ingest-pending-video-reader.port';
-import type { IngestPreparedVideoWorkspacePort } from '~/modules/ingest/application/ports/ingest-prepared-video-workspace.port';
-import type { IngestUploadScanPort } from '~/modules/ingest/application/ports/ingest-upload-scan.port';
+import { randomUUID } from 'node:crypto';
+import type { IngestStagedUploadRepositoryPort } from '~/modules/ingest/application/ports/ingest-staged-upload-repository.port';
+import type { IngestStagedUploadStoragePort } from '~/modules/ingest/application/ports/ingest-staged-upload-storage.port';
 import type { IngestVideoMetadataWriterPort } from '~/modules/ingest/application/ports/ingest-video-metadata-writer.port';
 import type { IngestVideoProcessingPort } from '~/modules/ingest/application/ports/ingest-video-processing.port';
-import { AddVideoToLibraryUseCase } from '~/modules/ingest/application/use-cases/add-video-to-library.usecase';
-import { LoadPendingUploadSnapshotUseCase } from '~/modules/ingest/application/use-cases/load-pending-upload-snapshot.usecase';
-import { ScanIncomingVideosUseCase } from '~/modules/ingest/application/use-cases/scan-incoming-videos.usecase';
-import { JsonIngestPendingVideoReaderAdapter } from '~/modules/ingest/infrastructure/pending/json-ingest-pending-video-reader.adapter';
+import { CommitStagedUploadToLibraryUseCase } from '~/modules/ingest/application/use-cases/commit-staged-upload-to-library.usecase';
+import { ReapExpiredStagedUploadsUseCase } from '~/modules/ingest/application/use-cases/reap-expired-staged-uploads.usecase';
+import { RemoveStagedUploadUseCase } from '~/modules/ingest/application/use-cases/remove-staged-upload.usecase';
+import { StartStagedUploadUseCase } from '~/modules/ingest/application/use-cases/start-staged-upload.usecase';
+import { FfprobeIngestVideoAnalysisAdapter } from '~/modules/ingest/infrastructure/analysis/ffprobe-ingest-video-analysis.adapter';
 import { FfmpegIngestVideoProcessingAdapter } from '~/modules/ingest/infrastructure/processing/ffmpeg-ingest-video-processing.adapter';
-import { FilesystemIngestUploadScanAdapter } from '~/modules/ingest/infrastructure/scan/filesystem-ingest-upload-scan.adapter';
-import { FfmpegIngestPendingThumbnailEnricherAdapter } from '~/modules/ingest/infrastructure/thumbnail/ffmpeg-ingest-pending-thumbnail-enricher.adapter';
-import { FilesystemIngestPreparedVideoWorkspaceAdapter } from '~/modules/ingest/infrastructure/workspace/filesystem-ingest-prepared-video-workspace.adapter';
+import { FilesystemIngestStagedUploadStorageAdapter } from '~/modules/ingest/infrastructure/staging/filesystem-ingest-staged-upload-storage.adapter';
+import { SqliteIngestStagedUploadRepositoryAdapter } from '~/modules/ingest/infrastructure/staging/sqlite-ingest-staged-upload-repository.adapter';
+import { BunStreamingMultipartUploadAdapter } from '~/modules/ingest/infrastructure/upload/bun-streaming-multipart-upload.adapter';
 import { SqliteCanonicalVideoMetadataAdapter } from '~/modules/library/infrastructure/sqlite/sqlite-canonical-video-metadata.adapter';
+import { getVideoMetadataConfig } from '~/shared/config/video-metadata.server';
 
 export interface ServerIngestServices {
-  addVideoToLibrary: AddVideoToLibraryUseCase;
-  loadPendingUploadSnapshot: LoadPendingUploadSnapshotUseCase;
-  scanIncomingVideos: ScanIncomingVideosUseCase;
-}
-
-export interface ServerPendingUploadSnapshotServices {
-  loadPendingUploadSnapshot: LoadPendingUploadSnapshotUseCase;
+  commitStagedUploadToLibrary: CommitStagedUploadToLibraryUseCase;
+  removeStagedUpload: RemoveStagedUploadUseCase;
+  startStagedUpload: StartStagedUploadUseCase;
+  uploadBrowserFile: BunStreamingMultipartUploadAdapter;
 }
 
 interface ServerIngestServiceDependencies {
-  pendingThumbnailEnricher: IngestPendingThumbnailEnricherPort;
-  pendingVideoReader: IngestPendingVideoReaderPort;
-  preparedVideoWorkspace: IngestPreparedVideoWorkspacePort;
-  uploadScan: IngestUploadScanPort;
+  stagedUploadRepository: IngestStagedUploadRepositoryPort;
+  stagedUploadStorage: IngestStagedUploadStoragePort;
   videoMetadataWriter: IngestVideoMetadataWriterPort;
   videoProcessing: IngestVideoProcessingPort;
+  uploadBrowserFile: BunStreamingMultipartUploadAdapter;
 }
 
 let cachedIngestServices: ServerIngestServices | null = null;
-let cachedPendingUploadSnapshotServices: ServerPendingUploadSnapshotServices | null = null;
 
 function createLazyValue<T>(factory: () => T): () => T {
   const uninitialized = Symbol('uninitialized');
@@ -50,55 +46,53 @@ function createLazyValue<T>(factory: () => T): () => T {
   };
 }
 
-function createLoadPendingUploadSnapshotUseCase(
-  pendingVideoReader: IngestPendingVideoReaderPort,
-): LoadPendingUploadSnapshotUseCase {
-  return new LoadPendingUploadSnapshotUseCase({
-    pendingVideoReader,
-  });
-}
-
 export function createServerIngestServices(
   overrides: Partial<ServerIngestServiceDependencies> = {},
 ): ServerIngestServices {
-  const getPendingThumbnailEnricher = createLazyValue(() => overrides.pendingThumbnailEnricher ?? new FfmpegIngestPendingThumbnailEnricherAdapter());
-  const getPendingVideoReader = createLazyValue(() => overrides.pendingVideoReader ?? new JsonIngestPendingVideoReaderAdapter());
-  const getPreparedVideoWorkspace = createLazyValue(() => overrides.preparedVideoWorkspace ?? new FilesystemIngestPreparedVideoWorkspaceAdapter());
-  const getUploadScan = createLazyValue(() => overrides.uploadScan ?? new FilesystemIngestUploadScanAdapter());
+  const getStagedUploadRepository = createLazyValue(() => overrides.stagedUploadRepository ?? new SqliteIngestStagedUploadRepositoryAdapter({
+    dbPath: getVideoMetadataConfig().sqlitePath,
+  }));
+  const getStagedUploadStorage = createLazyValue(() => overrides.stagedUploadStorage ?? new FilesystemIngestStagedUploadStorageAdapter());
   const getVideoMetadataWriter = createLazyValue(() => overrides.videoMetadataWriter ?? new SqliteCanonicalVideoMetadataAdapter());
   const getVideoProcessing = createLazyValue(() => overrides.videoProcessing ?? new FfmpegIngestVideoProcessingAdapter());
-  const getAddVideoToLibrary = createLazyValue(() => new AddVideoToLibraryUseCase({
-    preparedVideoWorkspace: getPreparedVideoWorkspace(),
-    videoProcessing: getVideoProcessing(),
+  const getUploadBrowserFile = createLazyValue(() => overrides.uploadBrowserFile ?? new BunStreamingMultipartUploadAdapter());
+  const getReapExpiredStagedUploads = createLazyValue(() => new ReapExpiredStagedUploadsUseCase({
+    stagedUploadRepository: getStagedUploadRepository(),
+    stagedUploadStorage: getStagedUploadStorage(),
+  }));
+  const getStartStagedUpload = createLazyValue(() => new StartStagedUploadUseCase({
+    createStagingId: randomUUID,
+    reapExpiredStagedUploads: getReapExpiredStagedUploads(),
+    stagedUploadRepository: getStagedUploadRepository(),
+    stagedUploadStorage: getStagedUploadStorage(),
+    stagingTtlMs: 24 * 60 * 60 * 1000,
+  }));
+  const getRemoveStagedUpload = createLazyValue(() => new RemoveStagedUploadUseCase({
+    stagedUploadRepository: getStagedUploadRepository(),
+    stagedUploadStorage: getStagedUploadStorage(),
+  }));
+  const getCommitStagedUploadToLibrary = createLazyValue(() => new CommitStagedUploadToLibraryUseCase({
+    reapExpiredStagedUploads: getReapExpiredStagedUploads(),
+    stagedUploadRepository: getStagedUploadRepository(),
+    stagedUploadStorage: getStagedUploadStorage(),
+    videoAnalysis: new FfprobeIngestVideoAnalysisAdapter(),
     videoMetadataWriter: getVideoMetadataWriter(),
-  }));
-  const getLoadPendingUploadSnapshot = createLazyValue(() => createLoadPendingUploadSnapshotUseCase(getPendingVideoReader()));
-  const getScanIncomingVideos = createLazyValue(() => new ScanIncomingVideosUseCase({
-    pendingThumbnailEnricher: getPendingThumbnailEnricher(),
-    uploadScan: getUploadScan(),
+    videoProcessing: getVideoProcessing(),
   }));
 
   return {
-    get addVideoToLibrary() {
-      return getAddVideoToLibrary();
+    get commitStagedUploadToLibrary() {
+      return getCommitStagedUploadToLibrary();
     },
-    get loadPendingUploadSnapshot() {
-      return getLoadPendingUploadSnapshot();
+    get removeStagedUpload() {
+      return getRemoveStagedUpload();
     },
-    get scanIncomingVideos() {
-      return getScanIncomingVideos();
+    get startStagedUpload() {
+      return getStartStagedUpload();
     },
-  };
-}
-
-export function createServerPendingUploadSnapshotServices(
-  overrides: Pick<Partial<ServerIngestServiceDependencies>, 'pendingVideoReader'> = {},
-): ServerPendingUploadSnapshotServices {
-  const pendingVideoReader = overrides.pendingVideoReader ??
-    new JsonIngestPendingVideoReaderAdapter();
-
-  return {
-    loadPendingUploadSnapshot: createLoadPendingUploadSnapshotUseCase(pendingVideoReader),
+    get uploadBrowserFile() {
+      return getUploadBrowserFile();
+    },
   };
 }
 
@@ -110,14 +104,4 @@ export function getServerIngestServices(): ServerIngestServices {
   cachedIngestServices = createServerIngestServices();
 
   return cachedIngestServices;
-}
-
-export function getServerPendingUploadSnapshotServices(): ServerPendingUploadSnapshotServices {
-  if (cachedPendingUploadSnapshotServices) {
-    return cachedPendingUploadSnapshotServices;
-  }
-
-  cachedPendingUploadSnapshotServices = createServerPendingUploadSnapshotServices();
-
-  return cachedPendingUploadSnapshotServices;
 }

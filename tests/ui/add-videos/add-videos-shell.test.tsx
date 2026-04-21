@@ -16,7 +16,7 @@ describe('AddVideosShell', () => {
   test('preserves the current protected shell structure around the add-videos page without a retired layout import', () => {
     render(
       <MemoryRouter initialEntries={['/add-videos']}>
-        <AddVideosShell pendingCount={3}>
+        <AddVideosShell>
           <div>Upload flow content</div>
         </AddVideosShell>
       </MemoryRouter>,

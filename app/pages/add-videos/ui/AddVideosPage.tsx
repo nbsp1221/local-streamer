@@ -4,35 +4,35 @@ import { AddVideosView } from '~/widgets/add-videos/ui/AddVideosView';
 
 export function AddVideosPage() {
   const {
-    pendingFiles,
-    loading,
-    error,
-    successMessage,
-    processingFiles,
-    metadataByFilename,
-    handleRefresh,
-    handleTitleChange,
-    handleTagsChange,
+    canAddToLibrary,
+    handleAddToLibrary,
+    handleChooseFiles,
+    handleClearSession,
     handleDescriptionChange,
     handleEncodingOptionsChange,
-    handleAddToLibrary,
+    handleRemoveSession,
+    handleRetryUpload,
+    handleTagsChange,
+    handleTitleChange,
+    pageError,
+    session,
   } = useAddVideosView();
 
   return (
     <AddVideosShell>
       <AddVideosView
-        error={error}
-        loading={loading}
-        metadataByFilename={metadataByFilename}
-        onAddToLibrary={(filename) => { void handleAddToLibrary(filename); }}
+        canAddToLibrary={canAddToLibrary}
+        onAddToLibrary={() => { void handleAddToLibrary(); }}
+        onChooseFiles={handleChooseFiles}
+        onClearSession={handleClearSession}
         onDescriptionChange={handleDescriptionChange}
         onEncodingOptionsChange={handleEncodingOptionsChange}
-        onRefresh={() => { void handleRefresh(); }}
+        onRemoveSession={() => { void handleRemoveSession(); }}
+        onRetryUpload={handleRetryUpload}
         onTagsChange={handleTagsChange}
         onTitleChange={handleTitleChange}
-        pendingFiles={pendingFiles}
-        processingFiles={processingFiles}
-        successMessage={successMessage}
+        pageError={pageError}
+        session={session}
       />
     </AddVideosShell>
   );

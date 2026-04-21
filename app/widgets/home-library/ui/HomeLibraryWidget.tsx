@@ -1,6 +1,5 @@
 import { useSearchParams } from 'react-router';
 import type { HomeLibraryVideo } from '~/entities/library-video/model/library-video';
-import type { PendingLibraryItem } from '~/entities/pending-video/model/pending-video';
 import { LibraryVideoCard } from '~/entities/library-video/ui/LibraryVideoCard';
 import { HomeQuickViewDialog } from '~/features/home-quick-view/ui/HomeQuickViewDialog';
 import { HomeTagFilter } from '~/features/home-tag-filter/ui/HomeTagFilter';
@@ -14,19 +13,16 @@ import { useHomeLibraryView } from '../model/useHomeLibraryView';
 
 interface HomeLibraryWidgetProps {
   videos: HomeLibraryVideo[];
-  pendingVideos: PendingLibraryItem[];
   initialFilters?: HomeLibraryFilters;
 }
 
 export function HomeLibraryWidget({
   videos,
-  pendingVideos,
   initialFilters,
 }: HomeLibraryWidgetProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const view = useHomeLibraryView({
     initialFilters,
-    initialPendingVideos: pendingVideos,
     initialVideos: videos,
   });
 
@@ -74,7 +70,6 @@ export function HomeLibraryWidget({
   return (
     <HomeShell
       onSearchChange={handleSearchChange}
-      pendingCount={view.pendingVideos.length}
       searchQuery={view.searchFilters.query}
     >
       <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">

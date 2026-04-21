@@ -5,7 +5,6 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import type { HomeLibraryVideo } from '../../../app/entities/library-video/model/library-video';
-import type { PendingLibraryItem } from '../../../app/entities/pending-video/model/pending-video';
 import { HomePage } from '../../../app/pages/home/ui/HomePage';
 
 vi.mock('~/shared/hooks/use-root-user', () => ({
@@ -28,16 +27,6 @@ function createVideo(overrides: Partial<HomeLibraryVideo> = {}): HomeLibraryVide
   };
 }
 
-function createPendingVideo(overrides: Partial<PendingLibraryItem> = {}): PendingLibraryItem {
-  return {
-    filename: 'pending.mp4',
-    id: 'pending-1',
-    size: 128,
-    type: 'video/mp4',
-    ...overrides,
-  };
-}
-
 afterEach(() => {
   document.body.innerHTML = '';
 });
@@ -51,7 +40,6 @@ describe('HomePage bootstrap compatibility', () => {
             query: 'Action',
             tags: ['Action'],
           }}
-          pendingVideos={[createPendingVideo()]}
           videos={[
             createVideo(),
             createVideo({
@@ -79,7 +67,6 @@ describe('HomePage bootstrap compatibility', () => {
         query: 'Action',
         tags: ['Action'],
       },
-      pendingVideos: [createPendingVideo()],
       videos: [
         createVideo(),
         createVideo({

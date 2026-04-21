@@ -1,12 +1,12 @@
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
+import { getStoragePaths } from '~/shared/config/storage-paths.server';
 import {
   decryptWithIVHeader,
   encryptWithIVHeader,
   looksLikeJpeg,
 } from '../crypto/thumbnail-crypto.utils';
 import { Pbkdf2ThumbnailKeyManager } from '../security/pbkdf2-thumbnail-key-manager';
-import { getThumbnailStoragePaths } from '../storage/thumbnail-storage-paths.server';
 
 interface EncryptThumbnailInput {
   thumbnailPath: string;
@@ -119,7 +119,7 @@ export class ThumbnailEncryptionService {
   }
 
   private getEncryptedThumbnailPath(videoId: string): string {
-    const { videosDir } = getThumbnailStoragePaths();
+    const { videosDir } = getStoragePaths();
     return join(videosDir, videoId, 'thumbnail.jpg');
   }
 

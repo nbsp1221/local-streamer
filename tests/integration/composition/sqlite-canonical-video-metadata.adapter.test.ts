@@ -14,7 +14,7 @@ describe('sqlite canonical video metadata adapter', () => {
         duration: 95,
         id: 'video-1',
         tags: ['Action', 'Drama'],
-        thumbnailUrl: '/uploads/thumbnails/video-1.jpg',
+        thumbnailUrl: '/api/thumbnail/video-1',
         title: 'Fixture Video',
         videoUrl: '/videos/video-1/manifest.mpd',
       },

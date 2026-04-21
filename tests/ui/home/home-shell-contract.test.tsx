@@ -4,7 +4,6 @@ import { MemoryRouter, useLocation } from 'react-router';
 import { describe, expect, test, vi } from 'vitest';
 
 import type { HomeLibraryVideo } from '../../../app/entities/library-video/model/library-video';
-import type { PendingLibraryItem } from '../../../app/entities/pending-video/model/pending-video';
 import { HomePage } from '../../../app/pages/home/ui/HomePage';
 
 const rootLoaderDataMock = vi.fn(() => ({
@@ -37,23 +36,12 @@ function createVideo(overrides: Partial<HomeLibraryVideo> = {}): HomeLibraryVide
   };
 }
 
-function createPendingVideo(overrides: Partial<PendingLibraryItem> = {}): PendingLibraryItem {
-  return {
-    filename: 'pending.mp4',
-    id: 'pending-1',
-    size: 128,
-    type: 'video/mp4',
-    ...overrides,
-  };
-}
-
 describe('Home shell contract', () => {
   test('renders the approved sidebar, header, and shell affordances in the correct order', () => {
     render(
       <MemoryRouter>
         <HomePage
           initialFilters={{ query: '', tags: [] }}
-          pendingVideos={[createPendingVideo()]}
           videos={[createVideo()]}
         />
       </MemoryRouter>,
@@ -74,7 +62,6 @@ describe('Home shell contract', () => {
     const uploadLink = screen.getAllByRole('link', { name: /Upload/i })[0];
     const settingsLink = screen.getByRole('link', { name: 'Settings' });
     const desktopSearch = screen.getAllByPlaceholderText('Search movies, TV series...')[0];
-    const pendingBadge = screen.getByText('1');
     const accountMenu = screen.getByTitle('Account Menu');
 
     expect(screen.getByText('Local Streamer')).toBeInTheDocument();
@@ -92,7 +79,6 @@ describe('Home shell contract', () => {
     expect(uploadLink).toHaveAttribute('href', '/add-videos');
     expect(settingsLink).toHaveAttribute('href', '/settings');
     expect(desktopSearch).toBeInTheDocument();
-    expect(pendingBadge).toBeInTheDocument();
     expect(accountMenu).toBeInTheDocument();
   });
 
@@ -101,7 +87,6 @@ describe('Home shell contract', () => {
       <MemoryRouter>
         <HomePage
           initialFilters={{ query: 'Action', tags: [] }}
-          pendingVideos={[]}
           videos={[createVideo()]}
         />
       </MemoryRouter>,
@@ -123,7 +108,6 @@ describe('Home shell contract', () => {
       <MemoryRouter initialEntries={['/?q=Action&tag=Action']}>
         <HomePage
           initialFilters={{ query: 'Action', tags: ['Action'] }}
-          pendingVideos={[]}
           videos={[createVideo()]}
         />
         <LocationProbe />
@@ -144,7 +128,6 @@ describe('Home shell contract', () => {
       <MemoryRouter>
         <HomePage
           initialFilters={{ query: '', tags: [] }}
-          pendingVideos={[createPendingVideo()]}
           videos={[createVideo()]}
         />
       </MemoryRouter>,

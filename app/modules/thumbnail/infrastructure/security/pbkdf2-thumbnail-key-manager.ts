@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
-import { getThumbnailStoragePaths } from '../storage/thumbnail-storage-paths.server';
+import { getStoragePaths } from '~/shared/config/storage-paths.server';
 
 interface ThumbnailKeyGenerationResult {
   key: Buffer;
@@ -47,13 +47,13 @@ export class Pbkdf2ThumbnailKeyManager {
   }
 
   async retrieveKey(videoId: string): Promise<Buffer> {
-    const { videosDir } = getThumbnailStoragePaths();
+    const { videosDir } = getStoragePaths();
     return fs.readFile(join(videosDir, videoId, 'key.bin'));
   }
 
   async keyExists(videoId: string): Promise<boolean> {
     try {
-      const { videosDir } = getThumbnailStoragePaths();
+      const { videosDir } = getStoragePaths();
       await fs.access(join(videosDir, videoId, 'key.bin'));
       return true;
     }
@@ -71,14 +71,14 @@ export class Pbkdf2ThumbnailKeyManager {
   }
 
   private async storeVideoKey(videoId: string, key: Buffer): Promise<void> {
-    const { videosDir } = getThumbnailStoragePaths();
+    const { videosDir } = getStoragePaths();
     const videoDir = join(videosDir, videoId);
     await fs.mkdir(videoDir, { recursive: true });
     await fs.writeFile(join(videoDir, 'key.bin'), key);
   }
 
   private async createKeyInfoFile(videoId: string): Promise<string> {
-    const { videosDir } = getThumbnailStoragePaths();
+    const { videosDir } = getStoragePaths();
     const videoDir = join(videosDir, videoId);
     const keyInfoPath = join(videoDir, 'keyinfo.txt');
     const keyPath = join(videoDir, 'key.bin');

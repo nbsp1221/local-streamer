@@ -71,9 +71,7 @@ function formatServerLogs() {
 
 function seedSmokeStorage(rootDir: string) {
   mkdirSync(join(rootDir, 'data'), { recursive: true });
-  mkdirSync(join(rootDir, 'uploads', 'thumbnails'), { recursive: true });
 
-  writeFileSync(join(rootDir, 'data', 'pending.json'), '[]');
   writeFileSync(join(rootDir, 'data', 'playlist-items.json'), '[]');
   writeFileSync(join(rootDir, 'data', 'playlists.json'), '[]');
   writeFileSync(join(rootDir, 'data', 'sessions.json'), '[]');

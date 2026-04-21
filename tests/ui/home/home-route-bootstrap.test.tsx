@@ -23,16 +23,8 @@ vi.mock('~/pages/home/ui/HomePage', () => ({
 }));
 
 describe('HomeRoute bootstrap forwarding', () => {
-  test('passes initialFilters, videos, and pendingVideos through to the new HomePage owner', async () => {
+  test('passes initialFilters and videos through to the new HomePage owner', async () => {
     useLoaderDataMock.mockReturnValue({
-      pendingVideos: [
-        {
-          filename: 'pending.mp4',
-          id: 'pending-1',
-          size: 128,
-          type: 'video/mp4',
-        },
-      ],
       videos: [
         {
           createdAt: '2026-03-11T00:00:00.000Z',
@@ -54,14 +46,6 @@ describe('HomeRoute bootstrap forwarding', () => {
         query: 'Action',
         tags: ['Action'],
       },
-      pendingVideos: [
-        {
-          filename: 'pending.mp4',
-          id: 'pending-1',
-          size: 128,
-          type: 'video/mp4',
-        },
-      ],
       videos: [
         expect.objectContaining({
           createdAt: expect.any(Date),
@@ -73,7 +57,6 @@ describe('HomeRoute bootstrap forwarding', () => {
 
   test('keeps deserialized video references stable across same-snapshot rerenders', async () => {
     const loaderSnapshot = {
-      pendingVideos: [],
       videos: [
         {
           createdAt: '2026-03-11T00:00:00.000Z',

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { HomeLibraryVideo } from '~/entities/library-video/model/library-video';
-import type { PendingLibraryItem } from '~/entities/pending-video/model/pending-video';
 import type { HomeLibraryModalState } from '~/features/home-quick-view/ui/HomeQuickViewDialog';
 import { type HomeLibraryVideoActions, useHomeLibraryVideoActions } from '~/features/home-library-video-actions/model/useHomeLibraryVideoActions';
 import {
@@ -13,7 +12,6 @@ import {
 
 interface UseHomeLibraryViewOptions {
   initialVideos: HomeLibraryVideo[];
-  initialPendingVideos: PendingLibraryItem[];
   initialFilters?: HomeLibraryFilters;
   videoActions?: HomeLibraryVideoActions;
 }
@@ -41,21 +39,6 @@ function areVideoSnapshotsEqual(a: HomeLibraryVideo[], b: HomeLibraryVideo[]) {
       video.createdAt.getTime() === other.createdAt.getTime() &&
       video.tags.length === other.tags.length &&
       video.tags.every((tag, tagIndex) => tag === other.tags[tagIndex]);
-  });
-}
-
-function arePendingSnapshotsEqual(a: PendingLibraryItem[], b: PendingLibraryItem[]) {
-  if (a.length !== b.length) {
-    return false;
-  }
-
-  return a.every((item, index) => {
-    const other = b[index];
-
-    return item.id === other.id &&
-      item.filename === other.filename &&
-      item.size === other.size &&
-      item.type === other.type;
   });
 }
 
@@ -93,7 +76,6 @@ function syncModalStateAfterCanonicalVideoUpdate(
 
 export function useHomeLibraryView({
   initialVideos,
-  initialPendingVideos,
   initialFilters,
   videoActions,
 }: UseHomeLibraryViewOptions) {
@@ -101,9 +83,7 @@ export function useHomeLibraryView({
   const actions = videoActions ?? defaultVideoActions;
   const previousInitialFiltersRef = useRef<HomeLibraryFilters>(createHomeLibraryFilters(initialFilters));
   const previousInitialVideosRef = useRef<HomeLibraryVideo[]>(initialVideos);
-  const previousInitialPendingVideosRef = useRef<PendingLibraryItem[]>(initialPendingVideos);
   const [videos, setVideos] = useState<HomeLibraryVideo[]>(initialVideos);
-  const [pendingVideos, setPendingVideos] = useState<PendingLibraryItem[]>(initialPendingVideos);
   const [searchFilters, setSearchFilters] = useState<HomeLibraryFilters>(() => createHomeLibraryFilters(initialFilters));
   const [modalState, setModalState] = useState<HomeLibraryModalState>(createClosedModalState);
 
@@ -163,15 +143,6 @@ export function useHomeLibraryView({
   }, [initialVideos]);
 
   useEffect(() => {
-    if (arePendingSnapshotsEqual(previousInitialPendingVideosRef.current, initialPendingVideos)) {
-      return;
-    }
-
-    previousInitialPendingVideosRef.current = initialPendingVideos;
-    setPendingVideos(initialPendingVideos);
-  }, [initialPendingVideos]);
-
-  useEffect(() => {
     const nextFilters = createHomeLibraryFilters(initialFilters);
 
     if (areHomeLibraryFiltersEqual(previousInitialFiltersRef.current, nextFilters)) {
@@ -185,7 +156,6 @@ export function useHomeLibraryView({
   return {
     videos: filteredVideos,
     totalVideosCount: videos.length,
-    pendingVideos,
     searchFilters,
     modalState,
     replaceSearchFilters,

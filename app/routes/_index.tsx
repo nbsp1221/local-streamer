@@ -2,7 +2,6 @@ import type { LoaderFunctionArgs } from 'react-router';
 import { useMemo } from 'react';
 import { useLoaderData, useSearchParams } from 'react-router';
 import type { HomeLibraryVideo } from '~/entities/library-video/model/library-video';
-import type { PendingLibraryItem } from '~/entities/pending-video/model/pending-video';
 import { requireProtectedPageSession } from '~/composition/server/auth';
 import { getHomeLibraryPageServices } from '~/composition/server/home-library-page';
 import { HomePage } from '~/pages/home/ui/HomePage';
@@ -10,7 +9,6 @@ import { createHomeLibraryFilters } from '~/widgets/home-library/model/home-libr
 
 interface LoaderData {
   videos: SerializedHomeLibraryVideo[];
-  pendingVideos: PendingLibraryItem[];
 }
 
 interface SerializedHomeLibraryVideo extends Omit<HomeLibraryVideo, 'createdAt'> {
@@ -55,7 +53,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 
   return {
-    pendingVideos: result.data.pendingVideos,
     videos: result.data.videos.map(serializeHomeLibraryVideo),
   } satisfies LoaderData;
 }
@@ -100,7 +97,6 @@ export default function HomeRoute() {
     <HomePage
       initialFilters={initialFilters}
       videos={videos}
-      pendingVideos={data.pendingVideos}
     />
   );
 }

@@ -1,301 +1,256 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import {
-  DEFAULT_ADD_VIDEOS_ENCODING_OPTIONS,
-} from '../../../app/features/add-videos-encoding/model/add-videos-encoding-options';
+import { describe, expect, test, vi } from 'vitest';
+import type { UploadBrowserFile } from '../../../app/widgets/add-videos/model/upload-browser-file';
+import { useAddVideosView } from '../../../app/widgets/add-videos/model/useAddVideosView';
+
+function createFile(name: string, content = 'video-data', type = 'video/mp4') {
+  return new File([content], name, { type });
+}
 
 describe('useAddVideosView', () => {
-  const fetchMock = vi.fn<typeof fetch>();
+  test('starts a single browser upload session and seeds metadata from the selected file', async () => {
+    const uploadBrowserFile: UploadBrowserFile = (file, options) => {
+      options?.onProgress?.(5, 10);
 
-  beforeEach(() => {
-    fetchMock.mockReset();
-    vi.stubGlobal('fetch', fetchMock);
-  });
+      return {
+        abort: vi.fn(),
+        done: Promise.resolve({
+          filename: file.name,
+          mimeType: file.type,
+          size: file.size,
+          stagingId: 'staging-123',
+        }),
+      };
+    };
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  test('seeds new pending files with the browser-safe default encoding option', async () => {
-    fetchMock.mockResolvedValue(new Response(JSON.stringify({
-      count: 1,
-      files: [
-        {
-          createdAt: '2026-03-17T00:00:00.000Z',
-          filename: 'fixture-video.mp4',
-          id: 'pending-1',
-          size: 1_024,
-          thumbnailUrl: '/api/thumbnail-preview/fixture-video.jpg',
-          type: 'mp4',
-        },
-      ],
-      success: true,
-    })));
-
-    const { useAddVideosView } = await import('../../../app/widgets/add-videos/model/useAddVideosView');
-    const { result } = renderHook(() => useAddVideosView());
-
-    await waitFor(() => {
-      expect(result.current.pendingFiles).toHaveLength(1);
-    });
-
-    expect(result.current.metadataByFilename['fixture-video.mp4']?.encodingOptions).toEqual({
-      ...DEFAULT_ADD_VIDEOS_ENCODING_OPTIONS,
-    });
-  });
-
-  test('preserves existing metadata for known files while seeding new scan results from the current response contract', async () => {
-    fetchMock
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        count: 1,
-        files: [
-          {
-            createdAt: '2026-03-17T00:00:00.000Z',
-            filename: 'fixture-video.mp4',
-            id: 'pending-1',
-            size: 1_024,
-            thumbnailUrl: '/api/thumbnail-preview/fixture-video.jpg',
-            type: 'mp4',
-          },
-        ],
-        success: true,
-      })))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        count: 2,
-        files: [
-          {
-            createdAt: '2026-03-17T00:00:00.000Z',
-            filename: 'fixture-video.mp4',
-            id: 'pending-1',
-            size: 1_024,
-            thumbnailUrl: '/api/thumbnail-preview/fixture-video.jpg',
-            type: 'mp4',
-          },
-          {
-            createdAt: '2026-03-17T00:05:00.000Z',
-            filename: 'second-video.mov',
-            id: 'pending-2',
-            size: 2_048,
-            thumbnailUrl: '/api/thumbnail-preview/second-video.jpg',
-            type: 'mov',
-          },
-        ],
-        success: true,
-      })));
-
-    const { useAddVideosView } = await import('../../../app/widgets/add-videos/model/useAddVideosView');
-    const { result } = renderHook(() => useAddVideosView());
-
-    await waitFor(() => {
-      expect(result.current.pendingFiles).toHaveLength(1);
-    });
-
-    act(() => {
-      result.current.handleTitleChange('fixture-video.mp4', 'Custom title');
-    });
-
-    await act(async () => {
-      await result.current.handleRefresh();
-    });
-
-    await waitFor(() => {
-      expect(result.current.pendingFiles).toHaveLength(2);
-    });
-
-    expect(result.current.metadataByFilename['fixture-video.mp4']?.title).toBe('Custom title');
-    expect(result.current.metadataByFilename['second-video.mov']).toEqual(expect.objectContaining({
-      description: '',
-      tags: '',
-      title: 'second-video',
+    const { result } = renderHook(() => useAddVideosView({
+      fetchImpl: vi.fn(),
+      uploadBrowserFile,
     }));
-    expect(result.current.metadataByFilename['second-video.mov']?.encodingOptions).toEqual({
-      ...DEFAULT_ADD_VIDEOS_ENCODING_OPTIONS,
+
+    act(() => {
+      result.current.handleChooseFiles([createFile('fixture-video.mp4')]);
     });
+
+    await waitFor(() => {
+      expect(result.current.session?.status).toBe('uploaded');
+    });
+
+    expect(result.current.session).toEqual(expect.objectContaining({
+      filename: 'fixture-video.mp4',
+      progressPercent: 100,
+      stagingId: 'staging-123',
+    }));
+    expect(result.current.session?.metadata.title).toBe('fixture-video');
+    expect(result.current.canAddToLibrary).toBe(true);
   });
 
-  test('updates encoding options without mutating the other pending metadata fields', async () => {
-    fetchMock.mockResolvedValue(new Response(JSON.stringify({
-      count: 1,
-      files: [
-        {
-          createdAt: '2026-03-17T00:00:00.000Z',
-          filename: 'fixture-video.mp4',
-          id: 'pending-1',
-          size: 1_024,
-          thumbnailUrl: '/api/thumbnail-preview/fixture-video.jpg',
-          type: 'mp4',
-        },
-      ],
+  test('rejects multiple files instead of queueing them', () => {
+    const { result } = renderHook(() => useAddVideosView({
+      fetchImpl: vi.fn(),
+      uploadBrowserFile: vi.fn(),
+    }));
+
+    act(() => {
+      result.current.handleChooseFiles([
+        createFile('first.mp4'),
+        createFile('second.mp4'),
+      ]);
+    });
+
+    expect(result.current.pageError).toBe('Only one file can be uploaded at a time.');
+    expect(result.current.session).toBeNull();
+  });
+
+  test('posts the staged commit request and moves the session into completed on success', async () => {
+    const fetchImpl = vi.fn(async (_input: string, _init?: RequestInit) => new Response(JSON.stringify({
+      dashEnabled: true,
+      message: 'Video added to library successfully with video conversion',
       success: true,
+      videoId: 'video-123',
     })));
+    const uploadBrowserFile: UploadBrowserFile = file => ({
+      abort: vi.fn(),
+      done: Promise.resolve({
+        filename: file.name,
+        mimeType: file.type,
+        size: file.size,
+        stagingId: 'staging-123',
+      }),
+    });
+    const { result } = renderHook(() => useAddVideosView({
+      fetchImpl,
+      uploadBrowserFile,
+    }));
 
-    const { useAddVideosView } = await import('../../../app/widgets/add-videos/model/useAddVideosView');
-    const { result } = renderHook(() => useAddVideosView());
+    act(() => {
+      result.current.handleChooseFiles([createFile('fixture-video.mp4')]);
+    });
 
     await waitFor(() => {
-      expect(result.current.pendingFiles).toHaveLength(1);
+      expect(result.current.session?.status).toBe('uploaded');
     });
 
     act(() => {
-      result.current.handleTitleChange('fixture-video.mp4', 'Custom title');
-      result.current.handleTagsChange('fixture-video.mp4', 'one, two');
-      result.current.handleDescriptionChange('fixture-video.mp4', 'Custom description');
-      result.current.handleEncodingOptionsChange('fixture-video.mp4', {
-        encoder: 'gpu-h265',
-      });
-    });
-
-    expect(result.current.metadataByFilename['fixture-video.mp4']).toEqual({
-      description: 'Custom description',
-      encodingOptions: {
-        encoder: 'gpu-h265',
-      },
-      tags: 'one, two',
-      title: 'Custom title',
-    });
-  });
-
-  test('posts the preserved add-to-library request body and removes the processed file on success', async () => {
-    fetchMock
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        count: 1,
-        files: [
-          {
-            createdAt: '2026-03-17T00:00:00.000Z',
-            filename: 'fixture-video.mp4',
-            id: 'pending-1',
-            size: 1_024,
-            thumbnailUrl: '/api/thumbnail-preview/fixture-video.jpg',
-            type: 'mp4',
-          },
-        ],
-        success: true,
-      })))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        dashEnabled: true,
-        message: 'Video added to library successfully with video conversion',
-        success: true,
-        videoId: 'video-123',
-      })));
-
-    const { useAddVideosView } = await import('../../../app/widgets/add-videos/model/useAddVideosView');
-    const { result } = renderHook(() => useAddVideosView());
-
-    await waitFor(() => {
-      expect(result.current.pendingFiles).toHaveLength(1);
-    });
-
-    act(() => {
-      result.current.handleTitleChange('fixture-video.mp4', 'Custom title');
-      result.current.handleTagsChange('fixture-video.mp4', 'one, two');
-      result.current.handleDescriptionChange('fixture-video.mp4', 'Custom description');
-      result.current.handleEncodingOptionsChange('fixture-video.mp4', {
+      result.current.handleTitleChange('Custom title');
+      result.current.handleTagsChange('one, two');
+      result.current.handleDescriptionChange('Custom description');
+      result.current.handleEncodingOptionsChange({
         encoder: 'gpu-h264',
       });
     });
 
     await act(async () => {
-      await result.current.handleAddToLibrary('fixture-video.mp4');
+      await result.current.handleAddToLibrary();
     });
 
-    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/add-to-library', expect.objectContaining({
+    expect(fetchImpl).toHaveBeenCalledWith('/api/uploads/staging-123/commit', expect.objectContaining({
       headers: {
         'Content-Type': 'application/json',
       },
       method: 'POST',
     }));
-    const addToLibraryRequest = fetchMock.mock.calls[1]?.[1];
-    expect(addToLibraryRequest).toBeDefined();
-    expect(JSON.parse(String(addToLibraryRequest?.body))).toEqual({
+    const commitRequest = fetchImpl.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(JSON.parse(String(commitRequest?.body))).toEqual({
       description: 'Custom description',
       encodingOptions: {
         encoder: 'gpu-h264',
       },
-      filename: 'fixture-video.mp4',
       tags: ['one', 'two'],
       title: 'Custom title',
     });
-    expect(result.current.successMessage).toBe('"Custom title" has been added to the library.');
-    expect(result.current.error).toBeNull();
-    expect(result.current.pendingFiles).toEqual([]);
-    expect(result.current.metadataByFilename['fixture-video.mp4']).toBeUndefined();
+    expect(result.current.session?.status).toBe('completed');
+    expect(result.current.session?.successMessage).toBe('"Custom title" has been added to the library.');
   });
 
-  test('preserves the existing add-to-library failure handling when the API rejects the request', async () => {
-    fetchMock
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        count: 1,
-        files: [
-          {
-            createdAt: '2026-03-17T00:00:00.000Z',
-            filename: 'fixture-video.mp4',
-            id: 'pending-1',
-            size: 1_024,
-            thumbnailUrl: '/api/thumbnail-preview/fixture-video.jpg',
-            type: 'mp4',
-          },
-        ],
-        success: true,
-      })))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        error: 'Failed to add to library.',
-        success: false,
-      })));
-
-    const { useAddVideosView } = await import('../../../app/widgets/add-videos/model/useAddVideosView');
-    const { result } = renderHook(() => useAddVideosView());
-
-    await waitFor(() => {
-      expect(result.current.pendingFiles).toHaveLength(1);
+  test('aborts the active upload when the session is removed mid-transfer', async () => {
+    const abort = vi.fn();
+    let resolveUpload!: (value: {
+      filename: string;
+      mimeType: string;
+      size: number;
+      stagingId: string;
+    }) => void;
+    const uploadBrowserFile: UploadBrowserFile = () => ({
+      abort,
+      done: new Promise((resolve) => {
+        resolveUpload = resolve;
+      }),
     });
-
-    await act(async () => {
-      await result.current.handleAddToLibrary('fixture-video.mp4');
-    });
-
-    expect(result.current.error).toBe('Failed to add to library.');
-    expect(result.current.successMessage).toBeNull();
-    expect(result.current.pendingFiles).toHaveLength(1);
-    expect(result.current.metadataByFilename['fixture-video.mp4']).toEqual(expect.objectContaining({
-      title: 'fixture-video',
+    const { result } = renderHook(() => useAddVideosView({
+      fetchImpl: vi.fn(),
+      uploadBrowserFile,
     }));
-  });
 
-  test('keeps the file pending when processing fails after preparation and the API returns the retryable failure contract', async () => {
-    fetchMock
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        count: 1,
-        files: [
-          {
-            createdAt: '2026-03-17T00:00:00.000Z',
-            filename: 'fixture-video.mp4',
-            id: 'pending-1',
-            size: 1_024,
-            thumbnailUrl: '/api/thumbnail-preview/fixture-video.jpg',
-            type: 'mp4',
-          },
-        ],
-        success: true,
-      })))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        error: 'Video conversion failed. The upload was restored so you can retry.',
-        success: false,
-      }), { status: 500 }));
-
-    const { useAddVideosView } = await import('../../../app/widgets/add-videos/model/useAddVideosView');
-    const { result } = renderHook(() => useAddVideosView());
-
-    await waitFor(() => {
-      expect(result.current.pendingFiles).toHaveLength(1);
+    act(() => {
+      result.current.handleChooseFiles([createFile('fixture-video.mp4')]);
     });
 
     await act(async () => {
-      await result.current.handleAddToLibrary('fixture-video.mp4');
+      await result.current.handleRemoveSession();
     });
 
-    expect(result.current.error).toBe('Video conversion failed. The upload was restored so you can retry.');
-    expect(result.current.successMessage).toBeNull();
-    expect(result.current.pendingFiles).toHaveLength(1);
-    expect(result.current.processingFiles.size).toBe(0);
+    expect(abort).toHaveBeenCalledOnce();
+    expect(result.current.session).toBeNull();
+
+    await act(async () => {
+      resolveUpload({
+        filename: 'fixture-video.mp4',
+        mimeType: 'video/mp4',
+        size: 10,
+        stagingId: 'staging-123',
+      });
+    });
+
+    expect(result.current.session).toBeNull();
+  });
+
+  test('keeps the session visible when staged-upload removal fails', async () => {
+    const fetchImpl = vi.fn(async () => new Response('nope', { status: 500 }));
+    const uploadBrowserFile: UploadBrowserFile = file => ({
+      abort: vi.fn(),
+      done: Promise.resolve({
+        filename: file.name,
+        mimeType: file.type,
+        size: file.size,
+        stagingId: 'staging-123',
+      }),
+    });
+    const { result } = renderHook(() => useAddVideosView({
+      fetchImpl,
+      uploadBrowserFile,
+    }));
+
+    act(() => {
+      result.current.handleChooseFiles([createFile('fixture-video.mp4')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.session?.status).toBe('uploaded');
+    });
+
+    await act(async () => {
+      await result.current.handleRemoveSession();
+    });
+
+    expect(result.current.session?.filename).toBe('fixture-video.mp4');
+    expect(result.current.session?.error).toBe('Failed to remove the staged upload.');
+  });
+
+  test('ignores remove requests while add-to-library is already in progress', async () => {
+    let resolveCommit!: () => void;
+    const fetchImpl = vi.fn(async () => {
+      await new Promise<void>((resolve) => {
+        resolveCommit = resolve;
+      });
+
+      return new Response(JSON.stringify({
+        success: true,
+        videoId: 'video-123',
+      }));
+    });
+    const uploadBrowserFile: UploadBrowserFile = file => ({
+      abort: vi.fn(),
+      done: Promise.resolve({
+        filename: file.name,
+        mimeType: file.type,
+        size: file.size,
+        stagingId: 'staging-123',
+      }),
+    });
+    const { result } = renderHook(() => useAddVideosView({
+      fetchImpl,
+      uploadBrowserFile,
+    }));
+
+    act(() => {
+      result.current.handleChooseFiles([createFile('fixture-video.mp4')]);
+    });
+
+    await waitFor(() => {
+      expect(result.current.session?.status).toBe('uploaded');
+    });
+
+    let addPromise!: Promise<void>;
+    act(() => {
+      addPromise = result.current.handleAddToLibrary();
+    });
+
+    await waitFor(() => {
+      expect(result.current.session?.status).toBe('adding_to_library');
+    });
+
+    await act(async () => {
+      await result.current.handleRemoveSession();
+    });
+
+    expect(result.current.session?.status).toBe('adding_to_library');
+
+    await act(async () => {
+      resolveCommit();
+      await addPromise;
+    });
+
+    expect(result.current.session?.status).toBe('completed');
   });
 });

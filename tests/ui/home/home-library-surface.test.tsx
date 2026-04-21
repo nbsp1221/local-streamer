@@ -40,7 +40,6 @@ function RouteOwnedHomeLibraryWidget({ videos }: { videos: HomeLibraryVideo[] })
         query: searchParams.get('q') ?? '',
         tags: searchParams.getAll('tag'),
       }}
-      pendingVideos={[]}
       videos={videos}
     />
   );
@@ -115,7 +114,6 @@ describe('home library surfaces', () => {
             query: '',
             tags: [],
           }}
-          pendingVideos={[]}
           videos={[]}
         />
       </MemoryRouter>,
@@ -139,7 +137,6 @@ describe('home library surfaces', () => {
             query: '',
             tags: [],
           }}
-          pendingVideos={[]}
           videos={[createVideo()]}
         />
         <LocationProbe />

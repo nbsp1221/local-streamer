@@ -7,8 +7,9 @@ const REQUIRED_PLAYBACK_FIXTURE_IDS = [
 ] as const;
 
 describe('browser smoke fixture contract', () => {
-  test('stores required playback smoke fixtures under a tracked test-owned surface', async () => {
+  test('stores required upload and playback smoke fixtures under tracked test-owned surfaces', async () => {
     await expect(access('tests/support/playback-fixture-manifest.ts')).resolves.toBeUndefined();
+    await expect(access('tests/fixtures/upload/smoke-upload.mp4')).resolves.toBeUndefined();
 
     const manifestSource = await readFile('tests/support/playback-fixture-manifest.ts', 'utf8');
     expect(manifestSource).toContain('tests/fixtures/playback');

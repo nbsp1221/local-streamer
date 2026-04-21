@@ -1,4 +1,4 @@
-import { access, readFile } from 'node:fs/promises';
+import { access } from 'node:fs/promises';
 import { afterEach, describe, expect, test } from 'vitest';
 import { SqliteLibraryVideoMetadataRepository } from '../../../app/modules/library/infrastructure/sqlite/sqlite-library-video-metadata.repository';
 import { createRuntimeTestWorkspace } from '../../support/create-runtime-test-workspace';
@@ -21,7 +21,7 @@ describe('createRuntimeTestWorkspace', () => {
     );
 
     await expect(access(`${workspace.storageDir}/data/videos.json`)).rejects.toBeDefined();
-    await expect(access(`${workspace.storageDir}/data/pending.json`)).resolves.toBeUndefined();
+    await expect(access(`${workspace.storageDir}/data/pending.json`)).rejects.toBeDefined();
     await expect(access(`${workspace.storageDir}/data/playlists.json`)).resolves.toBeUndefined();
     await expect(access(`${workspace.storageDir}/data/playlist-items.json`)).resolves.toBeUndefined();
     await expect(access(`${workspace.storageDir}/data/videos/68e5f819-15e8-41ef-90ee-8a96769311b7/manifest.mpd`)).resolves.toBeUndefined();
@@ -52,33 +52,11 @@ describe('createRuntimeTestWorkspace', () => {
     ]));
   });
 
-  test('accepts explicit pending-video seeds for hermetic browser flows', async () => {
-    const workspace = await createRuntimeTestWorkspace({
-      pendingVideos: [
-        {
-          filename: 'pending-fixture.mp4',
-          id: 'pending-1',
-          size: 128,
-          type: 'video/mp4',
-        },
-      ],
-    });
+  test('does not seed legacy pending-upload files into the hermetic browser workspace', async () => {
+    const workspace = await createRuntimeTestWorkspace();
     cleanupTasks.push(workspace.cleanup);
 
-    const pendingVideos = JSON.parse(await readFile(`${workspace.storageDir}/data/pending.json`, 'utf8')) as Array<{
-      filename: string;
-      id: string;
-      size: number;
-      type: string;
-    }>;
-
-    expect(pendingVideos).toEqual([
-      {
-        filename: 'pending-fixture.mp4',
-        id: 'pending-1',
-        size: 128,
-        type: 'video/mp4',
-      },
-    ]);
+    await expect(access(`${workspace.storageDir}/data/pending.json`)).rejects.toBeDefined();
+    await expect(access(`${workspace.storageDir}/uploads`)).rejects.toBeDefined();
   });
 });

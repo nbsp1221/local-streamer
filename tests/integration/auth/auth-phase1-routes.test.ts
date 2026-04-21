@@ -150,10 +150,6 @@ async function importClearKeyRoute() {
   return import('../../../app/routes/videos.$videoId.clearkey');
 }
 
-async function importThumbnailPreviewRoute() {
-  return import('../../../app/routes/api.thumbnail-preview.$filename');
-}
-
 async function importThumbnailRoute() {
   return import('../../../app/routes/api.thumbnail.$id');
 }
@@ -191,9 +187,7 @@ async function seedStorage(storageDir: string, overrides?: {
   playlists?: unknown[];
 }) {
   await mkdir(join(storageDir, 'data'), { recursive: true });
-  await mkdir(join(storageDir, 'uploads', 'thumbnails'), { recursive: true });
 
-  await writeJsonFile(join(storageDir, 'data', 'pending.json'), []);
   await writeJsonFile(join(storageDir, 'data', 'playlist-items.json'), []);
   await writeJsonFile(join(storageDir, 'data', 'playlists.json'), overrides?.playlists ?? []);
   await writeJsonFile(join(storageDir, 'data', 'sessions.json'), []);
@@ -1079,12 +1073,6 @@ describe('auth gate routes', () => {
       params: { id: 'video-1' },
       url: 'http://localhost/api/thumbnail-encrypted/video-1',
     },
-    {
-      importRoute: importThumbnailPreviewRoute,
-      label: 'thumbnail preview',
-      params: { filename: 'preview.jpg' },
-      url: 'http://localhost/api/thumbnail-preview/preview.jpg',
-    },
   ])('protected $label route denies unauthenticated access', async ({ importRoute, params, url }) => {
     const routeModule = await importRoute();
     const response = await routeModule.loader({
@@ -1097,42 +1085,6 @@ describe('auth gate routes', () => {
       error: 'Authentication required',
       success: false,
     });
-  });
-
-  test('protected thumbnail preview responses use private cache semantics', async () => {
-    await writeFile(
-      join(storageDir, 'uploads', 'thumbnails', 'preview.jpg'),
-      Buffer.from('preview-bytes'),
-    );
-
-    const { action } = await importLoginAction();
-    const loginResponse = await action({
-      request: new Request('http://localhost/api/auth/login', {
-        body: JSON.stringify({ password: 'vault-password' }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        method: 'POST',
-      }),
-    } as never);
-
-    const cookie = toRequestCookieHeader(loginResponse.headers.get('Set-Cookie'));
-    expect(cookie).toBeTruthy();
-
-    const { loader } = await importThumbnailPreviewRoute();
-    const response = await loader({
-      params: { filename: 'preview.jpg' },
-      request: new Request('http://localhost/api/thumbnail-preview/preview.jpg', {
-        headers: {
-          cookie: cookie ?? '',
-        },
-      }),
-    } as never);
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get('Cache-Control')).toContain('private');
-    expect(response.headers.get('Cache-Control')).not.toContain('public');
-    await response.arrayBuffer();
   });
 
   test('encrypted thumbnail delivery works with the site session without a legacy session cookie', async () => {

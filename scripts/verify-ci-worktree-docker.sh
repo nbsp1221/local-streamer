@@ -31,7 +31,7 @@ git ls-files -z --cached --others --exclude-standard \
     "oven/bun:${bun_version}" \
     bash -lc '
       apt-get update >/dev/null &&
-      apt-get install -y nodejs npm git >/dev/null &&
+      apt-get install -y nodejs npm git curl xz-utils >/dev/null &&
       mkdir -p /tmp/workspace &&
       tar -xf - -C /tmp/workspace &&
       git config --global --add safe.directory /tmp/workspace &&

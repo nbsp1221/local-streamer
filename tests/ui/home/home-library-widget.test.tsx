@@ -4,7 +4,6 @@ import { MemoryRouter } from 'react-router';
 import { describe, expect, test, vi } from 'vitest';
 
 import type { HomeLibraryVideo } from '../../../app/entities/library-video/model/library-video';
-import type { PendingLibraryItem } from '../../../app/entities/pending-video/model/pending-video';
 import { HomeLibraryWidget } from '../../../app/widgets/home-library/ui/HomeLibraryWidget';
 
 const deleteVideoMock = vi.fn();
@@ -38,16 +37,6 @@ function createVideo(overrides: Partial<HomeLibraryVideo> = {}): HomeLibraryVide
   };
 }
 
-function createPendingVideo(overrides: Partial<PendingLibraryItem> = {}): PendingLibraryItem {
-  return {
-    filename: 'pending.mp4',
-    id: 'pending-1',
-    size: 128,
-    type: 'video/mp4',
-    ...overrides,
-  };
-}
-
 describe('HomeLibraryWidget', () => {
   test('filters by search text and tag toggles, keeps semantically equal filter sync stable, and resyncs when incoming videos change', async () => {
     const user = userEvent.setup();
@@ -58,7 +47,6 @@ describe('HomeLibraryWidget', () => {
             query: 'Action',
             tags: ['Action'],
           }}
-          pendingVideos={[createPendingVideo()]}
           videos={[
             createVideo(),
             createVideo({
@@ -87,7 +75,6 @@ describe('HomeLibraryWidget', () => {
             query: 'Action',
             tags: ['Action'],
           }}
-          pendingVideos={[]}
           videos={[
             createVideo(),
             createVideo({
@@ -119,7 +106,6 @@ describe('HomeLibraryWidget', () => {
             query: 'second',
             tags: ['drama'],
           }}
-          pendingVideos={[createPendingVideo()]}
           videos={[
             createVideo(),
             createVideo({
@@ -141,7 +127,6 @@ describe('HomeLibraryWidget', () => {
             query: '',
             tags: [],
           }}
-          pendingVideos={[]}
           videos={[
             createVideo({
               id: 'video-3',
@@ -166,7 +151,6 @@ describe('HomeLibraryWidget', () => {
             query: '',
             tags: ['drama'],
           }}
-          pendingVideos={[]}
           videos={[
             createVideo({
               id: 'video-2',
@@ -210,7 +194,6 @@ describe('HomeLibraryWidget', () => {
             query: '',
             tags: [],
           }}
-          pendingVideos={[]}
           videos={[
             createVideo({
               description: 'Original description',

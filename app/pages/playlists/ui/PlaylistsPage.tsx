@@ -32,7 +32,6 @@ export function PlaylistsPage({
         const nextSearch = params.toString();
         navigate(nextSearch ? `/playlists?${nextSearch}` : '/playlists');
       }}
-      pendingCount={0}
     >
       <PlaylistsView
         playlists={playlists}

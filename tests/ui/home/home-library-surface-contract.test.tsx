@@ -4,7 +4,6 @@ import { MemoryRouter } from 'react-router';
 import { describe, expect, test, vi } from 'vitest';
 
 import type { HomeLibraryVideo } from '../../../app/entities/library-video/model/library-video';
-import type { PendingLibraryItem } from '../../../app/entities/pending-video/model/pending-video';
 import { HomePage } from '../../../app/pages/home/ui/HomePage';
 
 vi.mock('react-router', async () => {
@@ -36,16 +35,6 @@ function createVideo(overrides: Partial<HomeLibraryVideo> = {}): HomeLibraryVide
   };
 }
 
-function createPendingVideo(overrides: Partial<PendingLibraryItem> = {}): PendingLibraryItem {
-  return {
-    filename: 'pending.mp4',
-    id: 'pending-1',
-    size: 128,
-    type: 'video/mp4',
-    ...overrides,
-  };
-}
-
 describe('Home library surface contract', () => {
   test('renders the approved heading, card surface, tags, and quick-view action menu affordances', async () => {
     const user = userEvent.setup();
@@ -55,7 +44,6 @@ describe('Home library surface contract', () => {
       <MemoryRouter>
         <HomePage
           initialFilters={{ query: '', tags: [] }}
-          pendingVideos={[createPendingVideo()]}
           videos={[createVideo()]}
         />
       </MemoryRouter>,
@@ -81,7 +69,6 @@ describe('Home library surface contract', () => {
       <MemoryRouter>
         <HomePage
           initialFilters={{ query: '', tags: ['Action'] }}
-          pendingVideos={[]}
           videos={[createVideo()]}
         />
       </MemoryRouter>,
@@ -116,7 +103,6 @@ describe('Home library surface contract', () => {
       <MemoryRouter>
         <HomePage
           initialFilters={{ query: '', tags: [] }}
-          pendingVideos={[]}
           videos={[]}
         />
       </MemoryRouter>,

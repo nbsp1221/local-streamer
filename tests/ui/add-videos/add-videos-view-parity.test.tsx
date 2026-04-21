@@ -2,53 +2,25 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, test, vi } from 'vitest';
-
-import type { PendingUploadVideo } from '../../../app/entities/pending-video/model/pending-upload-video';
-import {
-  type AddVideosEncodingOptions,
-  DEFAULT_ADD_VIDEOS_ENCODING_OPTIONS,
-} from '../../../app/features/add-videos-encoding/model/add-videos-encoding-options';
 import {
   type AddVideosViewProps,
   AddVideosView,
 } from '../../../app/widgets/add-videos/ui/AddVideosView';
 
-function createPendingFile(overrides: Partial<PendingUploadVideo> = {}): PendingUploadVideo {
-  return {
-    createdAt: new Date('2026-03-25T00:00:00.000Z'),
-    filename: 'fixture-video.mp4',
-    id: 'pending-1',
-    size: 1_024 * 1_024,
-    thumbnailUrl: '/api/thumbnail-preview/fixture-video.jpg',
-    type: 'mp4',
-    ...overrides,
-  };
-}
-
 function createViewProps(overrides: Partial<AddVideosViewProps> = {}): AddVideosViewProps {
-  const pendingFile = createPendingFile();
-  const metadataByFilename = {
-    [pendingFile.filename]: {
-      description: 'Fixture description',
-      encodingOptions: { ...DEFAULT_ADD_VIDEOS_ENCODING_OPTIONS } satisfies AddVideosEncodingOptions,
-      tags: 'one, two',
-      title: 'Fixture title',
-    },
-  };
-
   return {
-    error: null,
-    loading: false,
-    metadataByFilename,
+    canAddToLibrary: false,
     onAddToLibrary: vi.fn(),
+    onChooseFiles: vi.fn(),
+    onClearSession: vi.fn(),
     onDescriptionChange: vi.fn(),
     onEncodingOptionsChange: vi.fn(),
-    onRefresh: vi.fn(),
+    onRemoveSession: vi.fn(),
+    onRetryUpload: vi.fn(),
     onTagsChange: vi.fn(),
     onTitleChange: vi.fn(),
-    pendingFiles: [pendingFile],
-    processingFiles: new Set<string>(),
-    successMessage: null,
+    pageError: null,
+    session: null,
     ...overrides,
   };
 }
@@ -61,93 +33,144 @@ function renderView(props: AddVideosViewProps) {
   );
 }
 
-describe('AddVideosView parity target', () => {
-  test('preserves the current empty-state copy and refresh action', () => {
-    renderView(createViewProps({
-      metadataByFilename: {},
-      pendingFiles: [],
-    }));
+describe('AddVideosView', () => {
+  test('renders the browser-first empty state instead of the old folder-scan flow', () => {
+    renderView(createViewProps());
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Add Videos' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Refresh' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back to Library' })).toHaveAttribute('href', '/');
-    expect(screen.getByRole('heading', { level: 3, name: 'No videos to add' })).toBeInTheDocument();
-    expect(screen.getByText('Place video files in the uploads folder and click the refresh button.')).toBeInTheDocument();
-    expect(screen.getByText('Supported formats: MP4, AVI, MKV, MOV, WebM, M4V, FLV, WMV')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Upload a video' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Choose Video' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Refresh' })).not.toBeInTheDocument();
+    expect(screen.getByText('Maximum file size: 4 GB')).toBeInTheDocument();
+    expect(screen.getByText('Only one file can be uploaded at a time.')).toBeInTheDocument();
   });
 
-  test('preserves the current populated-file labels, alerts, and primary action copy', () => {
+  test('renders a single active upload card with inline status and textarea-based metadata editing', () => {
     renderView(createViewProps({
-      error: 'Network error occurred.',
-      successMessage: '"Fixture title" has been added to the library.',
+      session: {
+        error: null,
+        file: new File(['video-data'], 'fixture-video.mp4', { type: 'video/mp4' }),
+        filename: 'fixture-video.mp4',
+        metadata: {
+          description: 'Fixture description',
+          encodingOptions: {
+            encoder: 'cpu-h264',
+          },
+          tags: 'one, two',
+          title: 'Fixture title',
+        },
+        mimeType: 'video/mp4',
+        progressPercent: 45,
+        size: 1_024 * 1_024,
+        stagingId: null,
+        status: 'uploading',
+        successMessage: null,
+      },
     }));
 
-    expect(screen.getAllByRole('alert')).toHaveLength(2);
-    expect(screen.getByText('Network error occurred.')).toBeInTheDocument();
-    expect(screen.getByText('"Fixture title" has been added to the library.')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Pending Files (1)' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 3, name: 'fixture-video.mp4' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'fixture-video.mp4' })).toBeInTheDocument();
+    expect(screen.getByText('Uploading')).toBeInTheDocument();
     expect(screen.getByLabelText('Title *')).toHaveValue('Fixture title');
     expect(screen.getByLabelText('Tags')).toHaveValue('one, two');
-    expect(screen.getByLabelText('Description (optional)')).toHaveValue('Fixture description');
-    expect(screen.getByRole('button', { name: 'Add to Library' })).toBeInTheDocument();
-    expect(screen.getByText('Browser Playback Encoding')).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'CPU H.264' })).toBeChecked();
+    expect(screen.getByLabelText('Description')).toHaveValue('Fixture description');
+    expect(screen.getByRole('textbox', { name: 'Description' }).tagName).toBe('TEXTAREA');
+    expect(screen.getByRole('button', { name: 'Add to Library' })).toBeDisabled();
   });
 
-  test('shows the supported encoder options and reports selection changes', async () => {
+  test('shows retry and completion actions in the correct session states', async () => {
     const user = userEvent.setup();
-    const onEncodingOptionsChange = vi.fn();
+    const onRetryUpload = vi.fn();
+    const onClearSession = vi.fn();
 
-    renderView(createViewProps({
-      onEncodingOptionsChange,
-    }));
+    const { rerender } = render(
+      <MemoryRouter>
+        <AddVideosView
+          {...createViewProps({
+            onRetryUpload,
+            session: {
+              error: 'Upload failed.',
+              file: new File(['video-data'], 'fixture-video.mp4', { type: 'video/mp4' }),
+              filename: 'fixture-video.mp4',
+              metadata: {
+                description: '',
+                encodingOptions: {
+                  encoder: 'cpu-h264',
+                },
+                tags: '',
+                title: 'Fixture title',
+              },
+              mimeType: 'video/mp4',
+              progressPercent: 10,
+              size: 10,
+              stagingId: null,
+              status: 'upload_failed',
+              successMessage: null,
+            },
+          })}
+        />
+      </MemoryRouter>,
+    );
 
-    expect(screen.getByRole('radio', { name: 'CPU H.264' })).toBeChecked();
-    expect(screen.getByRole('radio', { name: 'GPU H.264' })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'CPU H.265' })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'GPU H.265' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Retry Upload' }));
+    expect(onRetryUpload).toHaveBeenCalledOnce();
 
-    await user.click(screen.getByRole('radio', { name: 'GPU H.265' }));
+    rerender(
+      <MemoryRouter>
+        <AddVideosView
+          {...createViewProps({
+            onClearSession,
+            session: {
+              error: null,
+              file: new File(['video-data'], 'fixture-video.mp4', { type: 'video/mp4' }),
+              filename: 'fixture-video.mp4',
+              metadata: {
+                description: '',
+                encodingOptions: {
+                  encoder: 'cpu-h264',
+                },
+                tags: '',
+                title: 'Fixture title',
+              },
+              mimeType: 'video/mp4',
+              progressPercent: 100,
+              size: 10,
+              stagingId: 'staging-123',
+              status: 'completed',
+              successMessage: '"Fixture title" has been added to the library.',
+            },
+          })}
+        />
+      </MemoryRouter>,
+    );
 
-    expect(onEncodingOptionsChange).toHaveBeenCalledWith('fixture-video.mp4', {
-      encoder: 'gpu-h265',
-    });
+    expect(screen.getByText('"Fixture title" has been added to the library.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Upload Another Video' }));
+    expect(onClearSession).toHaveBeenCalledOnce();
   });
 
-  test('keeps encoding selection scoped to the matching pending file when multiple cards are rendered', async () => {
-    const user = userEvent.setup();
-    const onEncodingOptionsChange = vi.fn();
-    const firstFile = createPendingFile();
-    const secondFile = createPendingFile({
-      filename: 'second-video.mov',
-      id: 'pending-2',
-      type: 'mov',
-    });
-
+  test('hides remove while the final library commit is in flight', () => {
     renderView(createViewProps({
-      metadataByFilename: {
-        [firstFile.filename]: {
-          description: 'First description',
-          encodingOptions: { ...DEFAULT_ADD_VIDEOS_ENCODING_OPTIONS },
+      session: {
+        error: null,
+        file: new File(['video-data'], 'fixture-video.mp4', { type: 'video/mp4' }),
+        filename: 'fixture-video.mp4',
+        metadata: {
+          description: '',
+          encodingOptions: {
+            encoder: 'cpu-h264',
+          },
           tags: '',
-          title: 'First title',
+          title: 'Fixture title',
         },
-        [secondFile.filename]: {
-          description: 'Second description',
-          encodingOptions: { ...DEFAULT_ADD_VIDEOS_ENCODING_OPTIONS },
-          tags: '',
-          title: 'Second title',
-        },
+        mimeType: 'video/mp4',
+        progressPercent: 100,
+        size: 10,
+        stagingId: 'staging-123',
+        status: 'adding_to_library',
+        successMessage: null,
       },
-      onEncodingOptionsChange,
-      pendingFiles: [firstFile, secondFile],
     }));
 
-    await user.click(screen.getAllByText('GPU H.265')[1]!);
-
-    expect(onEncodingOptionsChange).toHaveBeenCalledWith('second-video.mov', {
-      encoder: 'gpu-h265',
-    });
+    expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Adding...' })).toBeDisabled();
   });
 });

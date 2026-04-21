@@ -76,7 +76,7 @@ bun run verify:e2e-smoke
 ```
 
 with a `bun` matching the repo `packageManager` contract. The raw non-browser Docker reference above excludes browser smoke, but the Docker authority paths above already include this browser smoke layer because they run `bun run verify:ci-faithful`, which includes `bun run verify:e2e-smoke`.
-The current required smoke set covers the home owner path, playlist owner flow, player layout, and protected playback compatibility.
+The current required smoke set covers the home owner path, the add-videos owner upload flow, the playlist owner flow, player layout, and protected playback compatibility.
 When the change is both browser-visible and runtime-sensitive, follow `docs/browser-qa-contract.md` to decide whether Playwright MCP or equivalent isolated browser QA is additionally required.
 
 ## Test Layers
@@ -165,6 +165,7 @@ Use:
 ### Video Files
 
 - Hermetic playback/browser fixtures under `tests/fixtures/playback/`
+- Hermetic upload smoke fixture under `tests/fixtures/upload/smoke-upload.mp4`
 - Do not treat repo-local `storage/data/test-videos/` as a hermetic fixture source; `storage/` is ignored and is suitable only for optional local manual QA.
 - For automated upload-oriented coverage, prefer temporary generated fixtures or another tracked test-owned surface instead of `storage/`.
 
