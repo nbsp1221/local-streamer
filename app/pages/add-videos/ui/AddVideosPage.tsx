@@ -1,15 +1,23 @@
+import type { VideoTaxonomyItem } from '~/modules/library/domain/video-taxonomy';
 import { AddVideosShell } from '~/widgets/add-videos-shell/ui/AddVideosShell';
 import { useAddVideosView } from '~/widgets/add-videos/model/useAddVideosView';
 import { AddVideosView } from '~/widgets/add-videos/ui/AddVideosView';
 
-export function AddVideosPage() {
+interface AddVideosPageProps {
+  contentTypes: VideoTaxonomyItem[];
+  genres: VideoTaxonomyItem[];
+}
+
+export function AddVideosPage({ contentTypes, genres }: AddVideosPageProps) {
   const {
     canAddToLibrary,
     handleAddToLibrary,
     handleChooseFiles,
     handleClearSession,
+    handleContentTypeChange,
     handleDescriptionChange,
     handleEncodingOptionsChange,
+    handleGenreSlugsChange,
     handleRemoveSession,
     handleRetryUpload,
     handleTagsChange,
@@ -22,11 +30,15 @@ export function AddVideosPage() {
     <AddVideosShell>
       <AddVideosView
         canAddToLibrary={canAddToLibrary}
+        contentTypes={contentTypes}
+        genres={genres}
         onAddToLibrary={() => { void handleAddToLibrary(); }}
         onChooseFiles={handleChooseFiles}
         onClearSession={handleClearSession}
+        onContentTypeChange={handleContentTypeChange}
         onDescriptionChange={handleDescriptionChange}
         onEncodingOptionsChange={handleEncodingOptionsChange}
+        onGenreSlugsChange={handleGenreSlugsChange}
         onRemoveSession={() => { void handleRemoveSession(); }}
         onRetryUpload={handleRetryUpload}
         onTagsChange={handleTagsChange}

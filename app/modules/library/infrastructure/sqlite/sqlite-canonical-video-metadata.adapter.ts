@@ -5,7 +5,7 @@ import { SqliteLibraryVideoMetadataRepository } from './sqlite-library-video-met
 
 type SqliteCanonicalVideoMetadataAdapterRepository = Pick<
   SqliteLibraryVideoMetadataRepository,
-  'create' | 'findAll'
+  'create' | 'findAll' | 'listActiveContentTypes' | 'listActiveGenres'
 >;
 
 interface SqliteCanonicalVideoMetadataAdapterDependencies {
@@ -26,10 +26,20 @@ implements LibraryVideoSourcePort, IngestVideoMetadataWriterPort {
     return this.repository.findAll();
   }
 
+  async listActiveContentTypes() {
+    return this.repository.listActiveContentTypes();
+  }
+
+  async listActiveGenres() {
+    return this.repository.listActiveGenres();
+  }
+
   async writeVideoRecord(record: Parameters<IngestVideoMetadataWriterPort['writeVideoRecord']>[0]) {
     await this.repository.create({
+      contentTypeSlug: record.contentTypeSlug,
       description: record.description,
       duration: record.duration,
+      genreSlugs: record.genreSlugs,
       id: record.id,
       tags: record.tags,
       thumbnailUrl: record.thumbnailUrl,

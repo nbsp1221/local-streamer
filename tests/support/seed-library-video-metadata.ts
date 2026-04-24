@@ -1,3 +1,5 @@
+import { normalizeVideoTags } from '~/modules/library/domain/video-tag';
+import { normalizeTaxonomySlug, normalizeTaxonomySlugs } from '~/modules/library/domain/video-taxonomy';
 import { SqliteLibraryVideoMetadataRepository } from '~/modules/library/infrastructure/sqlite/sqlite-library-video-metadata.repository';
 
 export interface SeedLibraryVideoInput {
@@ -5,6 +7,8 @@ export interface SeedLibraryVideoInput {
   createdAt?: Date | string;
   description?: string;
   duration: number;
+  contentTypeSlug?: string;
+  genreSlugs?: string[];
   id: string;
   tags?: string[];
   thumbnailUrl?: string;
@@ -38,9 +42,11 @@ export async function seedLibraryVideoMetadata(
       createdAt: resolveCreatedAt(video),
       description: video.description,
       duration: video.duration,
+      contentTypeSlug: video.contentTypeSlug ? normalizeTaxonomySlug(video.contentTypeSlug) ?? undefined : undefined,
+      genreSlugs: normalizeTaxonomySlugs(video.genreSlugs ?? []),
       id: video.id,
       sortIndex,
-      tags: video.tags ?? [],
+      tags: normalizeVideoTags(video.tags ?? []),
       thumbnailUrl: video.thumbnailUrl,
       title: video.title,
       videoUrl: video.videoUrl,

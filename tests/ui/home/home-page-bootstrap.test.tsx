@@ -37,8 +37,8 @@ describe('HomePage bootstrap compatibility', () => {
       <MemoryRouter>
         <HomePage
           initialFilters={{
+            includeTags: ['Action'],
             query: 'Action',
-            tags: ['Action'],
           }}
           videos={[
             createVideo(),
@@ -64,8 +64,8 @@ describe('HomePage bootstrap compatibility', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const props = {
       initialFilters: {
+        includeTags: ['Action'],
         query: 'Action',
-        tags: ['Action'],
       },
       videos: [
         createVideo(),

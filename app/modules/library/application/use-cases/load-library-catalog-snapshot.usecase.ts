@@ -1,11 +1,15 @@
 import type { LibraryHomeFilters } from '../../domain/library-home-filters';
 import type { LibraryVideo } from '../../domain/library-video';
+import type { VideoTaxonomyItem } from '../../domain/video-taxonomy';
 import type { LibraryVideoSourcePort } from '../ports/library-video-source.port';
 import { createLibraryHomeFilters } from '../../domain/library-home-filters';
 
 interface LoadLibraryCatalogSnapshotInput {
+  rawContentTypeSlug?: string | null;
+  rawExcludeTags?: string[];
+  rawGenreSlugs?: string[];
+  rawIncludeTags?: string[];
   rawQuery?: string | null;
-  rawTags?: string[];
 }
 
 interface LoadLibraryCatalogSnapshotSuccess {
@@ -13,6 +17,10 @@ interface LoadLibraryCatalogSnapshotSuccess {
   data: {
     videos: LibraryVideo[];
     filters: LibraryHomeFilters;
+    vocabulary: {
+      contentTypes: VideoTaxonomyItem[];
+      genres: VideoTaxonomyItem[];
+    };
   };
 }
 
@@ -36,13 +44,21 @@ export class LoadLibraryCatalogSnapshotUseCase {
 
   async execute(input: LoadLibraryCatalogSnapshotInput): Promise<LoadLibraryCatalogSnapshotResult> {
     try {
-      const videos = await this.deps.videoSource.listLibraryVideos();
+      const [videos, contentTypes, genres] = await Promise.all([
+        this.deps.videoSource.listLibraryVideos(),
+        this.deps.videoSource.listActiveContentTypes(),
+        this.deps.videoSource.listActiveGenres(),
+      ]);
 
       return {
         ok: true,
         data: {
           videos,
           filters: createLibraryHomeFilters(input),
+          vocabulary: {
+            contentTypes,
+            genres,
+          },
         },
       };
     }

@@ -1,19 +1,14 @@
 import type { ActionFunctionArgs } from 'react-router';
-import type { CommitStagedUploadToLibraryUseCaseResult } from '~/modules/ingest/application/use-cases/commit-staged-upload-to-library.usecase';
+import type {
+  CommitStagedUploadToLibraryCommand,
+  CommitStagedUploadToLibraryUseCaseResult,
+} from '~/modules/ingest/application/use-cases/commit-staged-upload-to-library.usecase';
 import { requireProtectedApiSession } from '~/composition/server/auth';
 import { getServerIngestServices } from '~/composition/server/ingest';
 
 type UploadCommitRouteServices = {
   commitStagedUploadToLibrary: {
-    execute(command: {
-      description?: string;
-      encodingOptions?: {
-        encoder: 'cpu-h264' | 'gpu-h264' | 'cpu-h265' | 'gpu-h265';
-      };
-      stagingId: string;
-      tags: string[];
-      title: string;
-    }): Promise<CommitStagedUploadToLibraryUseCaseResult>;
+    execute(command: CommitStagedUploadToLibraryCommand): Promise<CommitStagedUploadToLibraryUseCaseResult>;
   };
 };
 
@@ -35,6 +30,40 @@ function defaultCreateErrorResponse(error: unknown): Response {
   return new Response(message, { status });
 }
 
+function createUploadCommitCommand(
+  body: Record<string, unknown>,
+  stagingId: string,
+): CommitStagedUploadToLibraryCommand {
+  const command: CommitStagedUploadToLibraryCommand = {
+    genreSlugs: Array.isArray(body.genreSlugs)
+      ? body.genreSlugs.filter(genreSlug => typeof genreSlug === 'string')
+      : [],
+    stagingId,
+    tags: Array.isArray(body.tags)
+      ? body.tags.filter(tag => typeof tag === 'string')
+      : [],
+    title: typeof body.title === 'string' ? body.title : '',
+  };
+
+  if (typeof body.contentTypeSlug === 'string') {
+    command.contentTypeSlug = body.contentTypeSlug;
+  }
+
+  if (typeof body.description === 'string') {
+    command.description = body.description;
+  }
+
+  if (
+    body.encodingOptions &&
+    typeof body.encodingOptions === 'object' &&
+    'encoder' in body.encodingOptions
+  ) {
+    command.encodingOptions = body.encodingOptions as CommitStagedUploadToLibraryCommand['encodingOptions'];
+  }
+
+  return command;
+}
+
 export function createUploadCommitAction(
   deps: UploadCommitActionDependencies,
 ) {
@@ -51,21 +80,13 @@ export function createUploadCommitAction(
         }, { status: 400 });
       }
 
-      const body = await request.json() as {
-        description?: string;
-        encodingOptions?: {
-          encoder: 'cpu-h264' | 'gpu-h264' | 'cpu-h265' | 'gpu-h265';
-        };
-        tags?: string[];
-        title: string;
-      };
-      const result = await deps.getServerIngestServices().commitStagedUploadToLibrary.execute({
-        description: body.description,
-        encodingOptions: body.encodingOptions,
-        stagingId,
-        tags: Array.isArray(body.tags) ? body.tags : [],
-        title: body.title,
-      });
+      const body = await request.json();
+      const input = body && typeof body === 'object'
+        ? body as Record<string, unknown>
+        : {};
+      const result = await deps.getServerIngestServices().commitStagedUploadToLibrary.execute(
+        createUploadCommitCommand(input, stagingId),
+      );
 
       if (result.ok) {
         return Response.json({

@@ -1,8 +1,13 @@
 import type { LibraryVideo } from '../../domain/library-video';
+import type { UpdateLibraryVideoInput as UpdateLibraryVideoMutationInput } from '../ports/library-video-mutation.port';
 import type { LibraryVideoMutationPort } from '../ports/library-video-mutation.port';
+import { normalizeVideoTags } from '../../domain/video-tag';
+import { normalizeTaxonomySlug, normalizeTaxonomySlugs } from '../../domain/video-taxonomy';
 
 export interface UpdateLibraryVideoInput {
+  contentTypeSlug?: unknown;
   description?: unknown;
+  genreSlugs?: unknown;
   tags?: unknown;
   title?: unknown;
   videoId: string;
@@ -35,10 +40,27 @@ function sanitizeTags(tags: unknown) {
     return [];
   }
 
-  return tags
-    .filter(tag => typeof tag === 'string')
-    .map(tag => tag.trim())
-    .filter(Boolean);
+  return normalizeVideoTags(tags.filter(tag => typeof tag === 'string'));
+}
+
+function sanitizeGenreSlugs(genreSlugs: unknown) {
+  if (!Array.isArray(genreSlugs)) {
+    return undefined;
+  }
+
+  return normalizeTaxonomySlugs(genreSlugs.filter(slug => typeof slug === 'string'));
+}
+
+function sanitizeContentTypeSlug(contentTypeSlug: unknown) {
+  if (contentTypeSlug === null) {
+    return null;
+  }
+
+  if (typeof contentTypeSlug !== 'string') {
+    return undefined;
+  }
+
+  return normalizeTaxonomySlug(contentTypeSlug) ?? null;
 }
 
 function sanitizeDescription(description: unknown) {
@@ -48,6 +70,25 @@ function sanitizeDescription(description: unknown) {
 
   const trimmed = description.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function copyPresentStructuredMetadataFields(
+  input: UpdateLibraryVideoInput,
+  mutationInput: UpdateLibraryVideoMutationInput,
+) {
+  if (Object.hasOwn(input, 'contentTypeSlug')) {
+    const contentTypeSlug = sanitizeContentTypeSlug(input.contentTypeSlug);
+    if (typeof contentTypeSlug !== 'undefined') {
+      mutationInput.contentTypeSlug = contentTypeSlug;
+    }
+  }
+
+  if (Object.hasOwn(input, 'genreSlugs')) {
+    const genreSlugs = sanitizeGenreSlugs(input.genreSlugs);
+    if (genreSlugs) {
+      mutationInput.genreSlugs = genreSlugs;
+    }
+  }
 }
 
 export class UpdateLibraryVideoUseCase {
@@ -87,12 +128,16 @@ export class UpdateLibraryVideoUseCase {
       };
     }
 
-    const updatedVideo = await this.deps.videoMutation.updateLibraryVideo({
+    const mutationInput: UpdateLibraryVideoMutationInput = {
       description: sanitizeDescription(input.description),
       tags: sanitizeTags(input.tags),
       title,
       videoId,
-    });
+    };
+
+    copyPresentStructuredMetadataFields(input, mutationInput);
+
+    const updatedVideo = await this.deps.videoMutation.updateLibraryVideo(mutationInput);
 
     if (!updatedVideo) {
       return {

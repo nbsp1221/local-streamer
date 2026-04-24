@@ -74,7 +74,9 @@ describe('home write route library slice adapters', () => {
     })(createActionArgs(
       new Request('http://localhost/api/update/video-1', {
         body: JSON.stringify({
+          contentTypeSlug: 'home_video',
           description: 'Updated description',
+          genreSlugs: ['documentary'],
           tags: ['Action', 'Neo'],
           title: 'Updated title',
         }),
@@ -89,7 +91,9 @@ describe('home write route library slice adapters', () => {
     expect(requireProtectedApiSessionMock).toHaveBeenCalledOnce();
     expect(getServerLibraryServicesMock).toHaveBeenCalledOnce();
     expect(updateLibraryVideoExecuteMock).toHaveBeenCalledWith({
+      contentTypeSlug: 'home_video',
       description: 'Updated description',
+      genreSlugs: ['documentary'],
       tags: ['Action', 'Neo'],
       title: 'Updated title',
       videoId: 'video-1',
@@ -108,6 +112,49 @@ describe('home write route library slice adapters', () => {
         title: 'Updated title',
         videoUrl: '/videos/video-1/manifest.mpd',
       },
+    });
+  });
+
+  test('update route preserves omission of structured metadata fields for partial requests', async () => {
+    updateLibraryVideoExecuteMock.mockResolvedValue({
+      data: {
+        message: 'Video "Updated title" updated successfully',
+        video: {
+          contentTypeSlug: 'movie',
+          createdAt: new Date('2026-03-11T00:00:00.000Z'),
+          duration: 180,
+          genreSlugs: ['action'],
+          id: 'video-1',
+          tags: ['Neo'],
+          title: 'Updated title',
+          videoUrl: '/videos/video-1/manifest.mpd',
+        },
+      },
+      ok: true as const,
+    });
+    const { createUpdateVideoAction } = await importUpdateRoute();
+
+    await createUpdateVideoAction({
+      getServerLibraryServices: getServerLibraryServicesMock,
+      requireProtectedApiSession: requireProtectedApiSessionMock,
+    })(createActionArgs(
+      new Request('http://localhost/api/update/video-1', {
+        body: JSON.stringify({
+          tags: ['Neo'],
+          title: 'Updated title',
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'PATCH',
+      }),
+      { id: 'video-1' },
+    ));
+
+    expect(updateLibraryVideoExecuteMock).toHaveBeenCalledWith({
+      tags: ['Neo'],
+      title: 'Updated title',
+      videoId: 'video-1',
     });
   });
 

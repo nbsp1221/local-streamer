@@ -1,15 +1,21 @@
 import type { LoadLibraryCatalogSnapshotResult } from '~/modules/library/application/use-cases/load-library-catalog-snapshot.usecase';
 import type { LibraryVideo } from '~/modules/library/domain/library-video';
+import type { VideoTaxonomyItem } from '~/modules/library/domain/video-taxonomy';
 import { getServerLibraryServices } from './library';
 
 interface LoadHomeLibraryPageDataInput {
+  rawContentTypeSlug?: string | null;
+  rawExcludeTags?: string[];
+  rawGenreSlugs?: string[];
+  rawIncludeTags?: string[];
   rawQuery?: string | null;
-  rawTags?: string[];
 }
 
 interface LoadHomeLibraryPageDataSuccess {
   ok: true;
   data: {
+    contentTypes: VideoTaxonomyItem[];
+    genres: VideoTaxonomyItem[];
     videos: LibraryVideo[];
   };
 }
@@ -54,6 +60,8 @@ function mapCatalogResultToHomePageData(
   return {
     ok: true,
     data: {
+      contentTypes: result.data.vocabulary.contentTypes,
+      genres: result.data.vocabulary.genres,
       videos: result.data.videos,
     },
   };

@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { rm } from 'node:fs/promises';
 import path from 'node:path';
+import { normalizeVideoTags } from '~/modules/library/domain/video-tag';
+import { normalizeTaxonomySlug, normalizeTaxonomySlugs } from '~/modules/library/domain/video-taxonomy';
 import { getStoragePaths } from '~/shared/config/storage-paths.server';
 import type { IngestStagedUploadRepositoryPort } from '../ports/ingest-staged-upload-repository.port';
 import type { IngestStagedUploadStoragePort } from '../ports/ingest-staged-upload-storage.port';
@@ -21,9 +23,11 @@ interface CommitStagedUploadToLibraryUseCaseDependencies {
   videoProcessing: IngestVideoProcessingPort;
 }
 
-interface CommitStagedUploadToLibraryCommand {
+export interface CommitStagedUploadToLibraryCommand {
+  contentTypeSlug?: string;
   description?: string;
   encodingOptions?: IngestEncodingOptions;
+  genreSlugs?: string[];
   stagingId: string;
   tags: string[];
   title: string;
@@ -126,10 +130,14 @@ export class CommitStagedUploadToLibraryUseCase {
       }
 
       await this.deps.videoMetadataWriter.writeVideoRecord({
+        contentTypeSlug: command.contentTypeSlug
+          ? normalizeTaxonomySlug(command.contentTypeSlug) ?? undefined
+          : undefined,
         description: command.description?.trim() || undefined,
         duration: analysis.duration,
+        genreSlugs: normalizeTaxonomySlugs(command.genreSlugs ?? []),
         id: videoId,
-        tags: normalizeTags(command.tags),
+        tags: normalizeVideoTags(command.tags),
         thumbnailUrl: `/api/thumbnail/${videoId}`,
         title: trimmedTitle,
         videoUrl: `/videos/${videoId}/manifest.mpd`,
@@ -182,12 +190,6 @@ export class CommitStagedUploadToLibraryUseCase {
       status: 'uploaded',
     });
   }
-}
-
-function normalizeTags(tags: string[]): string[] {
-  return tags
-    .map(tag => tag.trim())
-    .filter(tag => tag.length > 0);
 }
 
 function createAlreadyCommittedResult(videoId: string): CommitStagedUploadToLibraryUseCaseResult {

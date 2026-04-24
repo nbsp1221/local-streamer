@@ -23,11 +23,11 @@ describe('AddVideosShell', () => {
     );
 
     expect(screen.getByText('Local Streamer')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 3, name: 'Browse' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 3, name: 'Browse' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Library' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Manage' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 3, name: 'Settings' })).toBeInTheDocument();
-    expect(screen.getAllByPlaceholderText('Search movies, TV series...')).toHaveLength(2);
+    expect(screen.getAllByPlaceholderText('Search titles and tags...')).toHaveLength(2);
     expect(screen.getAllByRole('link', { name: /upload/i })[0]).toHaveAttribute('href', '/add-videos');
     expect(screen.getByText('Upload flow content')).toBeInTheDocument();
     expect(screen.getByTitle('Account Menu')).toBeInTheDocument();

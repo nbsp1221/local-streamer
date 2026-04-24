@@ -1,6 +1,7 @@
 import { Clock, Eye, MoreVertical, Play } from 'lucide-react';
 import { Link } from 'react-router';
 import type { HomeLibraryVideo } from '~/entities/library-video/model/library-video';
+import { formatVideoTagLabel } from '~/modules/library/domain/video-tag';
 import { formatDisplayDate } from '~/shared/lib/format-display-date';
 import { formatDuration } from '~/shared/lib/format-duration';
 import { AspectRatio } from '~/shared/ui/aspect-ratio';
@@ -111,7 +112,7 @@ export function LibraryVideoCard({ video, onQuickView, onTagClick }: LibraryVide
               className="h-5 cursor-pointer px-2 text-xs transition-colors hover:bg-primary hover:text-primary-foreground"
               onClick={event => handleTagClick(tag, event)}
             >
-              #{tag}
+              #{formatVideoTagLabel(tag)}
             </button>
           </Badge>
         ))}

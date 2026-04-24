@@ -44,6 +44,7 @@ describe('useHomeLibraryVideoActions', () => {
 
     await expect(result.current.updateVideo('video-1', {
       description: 'Updated description',
+      genreSlugs: [],
       tags: ['Action', 'Neo'],
       title: 'Updated title',
     })).resolves.toEqual({
@@ -59,6 +60,7 @@ describe('useHomeLibraryVideoActions', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/update/video-1', {
       body: JSON.stringify({
         description: 'Updated description',
+        genreSlugs: [],
         tags: ['Action', 'Neo'],
         title: 'Updated title',
       }),
@@ -84,6 +86,7 @@ describe('useHomeLibraryVideoActions', () => {
     const { result } = renderHook(() => useHomeLibraryVideoActions());
 
     await expect(result.current.updateVideo('video-1', {
+      genreSlugs: [],
       tags: ['Action'],
       title: 'Updated title',
     })).rejects.toThrow('network down');

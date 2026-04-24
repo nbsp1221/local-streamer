@@ -1,4 +1,5 @@
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
+import { Button } from '~/shared/ui/button';
 import { Input } from '~/shared/ui/input';
 
 interface HomeSearchFieldProps {
@@ -14,11 +15,23 @@ export function HomeSearchField({ ariaLabel, value, onChange }: HomeSearchFieldP
       <Input
         aria-label={ariaLabel}
         type="search"
-        placeholder="Search movies, TV series..."
+        placeholder="Search titles and tags..."
         value={value}
         onChange={event => onChange(event.target.value)}
-        className="w-full rounded-full border-border bg-card pl-10 focus:ring-primary"
+        className="w-full rounded-full border-border bg-card pr-10 pl-10 focus:ring-primary"
       />
+      {value.length > 0 ? (
+        <Button
+          aria-label="Clear search"
+          className="absolute top-1/2 right-1 h-8 w-8 -translate-y-1/2 rounded-full p-0"
+          onClick={() => onChange('')}
+          size="sm"
+          type="button"
+          variant="ghost"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      ) : null}
     </div>
   );
 }

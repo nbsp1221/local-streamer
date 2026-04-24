@@ -1,6 +1,7 @@
 import { access, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { LibraryVideo } from '../../../app/modules/library/domain/library-video';
 
 const SqliteCanonicalVideoMetadataAdapterMock = vi.fn();
 const SqliteLibraryVideoMutationAdapterMock = vi.fn();
@@ -18,6 +19,27 @@ vi.mock('~/modules/library/infrastructure/storage/filesystem-library-video-artif
   FilesystemLibraryVideoArtifactRemovalAdapter: FilesystemLibraryVideoArtifactRemovalAdapterMock,
 }));
 
+const contentTypesFixture = [
+  { active: true, label: 'Movie', slug: 'movie', sortOrder: 10 },
+];
+const genresFixture = [
+  { active: true, label: 'Action', slug: 'action', sortOrder: 10 },
+];
+
+function createCatalogVideo(overrides: Partial<LibraryVideo> = {}): LibraryVideo {
+  return {
+    contentTypeSlug: 'movie',
+    createdAt: new Date('2026-03-11T00:00:00.000Z'),
+    duration: 180,
+    genreSlugs: ['action'],
+    id: 'video-1',
+    tags: ['Action'],
+    title: 'Catalog Fixture',
+    videoUrl: '/videos/video-1/manifest.mpd',
+    ...overrides,
+  };
+}
+
 describe('server library composition root', () => {
   afterEach(() => {
     vi.clearAllMocks();
@@ -26,26 +48,20 @@ describe('server library composition root', () => {
 
   test('creates prewired library catalog services from injected adapters', async () => {
     const { createServerLibraryServices } = await import('../../../app/composition/server/library');
-    const listLibraryVideos = vi.fn(async () => [
-      {
-        createdAt: new Date('2026-03-11T00:00:00.000Z'),
-        duration: 180,
-        id: 'video-1',
-        tags: ['Action'],
-        title: 'Catalog Fixture',
-        videoUrl: '/videos/video-1/manifest.mpd',
-      },
-    ]);
+    const listLibraryVideos = vi.fn(async () => [createCatalogVideo()]);
 
     const services = createServerLibraryServices({
       videoSource: {
+        listActiveContentTypes: vi.fn(async () => contentTypesFixture),
+        listActiveGenres: vi.fn(async () => genresFixture),
         listLibraryVideos,
       },
     });
     const result = await services.loadLibraryCatalogSnapshot.execute({
       rawQuery: 'Action',
-      rawTags: ['Action'],
+      rawIncludeTags: ['Action'],
     });
+    const vocabularyResult = await services.loadVideoMetadataVocabulary.execute();
 
     expect(listLibraryVideos).toHaveBeenCalledOnce();
     expect(result).toEqual({
@@ -57,28 +73,34 @@ describe('server library composition root', () => {
             title: 'Catalog Fixture',
           }),
         ],
-        filters: {
-          displayQuery: 'Action',
-          normalizedQuery: 'action',
-          rawTags: ['Action'],
-          normalizedTags: ['action'],
+        vocabulary: {
+          contentTypes: contentTypesFixture,
+          genres: genresFixture,
         },
+        filters: {
+          contentTypeSlug: undefined,
+          displayQuery: 'Action',
+          excludeTags: [],
+          genreSlugs: [],
+          includeTags: ['action'],
+          normalizedQuery: 'action',
+        },
+      },
+    });
+    expect(vocabularyResult).toEqual({
+      ok: true,
+      data: {
+        contentTypes: contentTypesFixture,
+        genres: genresFixture,
       },
     });
   });
 
   test('returns a cached default library composition that stays ready for route usage', async () => {
-    const listLibraryVideos = vi.fn(async () => [
-      {
-        createdAt: new Date('2026-03-11T00:00:00.000Z'),
-        duration: 180,
-        id: 'video-1',
-        tags: ['Action'],
-        title: 'Catalog Fixture',
-        videoUrl: '/videos/video-1/manifest.mpd',
-      },
-    ]);
+    const listLibraryVideos = vi.fn(async () => [createCatalogVideo()]);
     SqliteCanonicalVideoMetadataAdapterMock.mockImplementation(() => ({
+      listActiveContentTypes: vi.fn(async () => contentTypesFixture),
+      listActiveGenres: vi.fn(async () => genresFixture),
       listLibraryVideos,
       writeVideoRecord: vi.fn(),
     }));
@@ -91,20 +113,16 @@ describe('server library composition root', () => {
         title: 'Catalog Fixture',
       })),
       findLibraryVideoById: vi.fn(async videoId => ({
-        createdAt: new Date('2026-03-11T00:00:00.000Z'),
-        duration: 180,
+        ...createCatalogVideo(),
         id: videoId,
-        tags: ['Action'],
-        title: 'Catalog Fixture',
-        videoUrl: '/videos/video-1/manifest.mpd',
       })),
       updateLibraryVideo: vi.fn(async input => ({
-        createdAt: new Date('2026-03-11T00:00:00.000Z'),
-        duration: 180,
+        ...createCatalogVideo(),
+        contentTypeSlug: input.contentTypeSlug,
+        genreSlugs: input.genreSlugs,
         id: input.videoId,
         tags: input.tags,
         title: input.title,
-        videoUrl: '/videos/video-1/manifest.mpd',
       })),
     }));
     vi.resetModules();
@@ -119,7 +137,7 @@ describe('server library composition root', () => {
     expect(FilesystemLibraryVideoArtifactRemovalAdapterMock).toHaveBeenCalledOnce();
     await expect(first.loadLibraryCatalogSnapshot.execute({
       rawQuery: '',
-      rawTags: [],
+      rawIncludeTags: [],
     })).resolves.toEqual({
       ok: true,
       data: {
@@ -129,10 +147,16 @@ describe('server library composition root', () => {
           }),
         ],
         filters: {
+          contentTypeSlug: undefined,
           displayQuery: '',
+          excludeTags: [],
+          genreSlugs: [],
+          includeTags: [],
           normalizedQuery: '',
-          rawTags: [],
-          normalizedTags: [],
+        },
+        vocabulary: {
+          contentTypes: contentTypesFixture,
+          genres: genresFixture,
         },
       },
     });

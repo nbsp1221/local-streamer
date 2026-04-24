@@ -4,30 +4,42 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import type { HomeLibraryVideo } from '~/entities/library-video/model/library-video';
+import type { VideoTaxonomyItem } from '~/modules/library/domain/video-taxonomy';
+import { VideoTagInput } from '~/features/video-metadata/ui/VideoTagInput';
+import {
+  VideoTaxonomyMultiSelect,
+  VideoTaxonomySingleSelect,
+} from '~/features/video-metadata/ui/VideoTaxonomyCombobox';
 import { Button } from '~/shared/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '~/shared/ui/form';
 import { Input } from '~/shared/ui/input';
 import { Textarea } from '~/shared/ui/textarea';
 
 const formSchema = z.object({
+  contentTypeSlug: z.string().nullable().optional(),
+  genreSlugs: z.array(z.string()),
   title: z.string().min(1, 'Title is required').max(200, 'Title must be within 200 characters'),
-  tags: z.string(),
+  tags: z.array(z.string()),
   description: z.string().max(1000, 'Description must be within 1000 characters').optional(),
 });
 
 interface EditHomeVideoFormProps {
+  contentTypes: VideoTaxonomyItem[];
+  genres: VideoTaxonomyItem[];
   video: HomeLibraryVideo;
   onCancel: () => void;
-  onSave: (data: { title: string; tags: string[]; description?: string }) => Promise<void>;
+  onSave: (data: { contentTypeSlug?: string | null; title: string; tags: string[]; genreSlugs: string[]; description?: string }) => Promise<void>;
 }
 
-export function EditHomeVideoForm({ video, onCancel, onSave }: EditHomeVideoFormProps) {
+export function EditHomeVideoForm({ contentTypes, genres, video, onCancel, onSave }: EditHomeVideoFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      contentTypeSlug: video.contentTypeSlug ?? null,
+      genreSlugs: video.genreSlugs ?? [],
       title: video.title,
-      tags: video.tags.join(', '),
+      tags: video.tags,
       description: video.description || '',
     },
   });
@@ -36,8 +48,10 @@ export function EditHomeVideoForm({ video, onCancel, onSave }: EditHomeVideoForm
     setIsSubmitting(true);
     try {
       await onSave({
+        contentTypeSlug: values.contentTypeSlug ?? null,
         title: values.title,
-        tags: values.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+        tags: values.tags,
+        genreSlugs: values.genreSlugs,
         description: values.description,
       });
     }
@@ -70,9 +84,51 @@ export function EditHomeVideoForm({ video, onCancel, onSave }: EditHomeVideoForm
             <FormItem>
               <FormLabel>Tags</FormLabel>
               <FormControl>
-                <Input
-                  placeholder="Enter tags separated by commas (e.g., action, comedy)"
-                  {...field}
+                <VideoTagInput
+                  ariaLabel="Tags"
+                  onChange={field.onChange}
+                  placeholder="Add tags like family, action, watch-later"
+                  value={field.value}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="contentTypeSlug"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Content type</FormLabel>
+              <FormControl>
+                <VideoTaxonomySingleSelect
+                  ariaLabel="Content type"
+                  onChange={field.onChange}
+                  options={contentTypes}
+                  placeholder="No content type"
+                  value={field.value ?? undefined}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="genreSlugs"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Genre</FormLabel>
+              <FormControl>
+                <VideoTaxonomyMultiSelect
+                  ariaLabel="Genre"
+                  onChange={field.onChange}
+                  options={genres}
+                  placeholder="No genres"
+                  value={field.value}
                 />
               </FormControl>
               <FormMessage />

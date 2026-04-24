@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { LibraryVideo } from '../../domain/library-video';
+import type { VideoTaxonomyItem } from '../../domain/video-taxonomy';
 import type { CreateSqliteDatabase, SqliteDatabaseAdapter } from './libsql-video-metadata.database';
 import { createVideoMetadataSqliteDatabase } from './libsql-video-metadata.database';
 
@@ -9,9 +10,11 @@ interface SqliteLibraryVideoMetadataRepositoryOptions {
 }
 
 interface LibraryVideoRow {
+  content_type_slug: string | null;
   created_at: string;
   description: string | null;
   duration: number;
+  genre_slugs_json: string;
   id: string;
   sort_index: number;
   tags_json: string;
@@ -20,10 +23,19 @@ interface LibraryVideoRow {
   video_url: string;
 }
 
+interface VideoTaxonomyRow {
+  active: number;
+  label: string;
+  slug: string;
+  sort_order: number;
+}
+
 export interface CreateLibraryVideoMetadataInput {
+  contentTypeSlug?: string;
   createdAt?: Date;
   description?: string;
   duration?: number;
+  genreSlugs?: string[];
   id?: string;
   sortIndex?: number;
   tags: string[];
@@ -33,8 +45,10 @@ export interface CreateLibraryVideoMetadataInput {
 }
 
 export interface UpdateLibraryVideoMetadataInput {
+  contentTypeSlug?: string | null;
   description?: string;
   duration?: number;
+  genreSlugs?: string[];
   tags?: string[];
   thumbnailUrl?: string;
   title?: string;
@@ -74,68 +88,47 @@ export class SqliteLibraryVideoMetadataRepository {
   async create(input: CreateLibraryVideoMetadataInput): Promise<LibraryVideo> {
     const database = await this.getDatabase();
     const createdAt = input.createdAt ?? new Date();
-    const sortIndex = input.sortIndex;
     const id = input.id ?? uuidv4();
 
-    if (typeof sortIndex === 'number') {
-      await database.prepare(`
-        INSERT INTO library_videos (
-          id,
-          title,
-          description,
-          duration,
-          video_url,
-          thumbnail_url,
-          tags_json,
-          created_at,
-          sort_index
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
+    await database.prepare(`
+      INSERT INTO library_videos (
         id,
-        input.title,
-        input.description ?? null,
-        input.duration ?? 0,
-        input.videoUrl,
-        input.thumbnailUrl ?? null,
-        JSON.stringify(input.tags),
-        createdAt.toISOString(),
-        sortIndex,
-      );
-    }
-    else {
-      await database.prepare(`
-        INSERT INTO library_videos (
-          id,
-          title,
-          description,
-          duration,
-          video_url,
-          thumbnail_url,
-          tags_json,
-          created_at,
-          sort_index
-        ) VALUES (
-          ?,
-          ?,
-          ?,
-          ?,
-          ?,
-          ?,
-          ?,
-          ?,
-          COALESCE((SELECT MAX(sort_index) FROM library_videos), 0) + 1
-        )
-      `).run(
-        id,
-        input.title,
-        input.description ?? null,
-        input.duration ?? 0,
-        input.videoUrl,
-        input.thumbnailUrl ?? null,
-        JSON.stringify(input.tags),
-        createdAt.toISOString(),
-      );
-    }
+        title,
+        description,
+        duration,
+        video_url,
+        thumbnail_url,
+        content_type_slug,
+        genre_slugs_json,
+        tags_json,
+        created_at,
+        sort_index
+      ) VALUES (
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        ?,
+        COALESCE(?, COALESCE((SELECT MAX(sort_index) FROM library_videos), 0) + 1)
+      )
+    `).run(
+      id,
+      input.title,
+      input.description ?? null,
+      input.duration ?? 0,
+      input.videoUrl,
+      input.thumbnailUrl ?? null,
+      input.contentTypeSlug ?? null,
+      JSON.stringify(input.genreSlugs ?? []),
+      JSON.stringify(input.tags),
+      createdAt.toISOString(),
+      input.sortIndex ?? null,
+    );
 
     const created = await this.findById(id);
     if (!created) {
@@ -169,6 +162,8 @@ export class SqliteLibraryVideoMetadataRepository {
         duration,
         video_url,
         thumbnail_url,
+        content_type_slug,
+        genre_slugs_json,
         tags_json,
         created_at,
         sort_index
@@ -189,6 +184,8 @@ export class SqliteLibraryVideoMetadataRepository {
         duration,
         video_url,
         thumbnail_url,
+        content_type_slug,
+        genre_slugs_json,
         tags_json,
         created_at,
         sort_index
@@ -249,6 +246,16 @@ export class SqliteLibraryVideoMetadataRepository {
     }
 
     const database = await this.getDatabase();
+    const nextContentTypeSlug = getNextNullableMetadataValue(
+      updates,
+      'contentTypeSlug',
+      existing.contentTypeSlug,
+    );
+    const nextGenreSlugs = getNextListMetadataValue(
+      updates,
+      'genreSlugs',
+      existing.genreSlugs ?? [],
+    );
     await database.prepare(`
       UPDATE library_videos
       SET
@@ -257,6 +264,8 @@ export class SqliteLibraryVideoMetadataRepository {
         duration = ?,
         video_url = ?,
         thumbnail_url = ?,
+        content_type_slug = ?,
+        genre_slugs_json = ?,
         tags_json = ?
       WHERE id = ?
     `).run(
@@ -269,23 +278,94 @@ export class SqliteLibraryVideoMetadataRepository {
       typeof updates.thumbnailUrl === 'undefined'
         ? existing.thumbnailUrl ?? null
         : updates.thumbnailUrl ?? null,
+      nextContentTypeSlug,
+      JSON.stringify(nextGenreSlugs),
       JSON.stringify(updates.tags ?? existing.tags),
       id,
     );
 
     return this.findById(id);
   }
+
+  async listActiveContentTypes(): Promise<VideoTaxonomyItem[]> {
+    return this.listActiveVocabulary('video_content_types');
+  }
+
+  async listActiveGenres(): Promise<VideoTaxonomyItem[]> {
+    return this.listActiveVocabulary('video_genres');
+  }
+
+  private async listActiveVocabulary(
+    tableName: 'video_content_types' | 'video_genres',
+  ): Promise<VideoTaxonomyItem[]> {
+    const database = await this.getDatabase();
+    const rows = await database.prepare<VideoTaxonomyRow>(`
+      SELECT slug, label, active, sort_order
+      FROM ${tableName}
+      WHERE active = 1
+      ORDER BY sort_order ASC, label ASC
+    `).all();
+
+    return rows.map(row => ({
+      active: row.active === 1,
+      label: row.label,
+      slug: row.slug,
+      sortOrder: row.sort_order,
+    }));
+  }
 }
 
 function mapRowToLibraryVideo(row: LibraryVideoRow): LibraryVideo {
   return {
+    contentTypeSlug: row.content_type_slug ?? undefined,
     createdAt: new Date(row.created_at),
     description: row.description ?? undefined,
     duration: row.duration,
+    genreSlugs: parseJsonStringArray(row.genre_slugs_json),
     id: row.id,
-    tags: JSON.parse(row.tags_json) as string[],
+    tags: parseJsonStringArray(row.tags_json),
     thumbnailUrl: row.thumbnail_url ?? undefined,
     title: row.title,
     videoUrl: row.video_url,
   };
+}
+
+function getNextNullableMetadataValue<
+  TUpdates extends object,
+  TKey extends keyof TUpdates,
+>(
+  updates: TUpdates,
+  key: TKey,
+  existingValue: string | undefined,
+): string | null {
+  const nextValue = updates[key];
+
+  if (!Object.hasOwn(updates, key) || typeof nextValue === 'undefined') {
+    return existingValue ?? null;
+  }
+
+  return (nextValue as string | null) ?? null;
+}
+
+function getNextListMetadataValue<
+  TUpdates extends object,
+  TKey extends keyof TUpdates,
+>(
+  updates: TUpdates,
+  key: TKey,
+  existingValue: string[],
+): string[] {
+  const nextValue = updates[key];
+
+  return Object.hasOwn(updates, key) && Array.isArray(nextValue)
+    ? nextValue
+    : existingValue;
+}
+
+function parseJsonStringArray(value: string): string[] {
+  const parsed = JSON.parse(value) as unknown;
+
+  return Array.isArray(parsed)
+    ? parsed.filter(item => typeof item === 'string')
+    : [];
 }

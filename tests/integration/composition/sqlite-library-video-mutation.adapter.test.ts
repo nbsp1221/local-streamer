@@ -8,9 +8,11 @@ describe('sqlite library video mutation adapter', () => {
 
   test('reads and updates library videos through the sqlite metadata repository', async () => {
     const findById = vi.fn(async (videoId: string) => ({
+      contentTypeSlug: 'movie',
       createdAt: new Date('2026-03-10T00:00:00.000Z'),
       description: 'Fixture description',
       duration: 95,
+      genreSlugs: ['action'],
       id: videoId,
       tags: ['Action', 'Drama'],
       thumbnailUrl: '/api/thumbnail/video-1',
@@ -18,9 +20,11 @@ describe('sqlite library video mutation adapter', () => {
       videoUrl: '/videos/video-1/manifest.mpd',
     }));
     const update = vi.fn(async (videoId: string, input: Record<string, unknown>) => ({
+      contentTypeSlug: input.contentTypeSlug as string | undefined,
       createdAt: new Date('2026-03-10T00:00:00.000Z'),
       description: input.description as string,
       duration: 95,
+      genreSlugs: input.genreSlugs as string[],
       id: videoId,
       tags: input.tags as string[],
       thumbnailUrl: '/api/thumbnail/video-1',
@@ -42,12 +46,15 @@ describe('sqlite library video mutation adapter', () => {
       title: 'Fixture Video',
     }));
     await expect(adapter.updateLibraryVideo({
+      contentTypeSlug: 'home_video',
       description: 'Updated description',
+      genreSlugs: ['documentary'],
       tags: ['Neo'],
       title: 'Updated title',
       videoId: 'video-1',
     })).resolves.toEqual(expect.objectContaining({
       description: 'Updated description',
+      genreSlugs: ['documentary'],
       id: 'video-1',
       tags: ['Neo'],
       title: 'Updated title',
@@ -55,7 +62,81 @@ describe('sqlite library video mutation adapter', () => {
 
     expect(findById).toHaveBeenCalledWith('video-1');
     expect(update).toHaveBeenCalledWith('video-1', {
+      contentTypeSlug: 'home_video',
       description: 'Updated description',
+      genreSlugs: ['documentary'],
+      tags: ['Neo'],
+      title: 'Updated title',
+    });
+  });
+
+  test('preserves structured metadata omission semantics at the repository boundary', async () => {
+    const findById = vi.fn();
+    const update = vi.fn(async (videoId: string, input: Record<string, unknown>) => ({
+      contentTypeSlug: input.contentTypeSlug as string | undefined,
+      createdAt: new Date('2026-03-10T00:00:00.000Z'),
+      description: input.description as string,
+      duration: 95,
+      genreSlugs: input.genreSlugs as string[] | undefined ?? ['action'],
+      id: videoId,
+      tags: input.tags as string[],
+      thumbnailUrl: '/api/thumbnail/video-1',
+      title: input.title as string,
+      videoUrl: '/videos/video-1/manifest.mpd',
+    }));
+
+    const { SqliteLibraryVideoMutationAdapter } = await import('../../../app/modules/library/infrastructure/sqlite/sqlite-library-video-mutation.adapter');
+    const adapter = new SqliteLibraryVideoMutationAdapter({
+      repository: {
+        delete: vi.fn(),
+        findById,
+        update,
+      },
+    });
+
+    await adapter.updateLibraryVideo({
+      description: 'Updated description',
+      tags: ['Neo'],
+      title: 'Updated title',
+      videoId: 'video-1',
+    });
+
+    expect(update).toHaveBeenNthCalledWith(1, 'video-1', {
+      description: 'Updated description',
+      tags: ['Neo'],
+      title: 'Updated title',
+    });
+    expect(Object.hasOwn(update.mock.calls[0][1], 'contentTypeSlug')).toBe(false);
+    expect(Object.hasOwn(update.mock.calls[0][1], 'genreSlugs')).toBe(false);
+
+    await adapter.updateLibraryVideo({
+      contentTypeSlug: undefined,
+      description: 'Updated description',
+      tags: ['Neo'],
+      title: 'Updated title',
+      videoId: 'video-1',
+    });
+
+    expect(update).toHaveBeenNthCalledWith(2, 'video-1', {
+      description: 'Updated description',
+      tags: ['Neo'],
+      title: 'Updated title',
+    });
+    expect(Object.hasOwn(update.mock.calls[1][1], 'contentTypeSlug')).toBe(false);
+
+    await adapter.updateLibraryVideo({
+      contentTypeSlug: null,
+      description: 'Updated description',
+      genreSlugs: [],
+      tags: ['Neo'],
+      title: 'Updated title',
+      videoId: 'video-1',
+    });
+
+    expect(update).toHaveBeenNthCalledWith(3, 'video-1', {
+      contentTypeSlug: null,
+      description: 'Updated description',
+      genreSlugs: [],
       tags: ['Neo'],
       title: 'Updated title',
     });
@@ -67,6 +148,7 @@ describe('sqlite library video mutation adapter', () => {
       .mockResolvedValueOnce({
         createdAt: new Date('2026-03-10T00:00:00.000Z'),
         duration: 95,
+        genreSlugs: [],
         id: 'video-1',
         tags: ['Action'],
         title: 'Fixture Video',

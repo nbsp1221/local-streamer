@@ -18,6 +18,9 @@ test.describe('add-videos owner upload smoke', () => {
     await expect(page.getByText('Ready to Add')).toBeVisible();
 
     await page.getByLabel('Title *').fill('Uploaded Smoke Fixture');
+    await page.getByLabel('Tags').fill('Good Boy-comedy');
+    await page.getByLabel('Tags').press('Enter');
+    await expect(page.getByText('good boy-comedy')).toBeVisible();
     await page.getByRole('button', { name: 'Add to Library' }).click();
 
     await expect(
@@ -27,7 +30,8 @@ test.describe('add-videos owner upload smoke', () => {
     await page.getByRole('button', { name: 'Upload Another Video' }).click();
     await expect(page.getByRole('button', { name: 'Choose Video' })).toBeVisible();
 
-    await page.goto('/?q=Uploaded');
+    await page.goto('/?q=good_boy-comedy&tag=good_boy-comedy');
+    await expect(page.getByText('Has: good boy-comedy')).toBeVisible();
     await expect(page.getByRole('heading', { level: 3, name: 'Uploaded Smoke Fixture' }).first()).toBeVisible();
   });
 });

@@ -93,7 +93,7 @@ describe('useAddVideosView', () => {
 
     act(() => {
       result.current.handleTitleChange('Custom title');
-      result.current.handleTagsChange('one, two');
+      result.current.handleTagsChange(['one', 'two']);
       result.current.handleDescriptionChange('Custom description');
       result.current.handleEncodingOptionsChange({
         encoder: 'gpu-h264',
@@ -116,6 +116,7 @@ describe('useAddVideosView', () => {
       encodingOptions: {
         encoder: 'gpu-h264',
       },
+      genreSlugs: [],
       tags: ['one', 'two'],
       title: 'Custom title',
     });

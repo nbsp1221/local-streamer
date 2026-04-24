@@ -37,8 +37,8 @@ function RouteOwnedHomeLibraryWidget({ videos }: { videos: HomeLibraryVideo[] })
   return (
     <HomeLibraryWidget
       initialFilters={{
+        includeTags: searchParams.getAll('tag'),
         query: searchParams.get('q') ?? '',
-        tags: searchParams.getAll('tag'),
       }}
       videos={videos}
     />
@@ -48,15 +48,19 @@ function RouteOwnedHomeLibraryWidget({ videos }: { videos: HomeLibraryVideo[] })
 describe('home library surfaces', () => {
   test('LibraryVideoCard renders title, keyboard-accessible tag actions, date, and duration', () => {
     const expectedDate = new Intl.DateTimeFormat('en-US').format(new Date('2026-03-11T00:00:00.000Z'));
+    const onTagClick = vi.fn();
 
     render(
       <MemoryRouter>
-        <LibraryVideoCard video={createVideo()} />
+        <LibraryVideoCard
+          onTagClick={onTagClick}
+          video={createVideo({ tags: ['good_boy-comedy'] })}
+        />
       </MemoryRouter>,
     );
 
     expect(screen.getByRole('heading', { level: 3, name: 'Catalog Fixture' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '#Action' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '#good boy-comedy' })).toBeInTheDocument();
     expect(screen.getByText('3:00')).toBeInTheDocument();
     expect(screen.getByText(expectedDate)).toBeInTheDocument();
   });
@@ -90,6 +94,7 @@ describe('home library surfaces', () => {
             isOpen: true,
             video: createVideo({
               description: 'A stored vault clip.',
+              tags: ['good_boy-comedy'],
             }),
           }}
           onClose={vi.fn()}
@@ -102,7 +107,7 @@ describe('home library surfaces', () => {
 
     expect(screen.getByRole('heading', { name: 'Catalog Fixture' })).toBeInTheDocument();
     expect(screen.getByText('A stored vault clip.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '#Action' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '#good boy-comedy' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Watch' })).toHaveAttribute('href', '/player/video-1');
   });
 
@@ -111,8 +116,8 @@ describe('home library surfaces', () => {
       <MemoryRouter>
         <HomeLibraryWidget
           initialFilters={{
+            includeTags: [],
             query: '',
-            tags: [],
           }}
           videos={[]}
         />
@@ -134,8 +139,8 @@ describe('home library surfaces', () => {
       <MemoryRouter initialEntries={['/']}>
         <HomeLibraryWidget
           initialFilters={{
+            includeTags: [],
             query: '',
-            tags: [],
           }}
           videos={[createVideo()]}
         />
@@ -147,7 +152,7 @@ describe('home library surfaces', () => {
     expect(screen.getByTestId('location-search')).toHaveTextContent('?q=Action');
 
     await user.click(screen.getByRole('button', { name: '#Action' }));
-    expect(screen.getByTestId('location-search')).toHaveTextContent('?q=Action&tag=Action');
+    expect(screen.getByTestId('location-search')).toHaveTextContent('?q=Action&tag=action');
   });
 
   test('HomeLibraryWidget resyncs visible filters when same-route URL navigation changes q/tag state', async () => {
@@ -231,10 +236,10 @@ describe('home library surfaces', () => {
     expect(screen.getByLabelText('Search library (desktop)')).toHaveValue('Action');
 
     await user.click(screen.getByRole('button', { name: '#Action' }));
-    expect(screen.getByRole('button', { name: 'Remove #Action filter' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove required action tag' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Go back' }));
-    expect(screen.queryByRole('button', { name: 'Remove #Action filter' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove required action tag' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Search library (desktop)')).toHaveValue('Action');
   });
 });

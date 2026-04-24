@@ -81,12 +81,14 @@ describe('CommitStagedUploadToLibraryUseCase', () => {
     });
 
     await expect(useCase.execute({
+      contentTypeSlug: ' Movie ',
       description: 'A test upload',
       encodingOptions: {
         encoder: 'cpu-h264',
       },
+      genreSlugs: ['Drama', 'Action'],
       stagingId: 'staging-123',
-      tags: ['fixture', 'test'],
+      tags: ['fixture', 'Good Boy-comedy', 'good_boy-comedy'],
       title: 'Fixture Video',
     })).resolves.toEqual({
       ok: true,
@@ -111,10 +113,12 @@ describe('CommitStagedUploadToLibraryUseCase', () => {
       workspaceRootDir: expect.any(String),
     });
     expect(writeVideoRecord).toHaveBeenCalledWith({
+      contentTypeSlug: 'movie',
       description: 'A test upload',
       duration: 120,
+      genreSlugs: ['drama', 'action'],
       id: 'video-123',
-      tags: ['fixture', 'test'],
+      tags: ['fixture', 'good_boy-comedy'],
       thumbnailUrl: '/api/thumbnail/video-123',
       title: 'Fixture Video',
       videoUrl: '/videos/video-123/manifest.mpd',

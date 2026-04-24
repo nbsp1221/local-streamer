@@ -2,6 +2,8 @@ import { Clock, Edit, Play, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import type { HomeLibraryVideo } from '~/entities/library-video/model/library-video';
+import type { VideoTaxonomyItem } from '~/modules/library/domain/video-taxonomy';
+import { formatVideoTagLabel } from '~/modules/library/domain/video-tag';
 import { formatDisplayDate } from '~/shared/lib/format-display-date';
 import { formatDuration } from '~/shared/lib/format-duration';
 import { AspectRatio } from '~/shared/ui/aspect-ratio';
@@ -23,12 +25,16 @@ export interface HomeLibraryModalState {
 }
 
 interface UpdateVideoPayload {
+  contentTypeSlug?: string | null;
   title: string;
   tags: string[];
+  genreSlugs: string[];
   description?: string;
 }
 
 interface HomeQuickViewDialogProps {
+  contentTypes?: VideoTaxonomyItem[];
+  genres?: VideoTaxonomyItem[];
   modalState: HomeLibraryModalState;
   isOpen?: boolean;
   onClose: () => void;
@@ -38,6 +44,8 @@ interface HomeQuickViewDialogProps {
 }
 
 export function HomeQuickViewDialog({
+  contentTypes = [],
+  genres = [],
   modalState,
   isOpen,
   onClose,
@@ -157,6 +165,8 @@ export function HomeQuickViewDialog({
                     </div>
                   )}
                   <EditHomeVideoForm
+                    contentTypes={contentTypes}
+                    genres={genres}
                     video={video}
                     onSave={handleEditSave}
                     onCancel={() => {
@@ -215,7 +225,7 @@ export function HomeQuickViewDialog({
                               className="cursor-pointer transition-colors hover:bg-primary hover:text-primary-foreground"
                               onClick={event => handleTagClick(tag, event)}
                             >
-                              #{tag}
+                              #{formatVideoTagLabel(tag)}
                             </button>
                           </Badge>
                         ))}

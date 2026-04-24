@@ -55,6 +55,8 @@ describe('server library mutation composition root', () => {
         updateLibraryVideo,
       },
       videoSource: {
+        listActiveContentTypes: vi.fn(async () => []),
+        listActiveGenres: vi.fn(async () => []),
         listLibraryVideos: vi.fn(async () => []),
       },
     });

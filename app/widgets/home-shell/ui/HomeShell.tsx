@@ -1,9 +1,8 @@
-import { Menu, Upload } from 'lucide-react';
+import { Menu, SlidersHorizontal, Upload } from 'lucide-react';
 import { type ReactNode, useEffect, useId, useState } from 'react';
 import { Link, useLocation } from 'react-router';
 import {
   type HomeNavigationItem,
-  HOME_BROWSE_ITEMS,
   HOME_LIBRARY_ITEMS,
   HOME_MANAGEMENT_ITEMS,
   HOME_SETTINGS_ITEMS,
@@ -14,6 +13,7 @@ import { Button } from '~/shared/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '~/shared/ui/dialog';
@@ -29,17 +29,11 @@ import {
 } from '~/shared/ui/sidebar';
 
 interface HomeShellProps {
+  activeFilterCount?: number;
   children: ReactNode;
+  onOpenFilters?: () => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
-}
-
-function isActiveGenre(pathname: string, search: string, genreId: string, path: string) {
-  if (genreId === 'all') {
-    return pathname === '/' && !search.includes('genre=');
-  }
-
-  return search.includes(`genre=${genreId}`) || pathname === path;
 }
 
 function mergeHomeSearchState(path: string, currentSearch: string) {
@@ -49,12 +43,20 @@ function mergeHomeSearchState(path: string, currentSearch: string) {
 
   const query = currentParams.get('q');
   const tags = currentParams.getAll('tag');
+  const excludedTags = currentParams.getAll('notTag');
+  const type = currentParams.get('type');
+  const genres = currentParams.getAll('genre');
 
   if (query) {
     targetParams.set('q', query);
   }
 
   tags.forEach(tag => targetParams.append('tag', tag));
+  excludedTags.forEach(tag => targetParams.append('notTag', tag));
+  if (type) {
+    targetParams.set('type', type);
+  }
+  genres.forEach(genre => targetParams.append('genre', genre));
 
   const nextSearch = targetParams.toString();
   return nextSearch.length > 0 ? `${targetUrl.pathname}?${nextSearch}` : targetUrl.pathname;
@@ -81,10 +83,8 @@ function NavigationSection({
       <SidebarMenu>
         {items.map((item) => {
           const Icon = item.icon;
-          const isActive = title === 'Browse'
-            ? isActiveGenre(pathname, search, item.id, item.path)
-            : pathname === item.path;
-          const href = title === 'Browse' ? mergeHomeSearchState(item.path, search) : item.path;
+          const isActive = pathname === item.path;
+          const href = item.path === '/' ? mergeHomeSearchState(item.path, search) : item.path;
 
           return (
             <SidebarMenuItem key={item.id}>
@@ -134,7 +134,6 @@ function HomeNavigation({
       </SidebarHeader>
 
       <SidebarContent className="flex-1 p-4 space-y-6">
-        <NavigationSection title="Browse" items={HOME_BROWSE_ITEMS} onNavigate={onNavigate} pathname={pathname} search={search} />
         <NavigationSection title="Library" items={HOME_LIBRARY_ITEMS} onNavigate={onNavigate} pathname={pathname} search={search} />
         <NavigationSection title="Manage" items={HOME_MANAGEMENT_ITEMS} onNavigate={onNavigate} pathname={pathname} search={search} />
       </SidebarContent>
@@ -148,6 +147,8 @@ function HomeNavigation({
 
 function HomeShellContent({
   children,
+  activeFilterCount = 0,
+  onOpenFilters,
   searchQuery,
   onSearchChange,
 }: HomeShellProps) {
@@ -196,6 +197,22 @@ function HomeShellContent({
                   onChange={onSearchChange}
                 />
               </div>
+              {onOpenFilters ? (
+                <Button
+                  onClick={onOpenFilters}
+                  type="button"
+                  variant="outline"
+                  className="hidden md:inline-flex"
+                >
+                  <SlidersHorizontal data-icon="inline-start" />
+                  Filters
+                  {activeFilterCount > 0 ? (
+                    <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+                      {activeFilterCount}
+                    </span>
+                  ) : null}
+                </Button>
+              ) : null}
             </div>
 
             <div className="flex items-center gap-4">
@@ -212,12 +229,23 @@ function HomeShellContent({
             </div>
           </div>
 
-          <div className="border-b border-border px-4 pb-4 md:hidden">
+          <div className="flex gap-2 border-b border-border px-4 pb-4 md:hidden">
             <HomeSearchField
               ariaLabel="Search library (mobile)"
               value={searchQuery}
               onChange={onSearchChange}
             />
+            {onOpenFilters ? (
+              <Button
+                aria-label="Open filters"
+                onClick={onOpenFilters}
+                size="icon"
+                type="button"
+                variant="outline"
+              >
+                <SlidersHorizontal />
+              </Button>
+            ) : null}
           </div>
         </header>
 
@@ -227,13 +255,15 @@ function HomeShellContent({
       <Dialog open={isNavigationOpen} onOpenChange={setIsNavigationOpen}>
         <DialogContent
           showCloseButton={false}
-          aria-describedby={undefined}
           aria-label="Navigation menu"
           id={navigationDialogId}
           className="left-0 top-0 h-svh max-h-svh w-[18rem] max-w-[18rem] translate-x-0 translate-y-0 rounded-none border-r p-0 md:hidden"
         >
           <DialogHeader className="sr-only">
             <DialogTitle>Navigation menu</DialogTitle>
+            <DialogDescription>
+              Primary navigation links for the library, management, and settings pages.
+            </DialogDescription>
           </DialogHeader>
           <nav className="flex h-full flex-col">
             <HomeNavigation

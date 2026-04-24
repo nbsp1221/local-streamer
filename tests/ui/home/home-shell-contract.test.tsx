@@ -41,44 +41,33 @@ describe('Home shell contract', () => {
     render(
       <MemoryRouter>
         <HomePage
-          initialFilters={{ query: '', tags: [] }}
+          initialFilters={{ query: '' }}
           videos={[createVideo()]}
         />
       </MemoryRouter>,
     );
 
-    const browseHeading = screen.getByRole('heading', { level: 3, name: 'Browse' });
     const libraryHeading = screen.getByRole('heading', { level: 3, name: 'Library' });
     const manageHeading = screen.getByRole('heading', { level: 3, name: 'Manage' });
     const settingsHeading = screen.getByRole('heading', { level: 3, name: 'Settings' });
     const homeLink = screen.getByRole('link', { name: 'All Videos' });
-    const moviesLink = screen.getByRole('link', { name: 'Movies' });
-    const dramaLink = screen.getByRole('link', { name: 'Drama Series' });
-    const animationLink = screen.getByRole('link', { name: 'Animation' });
-    const documentaryLink = screen.getByRole('link', { name: 'Documentary' });
-    const varietyLink = screen.getByRole('link', { name: 'Variety Show' });
-    const otherLink = screen.getByRole('link', { name: 'Other' });
     const playlistsLink = screen.getByRole('link', { name: 'Playlists' });
     const uploadLink = screen.getAllByRole('link', { name: /Upload/i })[0];
     const settingsLink = screen.getByRole('link', { name: 'Settings' });
-    const desktopSearch = screen.getAllByPlaceholderText('Search movies, TV series...')[0];
+    const desktopSearch = screen.getAllByPlaceholderText('Search titles and tags...')[0];
+    const filtersButton = screen.getByRole('button', { name: 'Filters' });
     const accountMenu = screen.getByTitle('Account Menu');
 
     expect(screen.getByText('Local Streamer')).toBeInTheDocument();
-    expect(browseHeading.compareDocumentPosition(libraryHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(libraryHeading.compareDocumentPosition(manageHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(manageHeading.compareDocumentPosition(settingsHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(homeLink).toHaveAttribute('href', '/');
-    expect(moviesLink).toHaveAttribute('href', '/?genre=movie');
-    expect(dramaLink).toHaveAttribute('href', '/?genre=drama');
-    expect(animationLink).toHaveAttribute('href', '/?genre=animation');
-    expect(documentaryLink).toHaveAttribute('href', '/?genre=documentary');
-    expect(varietyLink).toHaveAttribute('href', '/?genre=variety');
-    expect(otherLink).toHaveAttribute('href', '/?genre=other');
+    expect(screen.queryByRole('heading', { level: 3, name: 'Browse' })).not.toBeInTheDocument();
     expect(playlistsLink).toHaveAttribute('href', '/playlists');
     expect(uploadLink).toHaveAttribute('href', '/add-videos');
     expect(settingsLink).toHaveAttribute('href', '/settings');
     expect(desktopSearch).toBeInTheDocument();
+    expect(filtersButton).toBeInTheDocument();
     expect(accountMenu).toBeInTheDocument();
   });
 
@@ -86,17 +75,17 @@ describe('Home shell contract', () => {
     render(
       <MemoryRouter>
         <HomePage
-          initialFilters={{ query: 'Action', tags: [] }}
+          initialFilters={{ query: 'Action' }}
           videos={[createVideo()]}
         />
       </MemoryRouter>,
     );
 
-    expect(screen.getAllByPlaceholderText('Search movies, TV series...')).toHaveLength(2);
+    expect(screen.getAllByPlaceholderText('Search titles and tags...')).toHaveLength(2);
     expect(screen.getAllByDisplayValue('Action')).toHaveLength(2);
   });
 
-  test('preserves q/tag URL state when browse navigation changes the visible genre affordance', async () => {
+  test('preserves q/tag/type/genre URL state when home navigation returns to all videos', async () => {
     const user = userEvent.setup();
 
     function LocationProbe() {
@@ -105,21 +94,29 @@ describe('Home shell contract', () => {
     }
 
     render(
-      <MemoryRouter initialEntries={['/?q=Action&tag=Action']}>
+      <MemoryRouter initialEntries={['/?q=Action&tag=action&notTag=spoiler&type=movie&genre=action']}>
         <HomePage
-          initialFilters={{ query: 'Action', tags: ['Action'] }}
+          initialFilters={{
+            contentTypeSlug: 'movie',
+            excludeTags: ['spoiler'],
+            genreSlugs: ['action'],
+            includeTags: ['action'],
+            query: 'Action',
+          }}
           videos={[createVideo()]}
         />
         <LocationProbe />
       </MemoryRouter>,
     );
 
-    await user.click(screen.getByRole('link', { name: 'Movies' }));
+    await user.click(screen.getByRole('link', { name: 'All Videos' }));
 
     const nextSearch = new URLSearchParams(screen.getByTestId('location-search').textContent ?? '');
     expect(nextSearch.get('q')).toBe('Action');
-    expect(nextSearch.getAll('tag')).toEqual(['Action']);
-    expect(nextSearch.get('genre')).toBe('movie');
+    expect(nextSearch.getAll('tag')).toEqual(['action']);
+    expect(nextSearch.getAll('notTag')).toEqual(['spoiler']);
+    expect(nextSearch.get('type')).toBe('movie');
+    expect(nextSearch.getAll('genre')).toEqual(['action']);
   });
 
   test('opens an accessible mobile navigation drawer and closes it again', async () => {
@@ -127,7 +124,7 @@ describe('Home shell contract', () => {
     render(
       <MemoryRouter>
         <HomePage
-          initialFilters={{ query: '', tags: [] }}
+          initialFilters={{ query: '' }}
           videos={[createVideo()]}
         />
       </MemoryRouter>,
@@ -142,7 +139,7 @@ describe('Home shell contract', () => {
     expect(toggleButton).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('dialog', { name: 'Navigation menu' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('link', { name: 'Movies' }));
+    await user.click(screen.getByRole('link', { name: 'All Videos' }));
     expect(screen.queryByRole('dialog', { name: 'Navigation menu' })).not.toBeInTheDocument();
 
     await user.click(toggleButton);

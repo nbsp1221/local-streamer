@@ -2,8 +2,10 @@ import { useCallback } from 'react';
 import type { HomeLibraryVideo } from '~/entities/library-video/model/library-video';
 
 interface UpdateVideoPayload {
+  contentTypeSlug?: string | null;
   title: string;
   tags: string[];
+  genreSlugs: string[];
   description?: string;
 }
 

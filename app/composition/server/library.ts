@@ -3,6 +3,7 @@ import type { LibraryVideoMutationPort } from '~/modules/library/application/por
 import type { LibraryVideoSourcePort } from '~/modules/library/application/ports/library-video-source.port';
 import { DeleteLibraryVideoUseCase } from '~/modules/library/application/use-cases/delete-library-video.usecase';
 import { LoadLibraryCatalogSnapshotUseCase } from '~/modules/library/application/use-cases/load-library-catalog-snapshot.usecase';
+import { LoadVideoMetadataVocabularyUseCase } from '~/modules/library/application/use-cases/load-video-metadata-vocabulary.usecase';
 import { UpdateLibraryVideoUseCase } from '~/modules/library/application/use-cases/update-library-video.usecase';
 import { SqliteCanonicalVideoMetadataAdapter } from '~/modules/library/infrastructure/sqlite/sqlite-canonical-video-metadata.adapter';
 import { SqliteLibraryVideoMutationAdapter } from '~/modules/library/infrastructure/sqlite/sqlite-library-video-mutation.adapter';
@@ -15,6 +16,7 @@ export interface LoadLibraryCatalogSnapshotService {
 export interface ServerLibraryServices {
   deleteLibraryVideo: DeleteLibraryVideoUseCase;
   loadLibraryCatalogSnapshot: LoadLibraryCatalogSnapshotService;
+  loadVideoMetadataVocabulary: LoadVideoMetadataVocabularyUseCase;
   updateLibraryVideo: UpdateLibraryVideoUseCase;
 }
 
@@ -47,6 +49,9 @@ export function createServerLibraryServices(
       videoMutation: deps.mutationPort,
     }),
     loadLibraryCatalogSnapshot: new LoadLibraryCatalogSnapshotUseCase({
+      videoSource: deps.videoSource,
+    }),
+    loadVideoMetadataVocabulary: new LoadVideoMetadataVocabularyUseCase({
       videoSource: deps.videoSource,
     }),
     updateLibraryVideo: new UpdateLibraryVideoUseCase({

@@ -10,7 +10,9 @@ import {
 
 export interface FileMetadataState {
   title: string;
-  tags: string;
+  tags: string[];
+  contentTypeSlug?: string;
+  genreSlugs: string[];
   description: string;
   encodingOptions: AddVideosEncodingOptions;
 }
@@ -59,26 +61,22 @@ interface UseAddVideosViewResult {
   handleClearSession: () => void;
   handleDescriptionChange: (value: string) => void;
   handleEncodingOptionsChange: (options: AddVideosEncodingOptions) => void;
+  handleContentTypeChange: (value: string | undefined) => void;
+  handleGenreSlugsChange: (value: string[]) => void;
   handleRemoveSession: () => Promise<void>;
   handleRetryUpload: () => void;
-  handleTagsChange: (value: string) => void;
+  handleTagsChange: (value: string[]) => void;
   handleTitleChange: (value: string) => void;
 }
 
 function createInitialMetadata(filename: string): FileMetadataState {
   return {
     title: filename.replace(/\.[^/.]+$/, ''),
-    tags: '',
+    tags: [],
+    genreSlugs: [],
     description: '',
     encodingOptions: createDefaultAddVideosEncodingOptions(),
   };
-}
-
-function parseTags(tags: string) {
-  return tags
-    .split(',')
-    .map(tag => tag.trim())
-    .filter(tag => tag.length > 0);
 }
 
 function createUploadSession(file: File, metadata?: FileMetadataState): AddVideosSession {
@@ -229,8 +227,16 @@ export function useAddVideosView(
     updateSessionMetadata(current => ({ ...current, title: value }));
   };
 
-  const handleTagsChange = (value: string) => {
+  const handleTagsChange = (value: string[]) => {
     updateSessionMetadata(current => ({ ...current, tags: value }));
+  };
+
+  const handleContentTypeChange = (value: string | undefined) => {
+    updateSessionMetadata(current => ({ ...current, contentTypeSlug: value }));
+  };
+
+  const handleGenreSlugsChange = (value: string[]) => {
+    updateSessionMetadata(current => ({ ...current, genreSlugs: value }));
   };
 
   const handleDescriptionChange = (value: string) => {
@@ -265,9 +271,11 @@ export function useAddVideosView(
     try {
       const response = await fetchImpl(`/api/uploads/${session.stagingId}/commit`, {
         body: JSON.stringify({
+          contentTypeSlug: session.metadata.contentTypeSlug,
           description: session.metadata.description.trim() || undefined,
           encodingOptions: session.metadata.encodingOptions,
-          tags: parseTags(session.metadata.tags),
+          genreSlugs: session.metadata.genreSlugs,
+          tags: session.metadata.tags,
           title: session.metadata.title.trim(),
         }),
         headers: {
@@ -371,6 +379,8 @@ export function useAddVideosView(
     handleClearSession,
     handleDescriptionChange,
     handleEncodingOptionsChange,
+    handleContentTypeChange,
+    handleGenreSlugsChange,
     handleRemoveSession,
     handleRetryUpload,
     handleTagsChange,

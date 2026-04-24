@@ -31,6 +31,19 @@ function getUpdateFailureStatus(reason: UpdateVideoFailureReason) {
   return 500;
 }
 
+function copyPresentRouteMetadataFields(
+  input: Record<string, unknown>,
+  updateInput: UpdateLibraryVideoInput,
+) {
+  if (Object.hasOwn(input, 'contentTypeSlug')) {
+    updateInput.contentTypeSlug = input.contentTypeSlug;
+  }
+
+  if (Object.hasOwn(input, 'genreSlugs')) {
+    updateInput.genreSlugs = input.genreSlugs;
+  }
+}
+
 export function createUpdateVideoAction(
   deps: UpdateVideoActionDependencies,
 ) {
@@ -52,12 +65,16 @@ export function createUpdateVideoAction(
       const input = body && typeof body === 'object'
         ? body as Record<string, unknown>
         : {};
-      const result = await deps.getServerLibraryServices().updateLibraryVideo.execute({
+      const updateInput: UpdateLibraryVideoInput = {
         description: input.description,
         tags: input.tags,
         title: input.title,
         videoId,
-      });
+      };
+
+      copyPresentRouteMetadataFields(input, updateInput);
+
+      const result = await deps.getServerLibraryServices().updateLibraryVideo.execute(updateInput);
 
       if (!result.ok) {
         return Response.json({

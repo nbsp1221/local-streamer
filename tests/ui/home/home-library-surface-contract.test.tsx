@@ -43,7 +43,7 @@ describe('Home library surface contract', () => {
     render(
       <MemoryRouter>
         <HomePage
-          initialFilters={{ query: '', tags: [] }}
+          initialFilters={{ query: '' }}
           videos={[createVideo()]}
         />
       </MemoryRouter>,
@@ -68,7 +68,7 @@ describe('Home library surface contract', () => {
     render(
       <MemoryRouter>
         <HomePage
-          initialFilters={{ query: '', tags: ['Action'] }}
+          initialFilters={{ includeTags: ['Action'], query: '' }}
           videos={[createVideo()]}
         />
       </MemoryRouter>,
@@ -89,7 +89,10 @@ describe('Home library surface contract', () => {
     await user.click(screen.getByRole('button', { name: 'Edit Info' }));
     expect(screen.getByRole('heading', { name: 'Edit Video Information' })).toBeInTheDocument();
     expect(screen.getByLabelText('Title')).toHaveValue('Catalog Fixture');
-    expect(screen.getByLabelText('Tags')).toHaveValue('Action, Neo, Vault, Hidden');
+    expect(screen.getByText('Action')).toBeInTheDocument();
+    expect(screen.getByText('Neo')).toBeInTheDocument();
+    expect(screen.getByText('Vault')).toBeInTheDocument();
+    expect(screen.getByText('Hidden')).toBeInTheDocument();
     expect(screen.getByLabelText('Description (optional)')).toHaveValue('A stored vault clip.');
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -102,7 +105,7 @@ describe('Home library surface contract', () => {
     render(
       <MemoryRouter>
         <HomePage
-          initialFilters={{ query: '', tags: [] }}
+          initialFilters={{ query: '' }}
           videos={[]}
         />
       </MemoryRouter>,

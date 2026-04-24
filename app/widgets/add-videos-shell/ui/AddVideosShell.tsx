@@ -3,7 +3,6 @@ import { type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router';
 import {
   type HomeNavigationItem,
-  HOME_BROWSE_ITEMS,
   HOME_LIBRARY_ITEMS,
   HOME_MANAGEMENT_ITEMS,
   HOME_SETTINGS_ITEMS,
@@ -38,23 +37,13 @@ interface AddVideosShellProps {
   onSearchChange?: (query: string) => void;
 }
 
-function isActiveGenre(pathname: string, search: string, genreId: string, path: string) {
-  if (genreId === 'all') {
-    return pathname === '/' && !search.includes('genre=');
-  }
-
-  return search.includes(`genre=${genreId}`) || pathname === path;
-}
-
 function NavigationSection({
   items,
   pathname,
-  search,
   title,
 }: {
   items: HomeNavigationItem[];
   pathname: string;
-  search: string;
   title: string;
 }) {
   return (
@@ -65,9 +54,7 @@ function NavigationSection({
       <SidebarMenu>
         {items.map((item) => {
           const Icon = item.icon;
-          const isActive = title === 'Browse'
-            ? isActiveGenre(pathname, search, item.id, item.path)
-            : pathname === item.path;
+          const isActive = pathname === item.path;
 
           return (
             <SidebarMenuItem key={item.id}>
@@ -111,21 +98,13 @@ function AddVideosSidebar() {
 
       <SidebarContent className="flex-1 space-y-6 p-4">
         <NavigationSection
-          items={HOME_BROWSE_ITEMS}
-          pathname={location.pathname}
-          search={location.search}
-          title="Browse"
-        />
-        <NavigationSection
           items={HOME_LIBRARY_ITEMS}
           pathname={location.pathname}
-          search={location.search}
           title="Library"
         />
         <NavigationSection
           items={HOME_MANAGEMENT_ITEMS}
           pathname={location.pathname}
-          search={location.search}
           title="Manage"
         />
       </SidebarContent>
@@ -134,7 +113,6 @@ function AddVideosSidebar() {
         <NavigationSection
           items={HOME_SETTINGS_ITEMS}
           pathname={location.pathname}
-          search={location.search}
           title="Settings"
         />
       </SidebarFooter>
@@ -162,7 +140,7 @@ function AddVideosHeader({
               <Input
                 className="w-full rounded-full border-border bg-card pl-10 focus:ring-primary"
                 onChange={event => onSearchChange?.(event.target.value)}
-                placeholder="Search movies, TV series..."
+                placeholder="Search titles and tags..."
                 type="search"
                 value={searchQuery}
               />
@@ -231,7 +209,7 @@ function AddVideosHeader({
           <Input
             className="rounded-full border-border bg-card pl-10"
             onChange={event => onSearchChange?.(event.target.value)}
-            placeholder="Search movies, TV series..."
+            placeholder="Search titles and tags..."
             type="search"
             value={searchQuery}
           />

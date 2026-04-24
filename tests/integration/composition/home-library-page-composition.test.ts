@@ -5,7 +5,9 @@ function createFixtureVideo(overrides: Partial<LibraryVideo> = {}): LibraryVideo
   return {
     createdAt: new Date('2026-03-11T00:00:00.000Z'),
     duration: 180,
+    genreSlugs: ['action'],
     id: 'video-1',
+    contentTypeSlug: 'movie',
     tags: ['Action'],
     title: 'Catalog Fixture',
     videoUrl: '/videos/video-1/manifest.mpd',
@@ -27,10 +29,16 @@ describe('home library page composition root', () => {
             ok: true as const,
             data: {
               filters: {
+                contentTypeSlug: undefined,
                 displayQuery: ' Action ',
+                excludeTags: [],
+                genreSlugs: [],
+                includeTags: ['action', 'drama'],
                 normalizedQuery: 'action',
-                normalizedTags: ['action', 'drama'],
-                rawTags: ['Action', 'Drama'],
+              },
+              vocabulary: {
+                contentTypes: [{ active: true, label: 'Movie', slug: 'movie', sortOrder: 10 }],
+                genres: [{ active: true, label: 'Action', slug: 'action', sortOrder: 10 }],
               },
               videos: [createFixtureVideo()],
             },
@@ -41,10 +49,12 @@ describe('home library page composition root', () => {
 
     await expect(services.loadHomeLibraryPageData.execute({
       rawQuery: ' Action ',
-      rawTags: ['Action', 'Drama'],
+      rawIncludeTags: ['Action', 'Drama'],
     })).resolves.toEqual({
       ok: true,
       data: {
+        contentTypes: [{ active: true, label: 'Movie', slug: 'movie', sortOrder: 10 }],
+        genres: [{ active: true, label: 'Action', slug: 'action', sortOrder: 10 }],
         videos: [expect.objectContaining({ id: 'video-1' })],
       },
     });
@@ -68,7 +78,7 @@ describe('home library page composition root', () => {
 
     await expect(services.loadHomeLibraryPageData.execute({
       rawQuery: '',
-      rawTags: [],
+      rawIncludeTags: [],
     })).resolves.toEqual({
       ok: false,
       reason: 'HOME_DATA_UNAVAILABLE',

@@ -1,74 +1,82 @@
+import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import type { HomeLibraryVideo } from '~/entities/library-video/model/library-video';
+import type { VideoTaxonomyItem } from '~/modules/library/domain/video-taxonomy';
 import { LibraryVideoCard } from '~/entities/library-video/ui/LibraryVideoCard';
 import { HomeQuickViewDialog } from '~/features/home-quick-view/ui/HomeQuickViewDialog';
-import { HomeTagFilter } from '~/features/home-tag-filter/ui/HomeTagFilter';
+import { HomeAppliedFiltersBar } from '~/features/home-tag-filter/ui/HomeAppliedFiltersBar';
+import { HomeFilterSurface } from '~/features/home-tag-filter/ui/HomeFilterSurface';
+import { Button } from '~/shared/ui/button';
 import { HomeShell } from '~/widgets/home-shell/ui/HomeShell';
 import {
   type HomeLibraryFilters,
+  clearHomeLibraryFilters,
   createHomeLibraryFilters,
+  getHomeLibraryActiveFilterCount,
+  hasHomeLibraryActiveFilters,
   toggleHomeLibraryTag,
+  writeHomeLibraryFiltersToSearchParams,
 } from '../model/home-library-filters';
 import { useHomeLibraryView } from '../model/useHomeLibraryView';
 
 interface HomeLibraryWidgetProps {
+  contentTypes?: VideoTaxonomyItem[];
+  genres?: VideoTaxonomyItem[];
   videos: HomeLibraryVideo[];
-  initialFilters?: HomeLibraryFilters;
+  initialFilters?: Partial<HomeLibraryFilters>;
 }
 
 export function HomeLibraryWidget({
+  contentTypes = [],
+  genres = [],
   videos,
   initialFilters,
 }: HomeLibraryWidgetProps) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const view = useHomeLibraryView({
     initialFilters,
     initialVideos: videos,
   });
 
-  const updateUrlFilters = (nextFilters: HomeLibraryFilters, replace = false) => {
-    const nextParams = new URLSearchParams(searchParams);
+  const applyFilters = (
+    nextFilters: HomeLibraryFilters,
+    options: { replace?: boolean } = {},
+  ) => {
+    const normalizedFilters = createHomeLibraryFilters(nextFilters);
 
-    if (nextFilters.query.trim().length > 0) {
-      nextParams.set('q', nextFilters.query);
-    }
-    else {
-      nextParams.delete('q');
-    }
-
-    nextParams.delete('tag');
-    nextFilters.tags.forEach(tag => nextParams.append('tag', tag));
-    setSearchParams(nextParams, { replace });
+    view.replaceSearchFilters(normalizedFilters);
+    setSearchParams(
+      writeHomeLibraryFiltersToSearchParams(searchParams, normalizedFilters),
+      { replace: options.replace ?? false },
+    );
   };
 
   const handleSearchChange = (query: string) => {
-    view.handleSearchChange(query);
-    updateUrlFilters({
-      ...createHomeLibraryFilters(view.searchFilters),
+    applyFilters({
+      ...view.searchFilters,
       query,
-    }, true);
+    }, { replace: true });
   };
 
   const handleTagToggle = (tag: string) => {
-    const nextTags = toggleHomeLibraryTag(view.searchFilters.tags, tag);
-
-    view.handleTagToggle(tag);
-    updateUrlFilters({
-      ...createHomeLibraryFilters(view.searchFilters),
-      tags: nextTags,
-    }, false);
+    applyFilters({
+      ...view.searchFilters,
+      includeTags: toggleHomeLibraryTag(view.searchFilters.includeTags, tag),
+    });
   };
 
-  const handleClearTags = () => {
-    view.handleClearTags();
-    updateUrlFilters({
-      ...createHomeLibraryFilters(view.searchFilters),
-      tags: [],
-    }, false);
+  const handleClearAllFilters = () => {
+    applyFilters(clearHomeLibraryFilters(view.searchFilters));
   };
+
+  const activeFilterCount = getHomeLibraryActiveFilterCount(view.searchFilters);
+  const hasActiveFilters = hasHomeLibraryActiveFilters(view.searchFilters);
 
   return (
     <HomeShell
+      activeFilterCount={activeFilterCount}
+      onOpenFilters={() => setIsFiltersOpen(true)}
       onSearchChange={handleSearchChange}
       searchQuery={view.searchFilters.query}
     >
@@ -80,17 +88,33 @@ export function HomeLibraryWidget({
           </p>
         </div>
 
-        <HomeTagFilter
-          activeTags={view.searchFilters.tags}
-          onClearAll={handleClearTags}
-          onTagRemove={handleTagToggle}
+        <HomeAppliedFiltersBar
+          contentTypes={contentTypes}
+          filters={view.searchFilters}
+          genres={genres}
+          onChange={applyFilters}
+          onClearAll={handleClearAllFilters}
         />
 
         <div className="mt-6">
           {view.videos.length === 0
             ? (
                 <div className="py-12 text-center">
-                  <p className="text-muted-foreground">No videos found.</p>
+                  <p className="font-medium">
+                    {hasActiveFilters ? 'No videos match these filters.' : 'No videos found.'}
+                  </p>
+                  {hasActiveFilters ? (
+                    <>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Clear one or more filters to recover the result set.
+                      </p>
+                      <div className="mt-4 flex justify-center">
+                        <Button onClick={handleClearAllFilters} type="button" variant="outline">
+                          Clear all
+                        </Button>
+                      </div>
+                    </>
+                  ) : null}
                 </div>
               )
             : (
@@ -109,11 +133,21 @@ export function HomeLibraryWidget({
       </div>
 
       <HomeQuickViewDialog
+        contentTypes={contentTypes}
+        genres={genres}
         modalState={view.modalState}
         onClose={view.handleCloseModal}
         onDeleteVideo={view.handleDeleteVideo}
         onTagClick={handleTagToggle}
         onUpdateVideo={view.handleUpdateVideo}
+      />
+      <HomeFilterSurface
+        contentTypes={contentTypes}
+        filters={view.searchFilters}
+        genres={genres}
+        onFiltersChange={applyFilters}
+        onOpenChange={setIsFiltersOpen}
+        open={isFiltersOpen}
       />
     </HomeShell>
   );

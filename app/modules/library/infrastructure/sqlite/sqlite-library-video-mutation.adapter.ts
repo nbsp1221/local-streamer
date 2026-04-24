@@ -11,6 +11,22 @@ interface SqliteLibraryVideoMutationAdapterDependencies {
   repository?: SqliteLibraryVideoMutationAdapterRepository;
 }
 
+type UpdateLibraryVideoInput = Parameters<LibraryVideoMutationPort['updateLibraryVideo']>[0];
+type RepositoryUpdateInput = Parameters<SqliteLibraryVideoMutationAdapterRepository['update']>[1];
+
+function copyPresentStructuredMetadataFields(
+  input: UpdateLibraryVideoInput,
+  updates: RepositoryUpdateInput,
+) {
+  if (Object.hasOwn(input, 'contentTypeSlug') && typeof input.contentTypeSlug !== 'undefined') {
+    updates.contentTypeSlug = input.contentTypeSlug;
+  }
+
+  if (Object.hasOwn(input, 'genreSlugs')) {
+    updates.genreSlugs = input.genreSlugs;
+  }
+}
+
 export class SqliteLibraryVideoMutationAdapter implements LibraryVideoMutationPort {
   private readonly repository: SqliteLibraryVideoMutationAdapterRepository;
 
@@ -43,11 +59,15 @@ export class SqliteLibraryVideoMutationAdapter implements LibraryVideoMutationPo
     return this.repository.findById(videoId);
   }
 
-  async updateLibraryVideo(input: Parameters<LibraryVideoMutationPort['updateLibraryVideo']>[0]) {
-    return this.repository.update(input.videoId, {
+  async updateLibraryVideo(input: UpdateLibraryVideoInput) {
+    const updates: RepositoryUpdateInput = {
       description: input.description,
       tags: input.tags,
       title: input.title,
-    });
+    };
+
+    copyPresentStructuredMetadataFields(input, updates);
+
+    return this.repository.update(input.videoId, updates);
   }
 }

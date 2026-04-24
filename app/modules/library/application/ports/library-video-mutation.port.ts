@@ -1,7 +1,9 @@
 import type { LibraryVideo } from '../../domain/library-video';
 
 export interface UpdateLibraryVideoInput {
+  contentTypeSlug?: string | null;
   description?: string;
+  genreSlugs?: string[];
   tags: string[];
   title: string;
   videoId: string;

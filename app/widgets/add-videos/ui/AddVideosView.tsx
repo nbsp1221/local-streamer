@@ -1,11 +1,17 @@
 import { ArrowLeft, Check, FileVideo, RefreshCw, Upload, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router';
+import type { VideoTaxonomyItem } from '~/modules/library/domain/video-taxonomy';
 import {
   type AddVideosEncodingOptions as AddVideosEncodingOptionsValue,
   createDefaultAddVideosEncodingOptions,
 } from '~/features/add-videos-encoding/model/add-videos-encoding-options';
 import { AddVideosEncodingOptions } from '~/features/add-videos-encoding/ui/AddVideosEncodingOptions';
+import { VideoTagInput } from '~/features/video-metadata/ui/VideoTagInput';
+import {
+  VideoTaxonomyMultiSelect,
+  VideoTaxonomySingleSelect,
+} from '~/features/video-metadata/ui/VideoTaxonomyCombobox';
 import {
   BROWSER_UPLOAD_ACCEPT,
   BROWSER_UPLOAD_MAX_SIZE_LABEL,
@@ -37,14 +43,18 @@ function formatFileSize(bytes: number): string {
 
 export interface AddVideosViewProps {
   canAddToLibrary: boolean;
+  contentTypes?: VideoTaxonomyItem[];
+  genres?: VideoTaxonomyItem[];
   onAddToLibrary: () => void;
   onChooseFiles: (files: FileList | File[] | null) => void;
   onClearSession: () => void;
+  onContentTypeChange: (value: string | undefined) => void;
   onDescriptionChange: (value: string) => void;
   onEncodingOptionsChange: (options: AddVideosEncodingOptionsValue) => void;
+  onGenreSlugsChange: (value: string[]) => void;
   onRemoveSession: () => void;
   onRetryUpload: () => void;
-  onTagsChange: (value: string) => void;
+  onTagsChange: (value: string[]) => void;
   onTitleChange: (value: string) => void;
   pageError: string | null;
   session: AddVideosSession | null;
@@ -52,11 +62,15 @@ export interface AddVideosViewProps {
 
 export function AddVideosView({
   canAddToLibrary,
+  contentTypes = [],
+  genres = [],
   onAddToLibrary,
   onChooseFiles,
   onClearSession,
+  onContentTypeChange,
   onDescriptionChange,
   onEncodingOptionsChange,
+  onGenreSlugsChange,
   onRemoveSession,
   onRetryUpload,
   onTagsChange,
@@ -243,12 +257,36 @@ export function AddVideosView({
 
               <div className="flex flex-col gap-2">
                 <Label htmlFor="upload-tags">Tags</Label>
-                <Input
+                <VideoTagInput
+                  ariaLabel="Tags"
                   disabled={session.status === 'adding_to_library'}
-                  id="upload-tags"
-                  onChange={event => onTagsChange(event.target.value)}
-                  placeholder="tag1, tag2, tag3"
+                  onChange={onTagsChange}
+                  placeholder="Add tags like family, action, watch-later"
                   value={session.metadata.tags}
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label>Content type</Label>
+                <VideoTaxonomySingleSelect
+                  ariaLabel="Content type"
+                  disabled={session.status === 'adding_to_library'}
+                  onChange={onContentTypeChange}
+                  options={contentTypes}
+                  placeholder="No content type"
+                  value={session.metadata.contentTypeSlug}
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label>Genre</Label>
+                <VideoTaxonomyMultiSelect
+                  ariaLabel="Genre"
+                  disabled={session.status === 'adding_to_library'}
+                  onChange={onGenreSlugsChange}
+                  options={genres}
+                  placeholder="No genres"
+                  value={session.metadata.genreSlugs}
                 />
               </div>
 

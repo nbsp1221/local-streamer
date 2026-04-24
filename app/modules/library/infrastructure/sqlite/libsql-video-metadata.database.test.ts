@@ -56,6 +56,60 @@ describe('createVideoMetadataSqliteDatabase', () => {
     });
   });
 
+  test('creates metadata columns and bootstrap vocabulary reference tables', async () => {
+    const database = await createVideoMetadataSqliteDatabase({ dbPath });
+
+    await expect(database.prepare<{ name: string }>(`
+      SELECT name
+      FROM sqlite_master
+      WHERE type = 'table' AND name IN ('video_content_types', 'video_genres')
+      ORDER BY name
+    `).all()).resolves.toEqual([
+      { name: 'video_content_types' },
+      { name: 'video_genres' },
+    ]);
+    await expect(database.prepare<{ name: string }>(`
+      PRAGMA table_info(library_videos)
+    `).all()).resolves.toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'content_type_slug' }),
+      expect.objectContaining({ name: 'genre_slugs_json' }),
+    ]));
+    await expect(database.prepare<{ slug: string }>(`
+      SELECT slug FROM video_content_types ORDER BY sort_order
+    `).all()).resolves.toEqual([
+      { slug: 'movie' },
+      { slug: 'episode' },
+      { slug: 'home_video' },
+      { slug: 'clip' },
+      { slug: 'other' },
+    ]);
+    await expect(database.prepare<{ slug: string }>(`
+      SELECT slug FROM video_genres ORDER BY sort_order
+    `).all()).resolves.toEqual([
+      { slug: 'action' },
+      { slug: 'drama' },
+      { slug: 'comedy' },
+      { slug: 'documentary' },
+      { slug: 'animation' },
+      { slug: 'other' },
+    ]);
+  });
+
+  test('does not recreate deleted bootstrap vocabulary rows on reopen', async () => {
+    const database = await createVideoMetadataSqliteDatabase({ dbPath });
+
+    await database.prepare(`
+      DELETE FROM video_genres
+      WHERE slug = ?
+    `).run('animation');
+
+    const reopenedDatabase = await createVideoMetadataSqliteDatabase({ dbPath });
+
+    await expect(reopenedDatabase.prepare<{ slug: string }>(`
+      SELECT slug FROM video_genres WHERE slug = ?
+    `).get('animation')).resolves.toBeUndefined();
+  });
+
   test('supports exec, get, all, and run through the adapted libsql client', async () => {
     const database = await createVideoMetadataSqliteDatabase({ dbPath });
 

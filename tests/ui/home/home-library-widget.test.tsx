@@ -44,8 +44,8 @@ describe('HomeLibraryWidget', () => {
       <MemoryRouter>
         <HomeLibraryWidget
           initialFilters={{
+            includeTags: ['Action'],
             query: 'Action',
-            tags: ['Action'],
           }}
           videos={[
             createVideo(),
@@ -63,7 +63,7 @@ describe('HomeLibraryWidget', () => {
     expect(screen.getByText('Catalog Fixture')).toBeInTheDocument();
     expect(screen.queryByText('Second Fixture')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Remove #Action filter' }));
+    await user.click(screen.getByRole('button', { name: 'Remove required action tag' }));
     await user.clear(screen.getByLabelText('Search library (desktop)'));
     await user.type(screen.getByLabelText('Search library (desktop)'), 'Second');
     expect(screen.getByText('Second Fixture')).toBeInTheDocument();
@@ -72,8 +72,8 @@ describe('HomeLibraryWidget', () => {
       <MemoryRouter>
         <HomeLibraryWidget
           initialFilters={{
+            includeTags: ['Action'],
             query: 'Action',
-            tags: ['Action'],
           }}
           videos={[
             createVideo(),
@@ -103,8 +103,8 @@ describe('HomeLibraryWidget', () => {
       <MemoryRouter>
         <HomeLibraryWidget
           initialFilters={{
+            includeTags: ['drama'],
             query: 'second',
-            tags: ['drama'],
           }}
           videos={[
             createVideo(),
@@ -124,8 +124,8 @@ describe('HomeLibraryWidget', () => {
       <MemoryRouter>
         <HomeLibraryWidget
           initialFilters={{
+            includeTags: [],
             query: '',
-            tags: [],
           }}
           videos={[
             createVideo({
@@ -148,8 +148,8 @@ describe('HomeLibraryWidget', () => {
       <MemoryRouter>
         <HomeLibraryWidget
           initialFilters={{
+            includeTags: ['drama'],
             query: '',
-            tags: ['drama'],
           }}
           videos={[
             createVideo({
@@ -162,10 +162,10 @@ describe('HomeLibraryWidget', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('button', { name: 'Remove #drama filter' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove required drama tag' })).toBeInTheDocument();
     await user.click(screen.getByText('#Drama'));
     expect(screen.queryByText('Active filters:')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Remove #Drama filter' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove required Drama tag' })).not.toBeInTheDocument();
   });
 
   test('opens and closes quick view, surfaces delete/update failures, and preserves state on action failures', async () => {
@@ -191,8 +191,8 @@ describe('HomeLibraryWidget', () => {
       <MemoryRouter>
         <HomeLibraryWidget
           initialFilters={{
+            includeTags: [],
             query: '',
-            tags: [],
           }}
           videos={[
             createVideo({

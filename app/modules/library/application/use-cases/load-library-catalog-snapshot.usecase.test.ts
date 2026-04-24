@@ -26,13 +26,19 @@ describe('LoadLibraryCatalogSnapshotUseCase', () => {
     ]);
     const useCase = new LoadLibraryCatalogSnapshotUseCase({
       videoSource: {
+        listActiveContentTypes: vi.fn(async () => [
+          { active: true, label: 'Movie', slug: 'movie', sortOrder: 10 },
+        ]),
+        listActiveGenres: vi.fn(async () => [
+          { active: true, label: 'Drama', slug: 'drama', sortOrder: 20 },
+        ]),
         listLibraryVideos,
       },
     });
 
     const result = await useCase.execute({
       rawQuery: '  Action  ',
-      rawTags: ['Action', '', 'Drama'],
+      rawIncludeTags: ['Action', '', 'Drama'],
     });
 
     expect(result).toEqual({
@@ -49,10 +55,20 @@ describe('LoadLibraryCatalogSnapshotUseCase', () => {
           }),
         ],
         filters: {
+          contentTypeSlug: undefined,
           displayQuery: '  Action  ',
+          excludeTags: [],
+          genreSlugs: [],
+          includeTags: ['action', 'drama'],
           normalizedQuery: 'action',
-          rawTags: ['Action', 'Drama'],
-          normalizedTags: ['action', 'drama'],
+        },
+        vocabulary: {
+          contentTypes: [
+            { active: true, label: 'Movie', slug: 'movie', sortOrder: 10 },
+          ],
+          genres: [
+            { active: true, label: 'Drama', slug: 'drama', sortOrder: 20 },
+          ],
         },
       },
     });
@@ -69,6 +85,8 @@ describe('LoadLibraryCatalogSnapshotUseCase', () => {
   test('returns an explicit unavailable result when the source port cannot provide catalog data', async () => {
     const useCase = new LoadLibraryCatalogSnapshotUseCase({
       videoSource: {
+        listActiveContentTypes: vi.fn(async () => []),
+        listActiveGenres: vi.fn(async () => []),
         listLibraryVideos: vi.fn(async () => {
           throw new Error('storage offline');
         }),
@@ -77,7 +95,7 @@ describe('LoadLibraryCatalogSnapshotUseCase', () => {
 
     await expect(useCase.execute({
       rawQuery: 'Anything',
-      rawTags: [],
+      rawIncludeTags: [],
     })).resolves.toEqual({
       ok: false,
       reason: 'CATALOG_SOURCE_UNAVAILABLE',

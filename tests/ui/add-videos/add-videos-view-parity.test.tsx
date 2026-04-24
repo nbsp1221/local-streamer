@@ -13,14 +13,42 @@ function createViewProps(overrides: Partial<AddVideosViewProps> = {}): AddVideos
     onAddToLibrary: vi.fn(),
     onChooseFiles: vi.fn(),
     onClearSession: vi.fn(),
+    onContentTypeChange: vi.fn(),
     onDescriptionChange: vi.fn(),
     onEncodingOptionsChange: vi.fn(),
+    onGenreSlugsChange: vi.fn(),
     onRemoveSession: vi.fn(),
     onRetryUpload: vi.fn(),
     onTagsChange: vi.fn(),
     onTitleChange: vi.fn(),
     pageError: null,
     session: null,
+    ...overrides,
+  };
+}
+
+function createSession(
+  overrides: Partial<NonNullable<AddVideosViewProps['session']>> = {},
+): NonNullable<AddVideosViewProps['session']> {
+  return {
+    error: null,
+    file: new File(['video-data'], 'fixture-video.mp4', { type: 'video/mp4' }),
+    filename: 'fixture-video.mp4',
+    metadata: {
+      description: '',
+      encodingOptions: {
+        encoder: 'cpu-h264',
+      },
+      genreSlugs: [],
+      tags: [],
+      title: 'Fixture title',
+    },
+    mimeType: 'video/mp4',
+    progressPercent: 0,
+    size: 10,
+    stagingId: null,
+    status: 'uploading',
+    successMessage: null,
     ...overrides,
   };
 }
@@ -46,31 +74,26 @@ describe('AddVideosView', () => {
 
   test('renders a single active upload card with inline status and textarea-based metadata editing', () => {
     renderView(createViewProps({
-      session: {
-        error: null,
-        file: new File(['video-data'], 'fixture-video.mp4', { type: 'video/mp4' }),
-        filename: 'fixture-video.mp4',
+      session: createSession({
         metadata: {
           description: 'Fixture description',
           encodingOptions: {
             encoder: 'cpu-h264',
           },
-          tags: 'one, two',
+          genreSlugs: [],
+          tags: ['one', 'two'],
           title: 'Fixture title',
         },
-        mimeType: 'video/mp4',
         progressPercent: 45,
         size: 1_024 * 1_024,
-        stagingId: null,
-        status: 'uploading',
-        successMessage: null,
-      },
+      }),
     }));
 
     expect(screen.getByRole('heading', { level: 2, name: 'fixture-video.mp4' })).toBeInTheDocument();
     expect(screen.getByText('Uploading')).toBeInTheDocument();
     expect(screen.getByLabelText('Title *')).toHaveValue('Fixture title');
-    expect(screen.getByLabelText('Tags')).toHaveValue('one, two');
+    expect(screen.getByText('one')).toBeInTheDocument();
+    expect(screen.getByText('two')).toBeInTheDocument();
     expect(screen.getByLabelText('Description')).toHaveValue('Fixture description');
     expect(screen.getByRole('textbox', { name: 'Description' }).tagName).toBe('TEXTAREA');
     expect(screen.getByRole('button', { name: 'Add to Library' })).toBeDisabled();
@@ -86,25 +109,11 @@ describe('AddVideosView', () => {
         <AddVideosView
           {...createViewProps({
             onRetryUpload,
-            session: {
+            session: createSession({
               error: 'Upload failed.',
-              file: new File(['video-data'], 'fixture-video.mp4', { type: 'video/mp4' }),
-              filename: 'fixture-video.mp4',
-              metadata: {
-                description: '',
-                encodingOptions: {
-                  encoder: 'cpu-h264',
-                },
-                tags: '',
-                title: 'Fixture title',
-              },
-              mimeType: 'video/mp4',
               progressPercent: 10,
-              size: 10,
-              stagingId: null,
               status: 'upload_failed',
-              successMessage: null,
-            },
+            }),
           })}
         />
       </MemoryRouter>,
@@ -118,25 +127,12 @@ describe('AddVideosView', () => {
         <AddVideosView
           {...createViewProps({
             onClearSession,
-            session: {
-              error: null,
-              file: new File(['video-data'], 'fixture-video.mp4', { type: 'video/mp4' }),
-              filename: 'fixture-video.mp4',
-              metadata: {
-                description: '',
-                encodingOptions: {
-                  encoder: 'cpu-h264',
-                },
-                tags: '',
-                title: 'Fixture title',
-              },
-              mimeType: 'video/mp4',
+            session: createSession({
               progressPercent: 100,
-              size: 10,
               stagingId: 'staging-123',
               status: 'completed',
               successMessage: '"Fixture title" has been added to the library.',
-            },
+            }),
           })}
         />
       </MemoryRouter>,
@@ -149,25 +145,11 @@ describe('AddVideosView', () => {
 
   test('hides remove while the final library commit is in flight', () => {
     renderView(createViewProps({
-      session: {
-        error: null,
-        file: new File(['video-data'], 'fixture-video.mp4', { type: 'video/mp4' }),
-        filename: 'fixture-video.mp4',
-        metadata: {
-          description: '',
-          encodingOptions: {
-            encoder: 'cpu-h264',
-          },
-          tags: '',
-          title: 'Fixture title',
-        },
-        mimeType: 'video/mp4',
+      session: createSession({
         progressPercent: 100,
-        size: 10,
         stagingId: 'staging-123',
         status: 'adding_to_library',
-        successMessage: null,
-      },
+      }),
     }));
 
     expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
