@@ -69,6 +69,28 @@ describe('HomeRoute bootstrap forwarding', () => {
     }));
   });
 
+  test('drops URL tag filters that would render as blank filter labels', async () => {
+    useSearchParamsMock.mockReturnValue([
+      new URLSearchParams('tag=Action&tag=__&tag=____&tag=--&notTag=___&notTag=Spoiler'),
+      vi.fn(),
+    ] as const);
+    useLoaderDataMock.mockReturnValue({
+      contentTypes: [],
+      genres: [],
+      videos: [],
+    });
+    const routeModule = await import('../../../app/routes/_index');
+
+    render(React.createElement(routeModule.default));
+
+    expect(homePageMock).toHaveBeenCalledWith(expect.objectContaining({
+      initialFilters: expect.objectContaining({
+        excludeTags: ['spoiler'],
+        includeTags: ['action'],
+      }),
+    }));
+  });
+
   test('keeps deserialized video references stable across same-snapshot rerenders', async () => {
     const loaderSnapshot = {
       contentTypes: [],

@@ -37,6 +37,7 @@ function RouteOwnedHomeLibraryWidget({ videos }: { videos: HomeLibraryVideo[] })
   return (
     <HomeLibraryWidget
       initialFilters={{
+        excludeTags: searchParams.getAll('notTag'),
         includeTags: searchParams.getAll('tag'),
         query: searchParams.get('q') ?? '',
       }}
@@ -153,6 +154,28 @@ describe('home library surfaces', () => {
 
     await user.click(screen.getByRole('button', { name: '#Action' }));
     expect(screen.getByTestId('location-search')).toHaveTextContent('?q=Action&tag=action');
+  });
+
+  test('HomeLibraryWidget drops URL tag filters that would render blank applied chips', () => {
+    render(
+      <MemoryRouter initialEntries={['/?tag=Action&tag=__&tag=____&tag=--&notTag=____&notTag=Spoiler']}>
+        <RouteOwnedHomeLibraryWidget
+          videos={[
+            createVideo(),
+            createVideo({
+              id: 'video-2',
+              tags: ['Spoiler'],
+              title: 'Hidden Fixture',
+            }),
+          ]}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Remove required action tag' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove excluded spoiler tag' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove required tag' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Remove excluded tag' })).not.toBeInTheDocument();
   });
 
   test('HomeLibraryWidget resyncs visible filters when same-route URL navigation changes q/tag state', async () => {

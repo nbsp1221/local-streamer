@@ -17,6 +17,21 @@ describe('video tag helpers', () => {
     expect(normalizeVideoTag('!!!')).toBeNull();
   });
 
+  test('normalizes underscore separators only when surrounded by letters or numbers', () => {
+    expect(normalizeVideoTag('_good_')).toBe('good');
+    expect(normalizeVideoTag('good__boy')).toBe('good_boy');
+    expect(normalizeVideoTag('good - boy')).toBe('good-boy');
+  });
+
+  test('drops separator-only tags because they render as blank or meaningless labels', () => {
+    expect(normalizeVideoTag('_')).toBeNull();
+    expect(normalizeVideoTag('__')).toBeNull();
+    expect(normalizeVideoTag('___')).toBeNull();
+    expect(normalizeVideoTag('--')).toBeNull();
+    expect(normalizeVideoTag('----')).toBeNull();
+    expect(normalizeVideoTags(['valid', '___', '----', 'also_valid'])).toEqual(['valid', 'also_valid']);
+  });
+
   test('deduplicates tags by canonical value while preserving first-seen order', () => {
     expect(normalizeVideoTags([
       'Magic',
