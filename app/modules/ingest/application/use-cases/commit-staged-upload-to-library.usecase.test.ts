@@ -1,14 +1,17 @@
+import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { describe, expect, test, vi } from 'vitest';
-import type { IngestVideoProcessingPort } from '../ports/ingest-video-processing.port';
+import type { IngestMediaPreparationPort } from '../ports/ingest-media-preparation.port';
 import { CommitStagedUploadToLibraryUseCase } from './commit-staged-upload-to-library.usecase';
 
-function createVideoProcessing(input: {
-  finalizeSuccessfulVideo?: IngestVideoProcessingPort['finalizeSuccessfulVideo'];
-  processPreparedVideo: IngestVideoProcessingPort['processPreparedVideo'];
-}): IngestVideoProcessingPort {
+function createMediaPreparation(input: {
+  finalizeSuccessfulVideo?: IngestMediaPreparationPort['finalizeSuccessfulVideo'];
+  prepareMedia: IngestMediaPreparationPort['prepareMedia'];
+}): IngestMediaPreparationPort {
   return {
     finalizeSuccessfulVideo: input.finalizeSuccessfulVideo ?? (async () => undefined),
-    processPreparedVideo: input.processPreparedVideo,
+    prepareMedia: input.prepareMedia,
   };
 }
 
@@ -37,13 +40,21 @@ describe('CommitStagedUploadToLibraryUseCase', () => {
       storagePath: '/tmp/staging-123/video.mp4',
       committedVideoId: input.committedVideoId,
     }));
-    const processPreparedVideo = vi.fn(async () => ({
+    const prepareMedia = vi.fn(async () => ({
       dashEnabled: true,
-      message: 'Video added to library successfully with video conversion',
+      message: 'Video added to library successfully with media preparation',
     }));
     const finalizeSuccessfulVideo = vi.fn(async () => undefined);
     const analyze = vi.fn(async () => ({
       duration: 120,
+      primaryAudio: {
+        codecName: 'aac',
+        streamIndex: 1,
+      },
+      primaryVideo: {
+        codecName: 'h264',
+        streamIndex: 0,
+      },
     }));
     const writeVideoRecord = vi.fn(async () => undefined);
     const deleteStorage = vi.fn(async () => undefined);
@@ -72,20 +83,18 @@ describe('CommitStagedUploadToLibraryUseCase', () => {
         analyze,
       },
       videoMetadataWriter: {
+        deleteVideoRecord: vi.fn(async () => undefined),
         writeVideoRecord,
       },
-      videoProcessing: createVideoProcessing({
+      mediaPreparation: createMediaPreparation({
         finalizeSuccessfulVideo,
-        processPreparedVideo,
+        prepareMedia,
       }),
     });
 
     await expect(useCase.execute({
       contentTypeSlug: ' Movie ',
       description: 'A test upload',
-      encodingOptions: {
-        encoder: 'cpu-h264',
-      },
       genreSlugs: ['Drama', 'Action'],
       stagingId: 'staging-123',
       tags: ['fixture', 'Good Boy-comedy', 'good_boy-comedy'],
@@ -94,7 +103,7 @@ describe('CommitStagedUploadToLibraryUseCase', () => {
       ok: true,
       data: {
         dashEnabled: true,
-        message: 'Video added to library successfully with video conversion',
+        message: 'Video added to library successfully with media preparation',
         videoId: 'video-123',
       },
     });
@@ -103,11 +112,20 @@ describe('CommitStagedUploadToLibraryUseCase', () => {
     expect(beginCommit).toHaveBeenCalledWith('staging-123');
     expect(reserveCommittedVideoId).toHaveBeenCalledWith('staging-123', expect.any(String));
     expect(analyze).toHaveBeenCalledWith('/tmp/staging-123/video.mp4');
-    expect(processPreparedVideo).toHaveBeenCalledWith({
-      encodingOptions: {
-        encoder: 'cpu-h264',
+    expect(prepareMedia).toHaveBeenCalledWith({
+      analysis: {
+        duration: 120,
+        primaryAudio: {
+          codecName: 'aac',
+          streamIndex: 1,
+        },
+        primaryVideo: {
+          codecName: 'h264',
+          streamIndex: 0,
+        },
       },
       sourcePath: '/tmp/staging-123/video.mp4',
+      strategy: 'remux_then_package',
       title: 'Fixture Video',
       videoId: 'video-123',
       workspaceRootDir: expect.any(String),
@@ -167,10 +185,11 @@ describe('CommitStagedUploadToLibraryUseCase', () => {
         analyze: vi.fn(),
       },
       videoMetadataWriter: {
+        deleteVideoRecord: vi.fn(async () => undefined),
         writeVideoRecord: vi.fn(),
       },
-      videoProcessing: createVideoProcessing({
-        processPreparedVideo: vi.fn(),
+      mediaPreparation: createMediaPreparation({
+        prepareMedia: vi.fn(),
       }),
     });
 
@@ -232,13 +251,22 @@ describe('CommitStagedUploadToLibraryUseCase', () => {
       videoAnalysis: {
         analyze: vi.fn(async () => ({
           duration: 120,
+          primaryAudio: {
+            codecName: 'aac',
+            streamIndex: 1,
+          },
+          primaryVideo: {
+            codecName: 'h264',
+            streamIndex: 0,
+          },
         })),
       },
       videoMetadataWriter: {
+        deleteVideoRecord: vi.fn(async () => undefined),
         writeVideoRecord: vi.fn(),
       },
-      videoProcessing: createVideoProcessing({
-        processPreparedVideo: vi.fn(async () => ({
+      mediaPreparation: createMediaPreparation({
+        prepareMedia: vi.fn(async () => ({
           dashEnabled: false,
           message: 'Video conversion failed',
         })),
@@ -259,6 +287,272 @@ describe('CommitStagedUploadToLibraryUseCase', () => {
       status: 'uploaded',
     });
     expect(deleteStorage).not.toHaveBeenCalled();
+  });
+
+  test('rolls back visible metadata when a late commit step fails', async () => {
+    const update = vi.fn(async (_stagingId, input) => {
+      if (input.status === 'committed') {
+        throw new Error('staged update failed');
+      }
+
+      return {
+        createdAt: new Date('2026-04-20T00:00:00.000Z'),
+        expiresAt: new Date('2026-04-21T00:00:00.000Z'),
+        filename: 'fixture-video.mp4',
+        mimeType: 'video/mp4',
+        size: 1_024,
+        stagingId: 'staging-123',
+        status: input.status ?? 'uploaded',
+        storagePath: '/tmp/staging-123/video.mp4',
+        committedVideoId: 'video-123',
+      };
+    });
+    const deleteVideoRecord = vi.fn(async () => undefined);
+    const useCase = new CommitStagedUploadToLibraryUseCase({
+      mediaPreparation: createMediaPreparation({
+        prepareMedia: vi.fn(async () => ({
+          dashEnabled: true,
+          message: 'Video added to library successfully with media preparation',
+        })),
+      }),
+      reapExpiredStagedUploads: {
+        execute: vi.fn(async () => ({ deletedCount: 0 })),
+      },
+      stagedUploadRepository: {
+        beginCommit: vi.fn(async () => 'acquired' as const),
+        create: vi.fn(),
+        delete: vi.fn(),
+        findByStagingId: vi.fn(async () => ({
+          createdAt: new Date('2026-04-20T00:00:00.000Z'),
+          expiresAt: new Date('2026-04-21T00:00:00.000Z'),
+          filename: 'fixture-video.mp4',
+          mimeType: 'video/mp4',
+          size: 1_024,
+          stagingId: 'staging-123',
+          status: 'uploaded' as const,
+          storagePath: '/tmp/staging-123/video.mp4',
+        })),
+        listExpired: vi.fn(),
+        reserveCommittedVideoId: vi.fn(async () => 'video-123'),
+        update,
+      },
+      stagedUploadStorage: {
+        delete: vi.fn(),
+        deleteTemp: vi.fn(),
+        promote: vi.fn(),
+      },
+      videoAnalysis: {
+        analyze: vi.fn(async () => ({
+          duration: 120,
+          primaryAudio: {
+            codecName: 'aac',
+            streamIndex: 1,
+          },
+          primaryVideo: {
+            codecName: 'h264',
+            streamIndex: 0,
+          },
+        })),
+      },
+      videoMetadataWriter: {
+        deleteVideoRecord,
+        writeVideoRecord: vi.fn(async () => undefined),
+      },
+    });
+
+    await expect(useCase.execute({
+      stagingId: 'staging-123',
+      tags: [],
+      title: 'Fixture Video',
+    })).resolves.toEqual({
+      ok: false,
+      message: 'staged update failed',
+      reason: 'COMMIT_STAGED_UPLOAD_UNAVAILABLE',
+    });
+
+    expect(deleteVideoRecord).toHaveBeenCalledWith('video-123');
+    expect(update).toHaveBeenLastCalledWith('staging-123', {
+      status: 'uploaded',
+    });
+  });
+
+  test('preserves prepared assets when late metadata rollback fails', async () => {
+    const storageRoot = await mkdtemp(path.join(tmpdir(), 'local-streamer-rollback-failure-'));
+    const originalStorageDir = process.env.STORAGE_DIR;
+    process.env.STORAGE_DIR = storageRoot;
+
+    try {
+      const workspaceRoot = path.join(storageRoot, 'data', 'videos', 'video-123');
+      const manifestPath = path.join(workspaceRoot, 'manifest.mpd');
+      await mkdir(workspaceRoot, { recursive: true });
+      await writeFile(manifestPath, '<MPD />');
+
+      const update = vi.fn(async (_stagingId, input) => {
+        if (input.status === 'committed') {
+          throw new Error('staged update failed');
+        }
+
+        return {
+          createdAt: new Date('2026-04-20T00:00:00.000Z'),
+          expiresAt: new Date('2026-04-21T00:00:00.000Z'),
+          filename: 'fixture-video.mp4',
+          mimeType: 'video/mp4',
+          size: 1_024,
+          stagingId: 'staging-123',
+          status: input.status ?? 'uploaded',
+          storagePath: '/tmp/staging-123/video.mp4',
+          committedVideoId: 'video-123',
+        };
+      });
+      const useCase = new CommitStagedUploadToLibraryUseCase({
+        mediaPreparation: createMediaPreparation({
+          prepareMedia: vi.fn(async () => ({
+            dashEnabled: true,
+            message: 'Video added to library successfully with media preparation',
+          })),
+        }),
+        reapExpiredStagedUploads: {
+          execute: vi.fn(async () => ({ deletedCount: 0 })),
+        },
+        stagedUploadRepository: {
+          beginCommit: vi.fn(async () => 'acquired' as const),
+          create: vi.fn(),
+          delete: vi.fn(),
+          findByStagingId: vi.fn(async () => ({
+            createdAt: new Date('2026-04-20T00:00:00.000Z'),
+            expiresAt: new Date('2026-04-21T00:00:00.000Z'),
+            filename: 'fixture-video.mp4',
+            mimeType: 'video/mp4',
+            size: 1_024,
+            stagingId: 'staging-123',
+            status: 'uploaded' as const,
+            storagePath: '/tmp/staging-123/video.mp4',
+          })),
+          listExpired: vi.fn(),
+          reserveCommittedVideoId: vi.fn(async () => 'video-123'),
+          update,
+        },
+        stagedUploadStorage: {
+          delete: vi.fn(),
+          deleteTemp: vi.fn(),
+          promote: vi.fn(),
+        },
+        videoAnalysis: {
+          analyze: vi.fn(async () => ({
+            duration: 120,
+            primaryAudio: {
+              codecName: 'aac',
+              streamIndex: 1,
+            },
+            primaryVideo: {
+              codecName: 'h264',
+              streamIndex: 0,
+            },
+          })),
+        },
+        videoMetadataWriter: {
+          deleteVideoRecord: vi.fn(async () => {
+            throw new Error('metadata rollback failed');
+          }),
+          writeVideoRecord: vi.fn(async () => undefined),
+        },
+      });
+
+      await expect(useCase.execute({
+        stagingId: 'staging-123',
+        tags: [],
+        title: 'Fixture Video',
+      })).resolves.toEqual({
+        ok: false,
+        message: 'staged update failed',
+        reason: 'COMMIT_STAGED_UPLOAD_UNAVAILABLE',
+      });
+
+      expect(update).toHaveBeenLastCalledWith('staging-123', {
+        status: 'uploaded',
+      });
+      await expect(stat(manifestPath)).resolves.toBeDefined();
+    }
+    finally {
+      if (originalStorageDir === undefined) {
+        delete process.env.STORAGE_DIR;
+      }
+      else {
+        process.env.STORAGE_DIR = originalStorageDir;
+      }
+
+      await rm(storageRoot, { force: true, recursive: true });
+    }
+  });
+
+  test('rejects uploaded files without a readable video stream', async () => {
+    const update = vi.fn(async (_stagingId, input) => ({
+      createdAt: new Date('2026-04-20T00:00:00.000Z'),
+      expiresAt: new Date('2026-04-21T00:00:00.000Z'),
+      filename: 'fixture-audio.m4a',
+      mimeType: 'audio/mp4',
+      size: 1_024,
+      stagingId: 'staging-123',
+      status: input.status ?? 'uploaded',
+      storagePath: '/tmp/staging-123/audio.m4a',
+    }));
+    const useCase = new CommitStagedUploadToLibraryUseCase({
+      mediaPreparation: createMediaPreparation({
+        prepareMedia: vi.fn(),
+      }),
+      reapExpiredStagedUploads: {
+        execute: vi.fn(async () => ({ deletedCount: 0 })),
+      },
+      stagedUploadRepository: {
+        beginCommit: vi.fn(async () => 'acquired' as const),
+        create: vi.fn(),
+        delete: vi.fn(),
+        findByStagingId: vi.fn(async () => ({
+          createdAt: new Date('2026-04-20T00:00:00.000Z'),
+          expiresAt: new Date('2026-04-21T00:00:00.000Z'),
+          filename: 'fixture-audio.m4a',
+          mimeType: 'audio/mp4',
+          size: 1_024,
+          stagingId: 'staging-123',
+          status: 'uploaded' as const,
+          storagePath: '/tmp/staging-123/audio.m4a',
+        })),
+        listExpired: vi.fn(),
+        reserveCommittedVideoId: vi.fn(async () => 'video-123'),
+        update,
+      },
+      stagedUploadStorage: {
+        delete: vi.fn(),
+        deleteTemp: vi.fn(),
+        promote: vi.fn(),
+      },
+      videoAnalysis: {
+        analyze: vi.fn(async () => ({
+          duration: 120,
+          primaryAudio: {
+            codecName: 'aac',
+            streamIndex: 0,
+          },
+        })),
+      },
+      videoMetadataWriter: {
+        deleteVideoRecord: vi.fn(),
+        writeVideoRecord: vi.fn(),
+      },
+    });
+
+    await expect(useCase.execute({
+      stagingId: 'staging-123',
+      tags: [],
+      title: 'Fixture Audio',
+    })).resolves.toEqual({
+      ok: false,
+      message: 'Uploaded file does not contain a readable video stream',
+      reason: 'COMMIT_STAGED_UPLOAD_REJECTED',
+    });
+    expect(update).toHaveBeenLastCalledWith('staging-123', {
+      status: 'uploaded',
+    });
   });
 
   test('returns a conflict when another commit already holds the staged upload', async () => {
@@ -293,10 +587,11 @@ describe('CommitStagedUploadToLibraryUseCase', () => {
         analyze: vi.fn(),
       },
       videoMetadataWriter: {
+        deleteVideoRecord: vi.fn(async () => undefined),
         writeVideoRecord: vi.fn(),
       },
-      videoProcessing: createVideoProcessing({
-        processPreparedVideo: vi.fn(),
+      mediaPreparation: createMediaPreparation({
+        prepareMedia: vi.fn(),
       }),
     });
 

@@ -14,6 +14,7 @@
     "start": "bun ./build/server/index.js",
     "test": "LOCAL_STREAMER_DISABLE_VITE_ENV_FILES=true bun --no-env-file ./scripts/run-vitest.ts && LOCAL_STREAMER_DISABLE_VITE_ENV_FILES=true bun --no-env-file run test:smoke:dev-auth && LOCAL_STREAMER_DISABLE_VITE_ENV_FILES=true bun --no-env-file run test:smoke:bun-auth",
     "test:integration": "LOCAL_STREAMER_DISABLE_VITE_ENV_FILES=true bun --no-env-file ./scripts/run-vitest.ts run --project integration",
+    "test:media-prep": "bun run download:ffmpeg && bun run download:shaka && LOCAL_STREAMER_DISABLE_VITE_ENV_FILES=true bun --no-env-file ./scripts/run-vitest.ts run --project integration tests/integration/modules/ingest/ffmpeg-media-preparation.real-media.test.ts",
     "test:modules": "LOCAL_STREAMER_DISABLE_VITE_ENV_FILES=true bun --no-env-file ./scripts/run-vitest.ts run --project modules",
     "test:run": "LOCAL_STREAMER_DISABLE_VITE_ENV_FILES=true bun --no-env-file ./scripts/run-vitest.ts run",
     "test:e2e": "LANG=C.UTF-8 LC_ALL=C.UTF-8 TZ=Etc/UTC LOCAL_STREAMER_DISABLE_VITE_ENV_FILES=true bun --no-env-file x playwright test",

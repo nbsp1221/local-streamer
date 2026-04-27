@@ -2,11 +2,6 @@ import { ArrowLeft, Check, FileVideo, RefreshCw, Upload, X } from 'lucide-react'
 import { useRef, useState } from 'react';
 import { Link } from 'react-router';
 import type { VideoTaxonomyItem } from '~/modules/library/domain/video-taxonomy';
-import {
-  type AddVideosEncodingOptions as AddVideosEncodingOptionsValue,
-  createDefaultAddVideosEncodingOptions,
-} from '~/features/add-videos-encoding/model/add-videos-encoding-options';
-import { AddVideosEncodingOptions } from '~/features/add-videos-encoding/ui/AddVideosEncodingOptions';
 import { VideoTagInput } from '~/features/video-metadata/ui/VideoTagInput';
 import {
   VideoTaxonomyMultiSelect,
@@ -50,7 +45,6 @@ export interface AddVideosViewProps {
   onClearSession: () => void;
   onContentTypeChange: (value: string | undefined) => void;
   onDescriptionChange: (value: string) => void;
-  onEncodingOptionsChange: (options: AddVideosEncodingOptionsValue) => void;
   onGenreSlugsChange: (value: string[]) => void;
   onRemoveSession: () => void;
   onRetryUpload: () => void;
@@ -69,7 +63,6 @@ export function AddVideosView({
   onClearSession,
   onContentTypeChange,
   onDescriptionChange,
-  onEncodingOptionsChange,
   onGenreSlugsChange,
   onRemoveSession,
   onRetryUpload,
@@ -301,11 +294,6 @@ export function AddVideosView({
                 />
               </div>
             </div>
-
-            <AddVideosEncodingOptions
-              onChange={onEncodingOptionsChange}
-              value={session.metadata.encodingOptions ?? createDefaultAddVideosEncodingOptions()}
-            />
 
             <div className="flex flex-wrap justify-end gap-3 pt-2">
               {session.status === 'upload_failed' ? (

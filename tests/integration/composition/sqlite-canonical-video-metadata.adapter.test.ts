@@ -33,6 +33,7 @@ describe('sqlite canonical video metadata adapter', () => {
       title: 'Fixture Video',
       videoUrl: '/videos/video-123/manifest.mpd',
     }));
+    const deleteVideo = vi.fn(async () => true);
 
     const listActiveContentTypes = vi.fn(async () => [
       { active: true, label: 'Movie', slug: 'movie', sortOrder: 10 },
@@ -44,6 +45,7 @@ describe('sqlite canonical video metadata adapter', () => {
     const adapter = new SqliteCanonicalVideoMetadataAdapter({
       repository: {
         create,
+        delete: deleteVideo,
         findAll,
         listActiveContentTypes,
         listActiveGenres,
@@ -67,6 +69,7 @@ describe('sqlite canonical video metadata adapter', () => {
       title: 'Fixture Video',
       videoUrl: '/videos/video-123/manifest.mpd',
     })).resolves.toBeUndefined();
+    await expect(adapter.deleteVideoRecord('video-123')).resolves.toBeUndefined();
 
     expect(findAll).toHaveBeenCalledOnce();
     await expect(adapter.listActiveContentTypes()).resolves.toEqual([
@@ -86,5 +89,6 @@ describe('sqlite canonical video metadata adapter', () => {
       title: 'Fixture Video',
       videoUrl: '/videos/video-123/manifest.mpd',
     });
+    expect(deleteVideo).toHaveBeenCalledWith('video-123');
   });
 });

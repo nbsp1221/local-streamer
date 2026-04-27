@@ -53,14 +53,6 @@ function createUploadCommitCommand(
     command.description = body.description;
   }
 
-  if (
-    body.encodingOptions &&
-    typeof body.encodingOptions === 'object' &&
-    'encoder' in body.encodingOptions
-  ) {
-    command.encodingOptions = body.encodingOptions as CommitStagedUploadToLibraryCommand['encodingOptions'];
-  }
-
   return command;
 }
 

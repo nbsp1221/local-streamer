@@ -95,9 +95,6 @@ describe('useAddVideosView', () => {
       result.current.handleTitleChange('Custom title');
       result.current.handleTagsChange(['one', 'two']);
       result.current.handleDescriptionChange('Custom description');
-      result.current.handleEncodingOptionsChange({
-        encoder: 'gpu-h264',
-      });
     });
 
     await act(async () => {
@@ -113,9 +110,6 @@ describe('useAddVideosView', () => {
     const commitRequest = fetchImpl.mock.calls[0]?.[1] as RequestInit | undefined;
     expect(JSON.parse(String(commitRequest?.body))).toEqual({
       description: 'Custom description',
-      encodingOptions: {
-        encoder: 'gpu-h264',
-      },
       genreSlugs: [],
       tags: ['one', 'two'],
       title: 'Custom title',

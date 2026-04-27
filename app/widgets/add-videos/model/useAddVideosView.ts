@@ -1,9 +1,5 @@
 import { useRef, useState } from 'react';
 import {
-  type AddVideosEncodingOptions,
-  createDefaultAddVideosEncodingOptions,
-} from '~/features/add-videos-encoding/model/add-videos-encoding-options';
-import {
   type UploadBrowserFile,
   uploadBrowserFile as uploadBrowserFileDefault,
 } from './upload-browser-file';
@@ -14,7 +10,6 @@ export interface FileMetadataState {
   contentTypeSlug?: string;
   genreSlugs: string[];
   description: string;
-  encodingOptions: AddVideosEncodingOptions;
 }
 
 interface CommitResponse {
@@ -60,7 +55,6 @@ interface UseAddVideosViewResult {
   handleChooseFiles: (files: FileList | File[] | null) => void;
   handleClearSession: () => void;
   handleDescriptionChange: (value: string) => void;
-  handleEncodingOptionsChange: (options: AddVideosEncodingOptions) => void;
   handleContentTypeChange: (value: string | undefined) => void;
   handleGenreSlugsChange: (value: string[]) => void;
   handleRemoveSession: () => Promise<void>;
@@ -75,7 +69,6 @@ function createInitialMetadata(filename: string): FileMetadataState {
     tags: [],
     genreSlugs: [],
     description: '',
-    encodingOptions: createDefaultAddVideosEncodingOptions(),
   };
 }
 
@@ -243,10 +236,6 @@ export function useAddVideosView(
     updateSessionMetadata(current => ({ ...current, description: value }));
   };
 
-  const handleEncodingOptionsChange = (options: AddVideosEncodingOptions) => {
-    updateSessionMetadata(current => ({ ...current, encodingOptions: options }));
-  };
-
   const handleAddToLibrary = async () => {
     if (!session || !session.stagingId) {
       return;
@@ -273,7 +262,6 @@ export function useAddVideosView(
         body: JSON.stringify({
           contentTypeSlug: session.metadata.contentTypeSlug,
           description: session.metadata.description.trim() || undefined,
-          encodingOptions: session.metadata.encodingOptions,
           genreSlugs: session.metadata.genreSlugs,
           tags: session.metadata.tags,
           title: session.metadata.title.trim(),
@@ -378,7 +366,6 @@ export function useAddVideosView(
     handleChooseFiles,
     handleClearSession,
     handleDescriptionChange,
-    handleEncodingOptionsChange,
     handleContentTypeChange,
     handleGenreSlugsChange,
     handleRemoveSession,

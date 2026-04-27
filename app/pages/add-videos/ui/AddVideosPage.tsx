@@ -16,7 +16,6 @@ export function AddVideosPage({ contentTypes, genres }: AddVideosPageProps) {
     handleClearSession,
     handleContentTypeChange,
     handleDescriptionChange,
-    handleEncodingOptionsChange,
     handleGenreSlugsChange,
     handleRemoveSession,
     handleRetryUpload,
@@ -37,7 +36,6 @@ export function AddVideosPage({ contentTypes, genres }: AddVideosPageProps) {
         onClearSession={handleClearSession}
         onContentTypeChange={handleContentTypeChange}
         onDescriptionChange={handleDescriptionChange}
-        onEncodingOptionsChange={handleEncodingOptionsChange}
         onGenreSlugsChange={handleGenreSlugsChange}
         onRemoveSession={() => { void handleRemoveSession(); }}
         onRetryUpload={handleRetryUpload}

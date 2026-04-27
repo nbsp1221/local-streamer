@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto';
+import type { IngestMediaPreparationPort } from '~/modules/ingest/application/ports/ingest-media-preparation.port';
 import type { IngestStagedUploadRepositoryPort } from '~/modules/ingest/application/ports/ingest-staged-upload-repository.port';
 import type { IngestStagedUploadStoragePort } from '~/modules/ingest/application/ports/ingest-staged-upload-storage.port';
 import type { IngestVideoMetadataWriterPort } from '~/modules/ingest/application/ports/ingest-video-metadata-writer.port';
-import type { IngestVideoProcessingPort } from '~/modules/ingest/application/ports/ingest-video-processing.port';
 import { CommitStagedUploadToLibraryUseCase } from '~/modules/ingest/application/use-cases/commit-staged-upload-to-library.usecase';
 import { ReapExpiredStagedUploadsUseCase } from '~/modules/ingest/application/use-cases/reap-expired-staged-uploads.usecase';
 import { RemoveStagedUploadUseCase } from '~/modules/ingest/application/use-cases/remove-staged-upload.usecase';
 import { StartStagedUploadUseCase } from '~/modules/ingest/application/use-cases/start-staged-upload.usecase';
 import { FfprobeIngestVideoAnalysisAdapter } from '~/modules/ingest/infrastructure/analysis/ffprobe-ingest-video-analysis.adapter';
-import { FfmpegIngestVideoProcessingAdapter } from '~/modules/ingest/infrastructure/processing/ffmpeg-ingest-video-processing.adapter';
+import { FfmpegMediaPreparationAdapter } from '~/modules/ingest/infrastructure/processing/ffmpeg-media-preparation.adapter';
 import { FilesystemIngestStagedUploadStorageAdapter } from '~/modules/ingest/infrastructure/staging/filesystem-ingest-staged-upload-storage.adapter';
 import { SqliteIngestStagedUploadRepositoryAdapter } from '~/modules/ingest/infrastructure/staging/sqlite-ingest-staged-upload-repository.adapter';
 import { BunStreamingMultipartUploadAdapter } from '~/modules/ingest/infrastructure/upload/bun-streaming-multipart-upload.adapter';
@@ -23,10 +23,10 @@ export interface ServerIngestServices {
 }
 
 interface ServerIngestServiceDependencies {
+  mediaPreparation: IngestMediaPreparationPort;
   stagedUploadRepository: IngestStagedUploadRepositoryPort;
   stagedUploadStorage: IngestStagedUploadStoragePort;
   videoMetadataWriter: IngestVideoMetadataWriterPort;
-  videoProcessing: IngestVideoProcessingPort;
   uploadBrowserFile: BunStreamingMultipartUploadAdapter;
 }
 
@@ -53,8 +53,8 @@ export function createServerIngestServices(
     dbPath: getVideoMetadataConfig().sqlitePath,
   }));
   const getStagedUploadStorage = createLazyValue(() => overrides.stagedUploadStorage ?? new FilesystemIngestStagedUploadStorageAdapter());
+  const getMediaPreparation = createLazyValue(() => overrides.mediaPreparation ?? new FfmpegMediaPreparationAdapter());
   const getVideoMetadataWriter = createLazyValue(() => overrides.videoMetadataWriter ?? new SqliteCanonicalVideoMetadataAdapter());
-  const getVideoProcessing = createLazyValue(() => overrides.videoProcessing ?? new FfmpegIngestVideoProcessingAdapter());
   const getUploadBrowserFile = createLazyValue(() => overrides.uploadBrowserFile ?? new BunStreamingMultipartUploadAdapter());
   const getReapExpiredStagedUploads = createLazyValue(() => new ReapExpiredStagedUploadsUseCase({
     stagedUploadRepository: getStagedUploadRepository(),
@@ -72,12 +72,12 @@ export function createServerIngestServices(
     stagedUploadStorage: getStagedUploadStorage(),
   }));
   const getCommitStagedUploadToLibrary = createLazyValue(() => new CommitStagedUploadToLibraryUseCase({
+    mediaPreparation: getMediaPreparation(),
     reapExpiredStagedUploads: getReapExpiredStagedUploads(),
     stagedUploadRepository: getStagedUploadRepository(),
     stagedUploadStorage: getStagedUploadStorage(),
     videoAnalysis: new FfprobeIngestVideoAnalysisAdapter(),
     videoMetadataWriter: getVideoMetadataWriter(),
-    videoProcessing: getVideoProcessing(),
   }));
 
   return {

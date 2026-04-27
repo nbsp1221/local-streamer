@@ -15,7 +15,6 @@ function createViewProps(overrides: Partial<AddVideosViewProps> = {}): AddVideos
     onClearSession: vi.fn(),
     onContentTypeChange: vi.fn(),
     onDescriptionChange: vi.fn(),
-    onEncodingOptionsChange: vi.fn(),
     onGenreSlugsChange: vi.fn(),
     onRemoveSession: vi.fn(),
     onRetryUpload: vi.fn(),
@@ -36,9 +35,6 @@ function createSession(
     filename: 'fixture-video.mp4',
     metadata: {
       description: '',
-      encodingOptions: {
-        encoder: 'cpu-h264',
-      },
       genreSlugs: [],
       tags: [],
       title: 'Fixture title',
@@ -77,9 +73,6 @@ describe('AddVideosView', () => {
       session: createSession({
         metadata: {
           description: 'Fixture description',
-          encodingOptions: {
-            encoder: 'cpu-h264',
-          },
           genreSlugs: [],
           tags: ['one', 'two'],
           title: 'Fixture title',
@@ -96,6 +89,9 @@ describe('AddVideosView', () => {
     expect(screen.getByText('two')).toBeInTheDocument();
     expect(screen.getByLabelText('Description')).toHaveValue('Fixture description');
     expect(screen.getByRole('textbox', { name: 'Description' }).tagName).toBe('TEXTAREA');
+    expect(screen.queryByText('Browser Playback Encoding')).not.toBeInTheDocument();
+    expect(screen.queryByText('CPU H.264')).not.toBeInTheDocument();
+    expect(screen.queryByText('GPU H.265')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add to Library' })).toBeDisabled();
   });
 

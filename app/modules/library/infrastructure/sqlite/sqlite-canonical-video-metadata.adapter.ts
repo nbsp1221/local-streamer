@@ -5,7 +5,7 @@ import { SqliteLibraryVideoMetadataRepository } from './sqlite-library-video-met
 
 type SqliteCanonicalVideoMetadataAdapterRepository = Pick<
   SqliteLibraryVideoMetadataRepository,
-  'create' | 'findAll' | 'listActiveContentTypes' | 'listActiveGenres'
+  'create' | 'delete' | 'findAll' | 'listActiveContentTypes' | 'listActiveGenres'
 >;
 
 interface SqliteCanonicalVideoMetadataAdapterDependencies {
@@ -46,5 +46,9 @@ implements LibraryVideoSourcePort, IngestVideoMetadataWriterPort {
       title: record.title,
       videoUrl: record.videoUrl,
     });
+  }
+
+  async deleteVideoRecord(id: string) {
+    await this.repository.delete(id);
   }
 }

@@ -1,32 +1,29 @@
 import { randomUUID } from 'node:crypto';
 import { rm } from 'node:fs/promises';
 import path from 'node:path';
+import { selectIngestMediaPreparationStrategy } from '~/modules/ingest/domain/media-preparation-policy';
 import { normalizeVideoTags } from '~/modules/library/domain/video-tag';
 import { normalizeTaxonomySlug, normalizeTaxonomySlugs } from '~/modules/library/domain/video-taxonomy';
 import { getStoragePaths } from '~/shared/config/storage-paths.server';
+import type { IngestMediaPreparationPort } from '../ports/ingest-media-preparation.port';
 import type { IngestStagedUploadRepositoryPort } from '../ports/ingest-staged-upload-repository.port';
 import type { IngestStagedUploadStoragePort } from '../ports/ingest-staged-upload-storage.port';
+import type { IngestVideoAnalysisPort } from '../ports/ingest-video-analysis.port';
 import type { IngestVideoMetadataWriterPort } from '../ports/ingest-video-metadata-writer.port';
-import type { IngestEncodingOptions, IngestVideoProcessingPort } from '../ports/ingest-video-processing.port';
 import type { ReapExpiredStagedUploadsUseCase } from './reap-expired-staged-uploads.usecase';
 
-interface VideoAnalysisPort {
-  analyze(inputPath: string): Promise<{ duration: number }>;
-}
-
 interface CommitStagedUploadToLibraryUseCaseDependencies {
+  mediaPreparation: IngestMediaPreparationPort;
   reapExpiredStagedUploads: Pick<ReapExpiredStagedUploadsUseCase, 'execute'>;
   stagedUploadRepository: IngestStagedUploadRepositoryPort;
   stagedUploadStorage: IngestStagedUploadStoragePort;
-  videoAnalysis: VideoAnalysisPort;
+  videoAnalysis: IngestVideoAnalysisPort;
   videoMetadataWriter: IngestVideoMetadataWriterPort;
-  videoProcessing: IngestVideoProcessingPort;
 }
 
 export interface CommitStagedUploadToLibraryCommand {
   contentTypeSlug?: string;
   description?: string;
-  encodingOptions?: IngestEncodingOptions;
   genreSlugs?: string[];
   stagingId: string;
   tags: string[];
@@ -110,12 +107,24 @@ export class CommitStagedUploadToLibraryUseCase {
     }
 
     const workspaceRootDir = path.join(getStoragePaths().videosDir, videoId);
+    let metadataRecordWritten = false;
 
     try {
       const analysis = await this.deps.videoAnalysis.analyze(stagedUpload.storagePath);
-      const processed = await this.deps.videoProcessing.processPreparedVideo({
-        encodingOptions: command.encodingOptions,
+      const strategy = selectIngestMediaPreparationStrategy(analysis);
+
+      if (strategy === 'reject') {
+        return this.createRejectedResult({
+          message: 'Uploaded file does not contain a readable video stream',
+          stagingId: command.stagingId,
+          workspaceRootDir,
+        });
+      }
+
+      const processed = await this.deps.mediaPreparation.prepareMedia({
+        analysis,
         sourcePath: stagedUpload.storagePath,
+        strategy,
         title: trimmedTitle,
         videoId,
         workspaceRootDir,
@@ -142,12 +151,13 @@ export class CommitStagedUploadToLibraryUseCase {
         title: trimmedTitle,
         videoUrl: `/videos/${videoId}/manifest.mpd`,
       });
+      metadataRecordWritten = true;
       await this.deps.stagedUploadRepository.update(command.stagingId, {
         committedVideoId: videoId,
         status: 'committed',
       });
       await this.deps.stagedUploadStorage.delete(stagedUpload.storagePath);
-      await this.deps.videoProcessing.finalizeSuccessfulVideo({
+      await this.deps.mediaPreparation.finalizeSuccessfulVideo({
         title: trimmedTitle,
         videoId,
       });
@@ -164,6 +174,7 @@ export class CommitStagedUploadToLibraryUseCase {
     catch (error) {
       return this.createUnavailableResult({
         message: error instanceof Error ? error.message : 'Failed to commit staged upload',
+        rollbackVideoId: metadataRecordWritten ? videoId : undefined,
         stagingId: command.stagingId,
         workspaceRootDir,
       });
@@ -172,11 +183,18 @@ export class CommitStagedUploadToLibraryUseCase {
 
   private async createUnavailableResult(input: {
     message: string;
+    rollbackVideoId?: string;
     stagingId: string;
     workspaceRootDir: string;
   }): Promise<CommitStagedUploadToLibraryUseCaseResult> {
-    await rm(input.workspaceRootDir, { force: true, recursive: true });
+    const canCleanupWorkspace = input.rollbackVideoId
+      ? await this.rollbackVideoMetadata(input.rollbackVideoId)
+      : true;
+
     await this.restoreUploadedStatus(input.stagingId);
+    if (canCleanupWorkspace) {
+      await this.cleanupPreparedWorkspace(input.workspaceRootDir);
+    }
 
     return {
       ok: false,
@@ -189,6 +207,41 @@ export class CommitStagedUploadToLibraryUseCase {
     await this.deps.stagedUploadRepository.update(stagingId, {
       status: 'uploaded',
     });
+  }
+
+  private async rollbackVideoMetadata(videoId: string): Promise<boolean> {
+    try {
+      await this.deps.videoMetadataWriter.deleteVideoRecord(videoId);
+      return true;
+    }
+    catch {
+      // Preserve prepared assets when the visible metadata row could not be removed.
+      return false;
+    }
+  }
+
+  private async cleanupPreparedWorkspace(workspaceRootDir: string): Promise<void> {
+    try {
+      await rm(workspaceRootDir, { force: true, recursive: true });
+    }
+    catch {
+      // Keep the staged upload retryable even when best-effort artifact cleanup fails.
+    }
+  }
+
+  private async createRejectedResult(input: {
+    message: string;
+    stagingId: string;
+    workspaceRootDir: string;
+  }): Promise<CommitStagedUploadToLibraryUseCaseResult> {
+    await this.restoreUploadedStatus(input.stagingId);
+    await this.cleanupPreparedWorkspace(input.workspaceRootDir);
+
+    return {
+      ok: false,
+      message: input.message,
+      reason: 'COMMIT_STAGED_UPLOAD_REJECTED',
+    };
   }
 }
 

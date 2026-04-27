@@ -6,7 +6,7 @@ const SqliteCanonicalVideoMetadataAdapterMock = vi.fn();
 const SqliteIngestStagedUploadRepositoryAdapterMock = vi.fn();
 const FilesystemIngestStagedUploadStorageAdapterMock = vi.fn();
 const BunStreamingMultipartUploadAdapterMock = vi.fn();
-const FfmpegIngestVideoProcessingAdapterMock = vi.fn();
+const FfmpegMediaPreparationAdapterMock = vi.fn();
 const FfprobeIngestVideoAnalysisAdapterMock = vi.fn();
 
 vi.mock('~/modules/library/infrastructure/sqlite/sqlite-canonical-video-metadata.adapter', () => ({
@@ -25,8 +25,8 @@ vi.mock('~/modules/ingest/infrastructure/upload/bun-streaming-multipart-upload.a
   BunStreamingMultipartUploadAdapter: BunStreamingMultipartUploadAdapterMock,
 }));
 
-vi.mock('~/modules/ingest/infrastructure/processing/ffmpeg-ingest-video-processing.adapter', () => ({
-  FfmpegIngestVideoProcessingAdapter: FfmpegIngestVideoProcessingAdapterMock,
+vi.mock('~/modules/ingest/infrastructure/processing/ffmpeg-media-preparation.adapter', () => ({
+  FfmpegMediaPreparationAdapter: FfmpegMediaPreparationAdapterMock,
 }));
 
 vi.mock('~/modules/ingest/infrastructure/analysis/ffprobe-ingest-video-analysis.adapter', () => ({
@@ -66,9 +66,9 @@ describe('server ingest composition root', () => {
       storagePath: '/storage/data/staging/staging-123/fixture-video.mp4',
       committedVideoId: input.committedVideoId,
     }));
-    const processPreparedVideo = vi.fn(async () => ({
+    const prepareMedia = vi.fn(async () => ({
       dashEnabled: true,
-      message: 'Video added to library successfully with video conversion',
+      message: 'Video added to library successfully with media preparation',
     }));
     const finalizeSuccessfulVideo = vi.fn(async () => undefined);
     const writeVideoRecord = vi.fn(async () => undefined);
@@ -102,11 +102,12 @@ describe('server ingest composition root', () => {
         receiveSingleFileUpload,
       } as never,
       videoMetadataWriter: {
+        deleteVideoRecord: vi.fn(async () => undefined),
         writeVideoRecord,
       },
-      videoProcessing: {
+      mediaPreparation: {
         finalizeSuccessfulVideo,
-        processPreparedVideo,
+        prepareMedia,
       },
     });
 
@@ -165,18 +166,29 @@ describe('server ingest composition root', () => {
       })),
     }));
     SqliteCanonicalVideoMetadataAdapterMock.mockImplementation(() => ({
+      deleteVideoRecord: vi.fn(async () => undefined),
       listLibraryVideos: vi.fn(),
       writeVideoRecord: vi.fn(async () => undefined),
     }));
-    FfmpegIngestVideoProcessingAdapterMock.mockImplementation(() => ({
+    FfmpegMediaPreparationAdapterMock.mockImplementation(() => ({
       finalizeSuccessfulVideo: vi.fn(async () => undefined),
-      processPreparedVideo: vi.fn(async () => ({
+      prepareMedia: vi.fn(async () => ({
         dashEnabled: true,
-        message: 'Video added to library successfully with video conversion',
+        message: 'Video added to library successfully with media preparation',
       })),
     }));
     FfprobeIngestVideoAnalysisAdapterMock.mockImplementation(() => ({
-      analyze: vi.fn(async () => ({ duration: 120 })),
+      analyze: vi.fn(async () => ({
+        duration: 120,
+        primaryAudio: {
+          codecName: 'aac',
+          streamIndex: 1,
+        },
+        primaryVideo: {
+          codecName: 'h264',
+          streamIndex: 0,
+        },
+      })),
     }));
 
     const { getServerIngestServices } = await import('../../../app/composition/server/ingest');
@@ -200,7 +212,7 @@ describe('server ingest composition root', () => {
     expect(SqliteIngestStagedUploadRepositoryAdapterMock).toHaveBeenCalledOnce();
     expect(FilesystemIngestStagedUploadStorageAdapterMock).toHaveBeenCalledOnce();
     expect(SqliteCanonicalVideoMetadataAdapterMock).toHaveBeenCalledOnce();
-    expect(FfmpegIngestVideoProcessingAdapterMock).toHaveBeenCalledOnce();
+    expect(FfmpegMediaPreparationAdapterMock).toHaveBeenCalledOnce();
   });
 
   test('ingest composition root does not import the retiring canonical metadata seam file', async () => {
