@@ -1,14 +1,40 @@
 import type { PlaylistItem } from '~/modules/playlist/domain/playlist';
-import { SqliteLibraryVideoMetadataRepository } from '~/modules/library/infrastructure/sqlite/sqlite-library-video-metadata.repository';
-import { getVideoMetadataConfig } from '~/shared/config/video-metadata.server';
+import type { SqliteDatabaseAdapter } from '~/modules/storage/infrastructure/sqlite/primary-sqlite.database';
+import { getPrimaryStorageConfig } from '~/modules/storage/infrastructure/config/storage-config.server';
+import { type CreateMigratedPrimarySqliteDatabase, createMigratedPrimarySqliteDatabase } from '~/modules/storage/infrastructure/sqlite/migrated-primary-sqlite.database';
+
+interface SqlitePlaylistVideoCatalogOptions {
+  createDatabase?: CreateMigratedPrimarySqliteDatabase;
+  dbPath?: string;
+}
+
+interface PlaylistVideoRow {
+  duration_seconds: number;
+  id: string;
+  title: string;
+}
 
 export class SqlitePlaylistVideoCatalog {
-  private readonly repository = new SqliteLibraryVideoMetadataRepository({
-    dbPath: getVideoMetadataConfig().sqlitePath,
-  });
+  private readonly createDatabase: CreateMigratedPrimarySqliteDatabase;
+  private readonly dbPath: string;
+  private databasePromise: Promise<SqliteDatabaseAdapter> | null = null;
+
+  constructor(options: SqlitePlaylistVideoCatalogOptions = {}) {
+    this.createDatabase = options.createDatabase ?? createMigratedPrimarySqliteDatabase;
+    this.dbPath = options.dbPath ?? getPrimaryStorageConfig().databasePath;
+  }
+
+  private async getDatabase(): Promise<SqliteDatabaseAdapter> {
+    if (!this.databasePromise) {
+      this.databasePromise = this.createDatabase({ dbPath: this.dbPath });
+    }
+
+    return this.databasePromise;
+  }
 
   async findById(videoId: string) {
-    const video = await this.repository.findById(videoId);
+    const database = await this.getDatabase();
+    const video = await findReadyVideoById(database, videoId);
 
     if (!video) {
       return null;
@@ -17,14 +43,15 @@ export class SqlitePlaylistVideoCatalog {
     return {
       duration: video.duration,
       id: video.id,
-      thumbnailUrl: video.thumbnailUrl,
+      thumbnailUrl: `/api/thumbnail/${video.id}`,
       title: video.title,
     };
   }
 
   async getPlaylistVideos(items: PlaylistItem[]) {
+    const database = await this.getDatabase();
     const resolvedVideos = await Promise.all(items.map(async (item) => {
-      const video = await this.repository.findById(item.videoId);
+      const video = await findReadyVideoById(database, item.videoId);
 
       if (!video) {
         return null;
@@ -35,7 +62,7 @@ export class SqlitePlaylistVideoCatalog {
         id: video.id,
         episodeMetadata: item.episodeMetadata,
         position: item.position,
-        thumbnailUrl: video.thumbnailUrl,
+        thumbnailUrl: `/api/thumbnail/${video.id}`,
         title: video.title,
       } satisfies {
         duration: number;
@@ -49,4 +76,26 @@ export class SqlitePlaylistVideoCatalog {
 
     return resolvedVideos.filter(video => video !== null);
   }
+}
+
+async function findReadyVideoById(database: SqliteDatabaseAdapter, videoId: string) {
+  const row = await database.prepare<PlaylistVideoRow>(`
+    SELECT
+      videos.id,
+      videos.title,
+      videos.duration_seconds
+    FROM videos
+    INNER JOIN video_media_assets
+      ON video_media_assets.video_id = videos.id
+     AND video_media_assets.status = 'ready'
+    WHERE videos.id = ?
+  `).get(videoId);
+
+  return row
+    ? {
+        duration: row.duration_seconds,
+        id: row.id,
+        title: row.title,
+      }
+    : null;
 }

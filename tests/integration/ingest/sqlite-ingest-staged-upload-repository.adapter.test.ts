@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { SqliteIngestStagedUploadRepositoryAdapter } from '../../../app/modules/ingest/infrastructure/staging/sqlite-ingest-staged-upload-repository.adapter';
+import { createMigratedPrimarySqliteDatabase } from '../../../app/modules/storage/infrastructure/sqlite/migrated-primary-sqlite.database';
 
 const cleanupTasks: Array<() => Promise<void>> = [];
 
@@ -12,16 +13,24 @@ afterEach(async () => {
 
 async function createRepository() {
   const workspace = await mkdtemp(path.join(tmpdir(), 'local-streamer-staged-upload-repository-'));
+  const storageDir = path.join(workspace, 'storage');
+  const dbPath = path.join(storageDir, 'db.sqlite');
   cleanupTasks.push(async () => rm(workspace, { force: true, recursive: true }));
 
-  return new SqliteIngestStagedUploadRepositoryAdapter({
-    dbPath: path.join(workspace, 'storage', 'data', 'video-metadata.sqlite'),
-  });
+  return {
+    dbPath,
+    repository: new SqliteIngestStagedUploadRepositoryAdapter({
+      dbPath,
+      storageDir,
+    }),
+    storageDir,
+  };
 }
 
 describe('SqliteIngestStagedUploadRepositoryAdapter', () => {
   test('creates, loads, updates, and deletes staged uploads by stagingId', async () => {
-    const repository = await createRepository();
+    const { repository, storageDir } = await createRepository();
+    const storagePath = path.join(storageDir, 'staging', 'staging-123', 'video.mp4');
     const created = await repository.create({
       createdAt: new Date('2026-04-20T00:00:00.000Z'),
       expiresAt: new Date('2026-04-21T00:00:00.000Z'),
@@ -30,7 +39,7 @@ describe('SqliteIngestStagedUploadRepositoryAdapter', () => {
       size: 1_024,
       stagingId: 'staging-123',
       status: 'uploaded',
-      storagePath: '/tmp/staging-123/video.mp4',
+      storagePath,
     });
 
     expect(created).toEqual({
@@ -42,7 +51,7 @@ describe('SqliteIngestStagedUploadRepositoryAdapter', () => {
       size: 1_024,
       stagingId: 'staging-123',
       status: 'uploaded',
-      storagePath: '/tmp/staging-123/video.mp4',
+      storagePath,
     });
 
     await expect(repository.findByStagingId('staging-123')).resolves.toEqual(created);
@@ -64,7 +73,7 @@ describe('SqliteIngestStagedUploadRepositoryAdapter', () => {
   });
 
   test('stores a reserved committedVideoId once and reuses it on later reservations', async () => {
-    const repository = await createRepository();
+    const { repository, storageDir } = await createRepository();
     await repository.create({
       createdAt: new Date('2026-04-20T00:00:00.000Z'),
       expiresAt: new Date('2026-04-21T00:00:00.000Z'),
@@ -73,7 +82,7 @@ describe('SqliteIngestStagedUploadRepositoryAdapter', () => {
       size: 1_024,
       stagingId: 'staging-123',
       status: 'uploaded',
-      storagePath: '/tmp/staging-123/video.mp4',
+      storagePath: path.join(storageDir, 'staging', 'staging-123', 'video.mp4'),
     });
 
     await expect(repository.reserveCommittedVideoId('staging-123', 'video-123')).resolves.toBe('video-123');
@@ -86,7 +95,7 @@ describe('SqliteIngestStagedUploadRepositoryAdapter', () => {
   });
 
   test('acquires the commit transition once and reports already_committing on the second attempt', async () => {
-    const repository = await createRepository();
+    const { repository, storageDir } = await createRepository();
     await repository.create({
       createdAt: new Date('2026-04-20T00:00:00.000Z'),
       expiresAt: new Date('2026-04-21T00:00:00.000Z'),
@@ -95,7 +104,7 @@ describe('SqliteIngestStagedUploadRepositoryAdapter', () => {
       size: 1_024,
       stagingId: 'staging-123',
       status: 'uploaded',
-      storagePath: '/tmp/staging-123/video.mp4',
+      storagePath: path.join(storageDir, 'staging', 'staging-123', 'video.mp4'),
     });
 
     await expect(repository.beginCommit('staging-123')).resolves.toBe('acquired');
@@ -103,7 +112,19 @@ describe('SqliteIngestStagedUploadRepositoryAdapter', () => {
   });
 
   test('lists only expired non-committed staged uploads for TTL reaping', async () => {
-    const repository = await createRepository();
+    const { dbPath, repository, storageDir } = await createRepository();
+    const database = await createMigratedPrimarySqliteDatabase({ dbPath });
+    await database.prepare(`
+      INSERT INTO videos (id, title, duration_seconds, created_at, updated_at, sort_index)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      'video-123',
+      'Committed video',
+      10,
+      '2026-04-19T00:00:00.000Z',
+      '2026-04-19T00:00:00.000Z',
+      1,
+    );
     await repository.create({
       createdAt: new Date('2026-04-19T00:00:00.000Z'),
       expiresAt: new Date('2026-04-19T12:00:00.000Z'),
@@ -112,7 +133,7 @@ describe('SqliteIngestStagedUploadRepositoryAdapter', () => {
       size: 1_024,
       stagingId: 'expired-uploaded',
       status: 'uploaded',
-      storagePath: '/tmp/expired-uploaded.mp4',
+      storagePath: path.join(storageDir, 'staging', 'expired-uploaded', 'expired-uploaded.mp4'),
     });
     await repository.create({
       createdAt: new Date('2026-04-19T00:00:00.000Z'),
@@ -122,7 +143,7 @@ describe('SqliteIngestStagedUploadRepositoryAdapter', () => {
       size: 1_024,
       stagingId: 'expired-committed',
       status: 'committed',
-      storagePath: '/tmp/expired-committed.mp4',
+      storagePath: path.join(storageDir, 'staging', 'expired-committed', 'expired-committed.mp4'),
       committedVideoId: 'video-123',
     });
     await repository.create({
@@ -133,7 +154,7 @@ describe('SqliteIngestStagedUploadRepositoryAdapter', () => {
       size: 1_024,
       stagingId: 'active-uploaded',
       status: 'uploaded',
-      storagePath: '/tmp/active-uploaded.mp4',
+      storagePath: path.join(storageDir, 'staging', 'active-uploaded', 'active-uploaded.mp4'),
     });
 
     await expect(repository.listExpired(new Date('2026-04-20T12:00:00.000Z'))).resolves.toEqual([

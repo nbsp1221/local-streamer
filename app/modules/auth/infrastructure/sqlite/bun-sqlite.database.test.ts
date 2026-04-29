@@ -10,7 +10,7 @@ function createModuleUnavailableError(message: string, code: string) {
 describe('createSqliteDatabaseForRuntime', () => {
   test('falls back to an in-memory adapter when Bun and Node SQLite are unavailable', async () => {
     const database = await createSqliteDatabaseForRuntime({
-      dbPath: '/tmp/local-streamer-auth.sqlite',
+      dbPath: '/tmp/local-streamer-db.sqlite',
       loadBunDatabase: async () => {
         throw createModuleUnavailableError(
           'Cannot load bun:sqlite in this runtime',

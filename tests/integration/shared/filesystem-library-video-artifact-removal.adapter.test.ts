@@ -32,7 +32,7 @@ describe('filesystem library video artifact removal adapter', () => {
   });
 
   test('removes the active video workspace directory and returns an empty result on success', async () => {
-    const videoDir = join(tempDir, 'data', 'videos', 'video-1');
+    const videoDir = join(tempDir, 'videos', 'video-1');
     await mkdir(videoDir, { recursive: true });
 
     const { FilesystemLibraryVideoArtifactRemovalAdapter } = await import('../../../app/modules/library/infrastructure/storage/filesystem-library-video-artifact-removal.adapter');

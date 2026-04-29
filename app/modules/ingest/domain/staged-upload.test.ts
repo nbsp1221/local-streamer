@@ -16,7 +16,7 @@ describe('IngestStagedUpload', () => {
       size: 1_024,
       stagingId: 'staging-123',
       status: 'uploaded',
-      storagePath: '/tmp/storage/data/staging/staging-123/video.mp4',
+      storagePath: '/tmp/storage/staging/staging-123/video.mp4',
     };
 
     expect(stagedUpload).toEqual({
@@ -28,7 +28,7 @@ describe('IngestStagedUpload', () => {
       size: 1_024,
       stagingId: 'staging-123',
       status: 'uploaded',
-      storagePath: '/tmp/storage/data/staging/staging-123/video.mp4',
+      storagePath: '/tmp/storage/staging/staging-123/video.mp4',
     });
   });
 

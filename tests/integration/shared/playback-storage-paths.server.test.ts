@@ -21,7 +21,7 @@ describe('getPlaybackStoragePaths', () => {
 
     expect(getPlaybackStoragePaths()).toEqual({
       storageDir: path.resolve('/tmp/playback-storage-root'),
-      videosDir: path.resolve('/tmp/playback-storage-root', 'data', 'videos'),
+      videosDir: path.resolve('/tmp/playback-storage-root', 'videos'),
     });
   });
 
@@ -31,7 +31,7 @@ describe('getPlaybackStoragePaths', () => {
 
     expect(getPlaybackStoragePaths()).toEqual({
       storageDir: path.resolve(process.cwd(), 'storage'),
-      videosDir: path.resolve(process.cwd(), 'storage', 'data', 'videos'),
+      videosDir: path.resolve(process.cwd(), 'storage', 'videos'),
     });
   });
 });

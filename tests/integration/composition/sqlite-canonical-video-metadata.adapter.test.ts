@@ -91,4 +91,34 @@ describe('sqlite canonical video metadata adapter', () => {
     });
     expect(deleteVideo).toHaveBeenCalledWith('video-123');
   });
+
+  test('does not delete an existing video when creating a new record fails', async () => {
+    const create = vi.fn(async () => {
+      throw new Error('UNIQUE constraint failed: videos.id');
+    });
+    const deleteVideo = vi.fn(async () => true);
+    const { SqliteCanonicalVideoMetadataAdapter } = await import('../../../app/modules/library/infrastructure/sqlite/sqlite-canonical-video-metadata.adapter');
+    const adapter = new SqliteCanonicalVideoMetadataAdapter({
+      repository: {
+        create,
+        delete: deleteVideo,
+        findAll: vi.fn(async () => []),
+        listActiveContentTypes: vi.fn(async () => []),
+        listActiveGenres: vi.fn(async () => []),
+      },
+    });
+
+    await expect(adapter.writeVideoRecord({
+      contentTypeSlug: undefined,
+      description: undefined,
+      duration: 120,
+      genreSlugs: [],
+      id: 'existing-video',
+      tags: [],
+      thumbnailUrl: '/api/thumbnail/existing-video',
+      title: 'Existing Video',
+      videoUrl: '/videos/existing-video/manifest.mpd',
+    })).rejects.toThrow(/UNIQUE constraint/);
+    expect(deleteVideo).not.toHaveBeenCalled();
+  });
 });

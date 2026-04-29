@@ -42,7 +42,7 @@ import { GetPlaylistDetailsUseCase } from '~/modules/playlist/application/use-ca
 import { RemoveVideoFromPlaylistUseCase } from '~/modules/playlist/application/use-cases/remove-video-from-playlist.usecase';
 import { ReorderPlaylistItemsUseCase } from '~/modules/playlist/application/use-cases/reorder-playlist-items.usecase';
 import { UpdatePlaylistUseCase } from '~/modules/playlist/application/use-cases/update-playlist.usecase';
-import { JsonPlaylistRepository } from '~/modules/playlist/infrastructure/json/json-playlist.repository';
+import { SqlitePlaylistRepository } from '~/modules/playlist/infrastructure/sqlite/sqlite-playlist.repository';
 import { SqlitePlaylistVideoCatalog } from '~/modules/playlist/infrastructure/video/sqlite-playlist-video-catalog.adapter';
 import { resolveSiteViewer } from './auth';
 
@@ -175,7 +175,7 @@ function resolveDependencies(
   overrides: Partial<ServerPlaylistServiceDependencies>,
 ): ServerPlaylistServiceDependencies {
   return {
-    playlistRepository: overrides.playlistRepository ?? new JsonPlaylistRepository(),
+    playlistRepository: overrides.playlistRepository ?? new SqlitePlaylistRepository(),
     resolveOwnerId: overrides.resolveOwnerId ?? (async () => (await resolveSiteViewer()).id),
     videoCatalog: overrides.videoCatalog ?? new SqlitePlaylistVideoCatalog(),
   };

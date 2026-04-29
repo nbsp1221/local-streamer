@@ -34,7 +34,7 @@ describe('ThumbnailDecryptionService', () => {
       import('../../../app/modules/thumbnail/infrastructure/security/pbkdf2-thumbnail-key-manager'),
     ]);
     const videoId = '00000000-0000-4000-8000-000000000128';
-    const videoDir = join(storageDir, 'data', 'videos', videoId);
+    const videoDir = join(storageDir, 'videos', videoId);
     const thumbnailPath = join(videoDir, 'thumbnail.jpg');
     await mkdir(videoDir, { recursive: true });
     await writeFile(thumbnailPath, await readFile(VALID_JPEG_FIXTURE_PATH));

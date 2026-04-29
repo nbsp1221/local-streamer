@@ -1,5 +1,5 @@
 import type { LibraryVideoMutationPort } from '~/modules/library/application/ports/library-video-mutation.port';
-import { getVideoMetadataConfig } from '~/shared/config/video-metadata.server';
+import { getPrimaryStorageConfig } from '~/modules/storage/infrastructure/config/storage-config.server';
 import { SqliteLibraryVideoMetadataRepository } from './sqlite-library-video-metadata.repository';
 
 type SqliteLibraryVideoMutationAdapterRepository = Pick<
@@ -32,7 +32,7 @@ export class SqliteLibraryVideoMutationAdapter implements LibraryVideoMutationPo
 
   constructor(deps: SqliteLibraryVideoMutationAdapterDependencies = {}) {
     this.repository = deps.repository ?? new SqliteLibraryVideoMetadataRepository({
-      dbPath: getVideoMetadataConfig().sqlitePath,
+      dbPath: getPrimaryStorageConfig().databasePath,
     });
   }
 

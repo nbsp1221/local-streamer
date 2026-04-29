@@ -166,7 +166,7 @@ Use:
 
 - Hermetic playback/browser fixtures under `tests/fixtures/playback/`
 - Hermetic upload smoke fixture under `tests/fixtures/upload/smoke-upload.mp4`
-- Do not treat repo-local `storage/data/test-videos/` as a hermetic fixture source; `storage/` is ignored and is suitable only for optional local manual QA.
+- Do not treat repo-local `storage/` media as a hermetic fixture source; `storage/` is ignored and is suitable only for optional local manual QA.
 - For automated upload-oriented coverage, prefer temporary generated fixtures or another tracked test-owned surface instead of `storage/`.
 
 For the supported Playwright entrypoints:

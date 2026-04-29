@@ -66,14 +66,14 @@ The legacy tree is gone, and these current runtime contracts remain intentionall
 
 ### Config-owned auth runtime
 
-- runtime auth no longer depends on `storage/data/users.json`
+- runtime auth uses the primary SQLite database
 - runtime owner identity is config-owned through `AUTH_OWNER_ID` and `AUTH_OWNER_EMAIL`
 - default runtime owner values still come from those config defaults when the env vars are not overridden
 
-### Active-owned JSON persistence
+### Active-owned SQLite persistence
 
-- playlists still persist through active JSON infrastructure under `app/modules/playlist/infrastructure/json`
-- this is no longer a legacy bridge; it is the current owner for playlist persistence
+- playlists persist through the primary SQLite database under `storage/db.sqlite`
+- JSON playlist persistence has been retired with the legacy storage layout
 
 ### Playback fixture maintenance
 

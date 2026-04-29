@@ -16,16 +16,13 @@ describe('createRuntimeTestWorkspace', () => {
     expect(workspace.rootDir).not.toContain('/storage');
     expect(workspace.storageDir).toContain(workspace.rootDir);
     expect(workspace.authDbPath).toContain(workspace.rootDir);
-    expect(workspace.videoMetadataDbPath).toBe(
-      `${workspace.storageDir}/data/video-metadata.sqlite`,
-    );
+    expect(workspace.databasePath).toBe(`${workspace.storageDir}/db.sqlite`);
+    expect(workspace.authDbPath).toBe(workspace.databasePath);
+    expect(workspace.videoMetadataDbPath).toBe(workspace.databasePath);
 
-    await expect(access(`${workspace.storageDir}/data/videos.json`)).rejects.toBeDefined();
-    await expect(access(`${workspace.storageDir}/data/pending.json`)).rejects.toBeDefined();
-    await expect(access(`${workspace.storageDir}/data/playlists.json`)).resolves.toBeUndefined();
-    await expect(access(`${workspace.storageDir}/data/playlist-items.json`)).resolves.toBeUndefined();
-    await expect(access(`${workspace.storageDir}/data/videos/68e5f819-15e8-41ef-90ee-8a96769311b7/manifest.mpd`)).resolves.toBeUndefined();
-    await expect(access(`${workspace.storageDir}/data/videos/68e5f819-15e8-41ef-90ee-8a96769311b7/video/init.mp4`)).resolves.toBeUndefined();
+    await expect(access(`${workspace.storageDir}/data`)).rejects.toBeDefined();
+    await expect(access(`${workspace.storageDir}/videos/68e5f819-15e8-41ef-90ee-8a96769311b7/manifest.mpd`)).resolves.toBeUndefined();
+    await expect(access(`${workspace.storageDir}/videos/68e5f819-15e8-41ef-90ee-8a96769311b7/video/init.mp4`)).resolves.toBeUndefined();
     await expect(access(workspace.videoMetadataDbPath)).resolves.toBeUndefined();
 
     const metadataRepository = new SqliteLibraryVideoMetadataRepository({
@@ -52,11 +49,10 @@ describe('createRuntimeTestWorkspace', () => {
     ]));
   });
 
-  test('does not seed legacy pending-upload files into the hermetic browser workspace', async () => {
+  test('does not seed retired upload directories into the hermetic browser workspace', async () => {
     const workspace = await createRuntimeTestWorkspace();
     cleanupTasks.push(workspace.cleanup);
 
-    await expect(access(`${workspace.storageDir}/data/pending.json`)).rejects.toBeDefined();
     await expect(access(`${workspace.storageDir}/uploads`)).rejects.toBeDefined();
   });
 });

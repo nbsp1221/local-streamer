@@ -6,8 +6,8 @@ The current runtime shape is:
 
 - durable video metadata lives in SQLite under
   `app/modules/library/infrastructure/sqlite`
-- local file persistence uses the single `@libsql/client` adapter path in
-  `libsql-video-metadata.database.ts`
+- local file persistence uses the primary storage SQLite adapter under
+  `app/modules/storage/infrastructure/sqlite`
 - active composition now depends on library-owned adapters:
   - `sqlite-canonical-video-metadata.adapter.ts`
   - `sqlite-library-video-mutation.adapter.ts`

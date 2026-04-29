@@ -1,5 +1,7 @@
-import type { CreateSqliteDatabase, SqliteDatabaseAdapter } from '~/modules/library/infrastructure/sqlite/libsql-video-metadata.database';
-import { createVideoMetadataSqliteDatabase } from '~/modules/library/infrastructure/sqlite/libsql-video-metadata.database';
+import path from 'node:path';
+import type { SqliteDatabaseAdapter } from '~/modules/storage/infrastructure/sqlite/primary-sqlite.database';
+import { getPrimaryStorageConfig } from '~/modules/storage/infrastructure/config/storage-config.server';
+import { type CreateMigratedPrimarySqliteDatabase, createMigratedPrimarySqliteDatabase } from '~/modules/storage/infrastructure/sqlite/migrated-primary-sqlite.database';
 import type {
   CreateIngestStagedUploadInput,
   IngestStagedUploadRepositoryPort,
@@ -7,23 +9,10 @@ import type {
 } from '../../application/ports/ingest-staged-upload-repository.port';
 import type { IngestStagedUpload } from '../../domain/staged-upload';
 
-const INGEST_STAGED_UPLOADS_SCHEMA = `
-  CREATE TABLE IF NOT EXISTS ingest_staged_uploads (
-    staging_id TEXT PRIMARY KEY,
-    filename TEXT NOT NULL,
-    mime_type TEXT NOT NULL,
-    size INTEGER NOT NULL,
-    storage_path TEXT NOT NULL,
-    status TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    expires_at TEXT NOT NULL,
-    committed_video_id TEXT
-  )
-`;
-
 interface SqliteIngestStagedUploadRepositoryAdapterDependencies {
-  createDatabase?: CreateSqliteDatabase;
-  dbPath: string;
+  createDatabase?: CreateMigratedPrimarySqliteDatabase;
+  dbPath?: string;
+  storageDir?: string;
 }
 
 interface IngestStagedUploadRow {
@@ -32,46 +21,57 @@ interface IngestStagedUploadRow {
   expires_at: string;
   filename: string;
   mime_type: string;
-  size: number;
+  reserved_video_id: string | null;
+  size_bytes: number;
   staging_id: string;
   status: IngestStagedUpload['status'];
-  storage_path: string;
+  storage_relpath: string;
 }
 
 export class SqliteIngestStagedUploadRepositoryAdapter implements IngestStagedUploadRepositoryPort {
-  private readonly createDatabase: CreateSqliteDatabase;
+  private readonly createDatabase: CreateMigratedPrimarySqliteDatabase;
   private readonly dbPath: string;
+  private readonly storageDir: string;
   private databasePromise: Promise<SqliteDatabaseAdapter> | null = null;
 
   constructor(deps: SqliteIngestStagedUploadRepositoryAdapterDependencies) {
-    this.createDatabase = deps.createDatabase ?? createVideoMetadataSqliteDatabase;
-    this.dbPath = deps.dbPath;
+    const config = getPrimaryStorageConfig();
+
+    this.createDatabase = deps.createDatabase ?? createMigratedPrimarySqliteDatabase;
+    this.dbPath = deps.dbPath ?? config.databasePath;
+    this.storageDir = deps.storageDir ?? config.storageDir;
   }
 
   async create(upload: CreateIngestStagedUploadInput): Promise<IngestStagedUpload> {
     const database = await this.getDatabase();
     await database.prepare(`
-      INSERT INTO ingest_staged_uploads (
+      INSERT INTO ingest_uploads (
         staging_id,
         filename,
         mime_type,
-        size,
-        storage_path,
+        size_bytes,
+        storage_relpath,
         status,
         created_at,
+        updated_at,
         expires_at,
-        committed_video_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        reserved_video_id,
+        committed_video_id,
+        committed_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       upload.stagingId,
       upload.filename,
       upload.mimeType,
       upload.size,
-      upload.storagePath,
+      this.toRelativeStoragePath(upload.storagePath),
       upload.status,
+      upload.createdAt.toISOString(),
       upload.createdAt.toISOString(),
       upload.expiresAt.toISOString(),
       upload.committedVideoId ?? null,
+      upload.status === 'committed' ? upload.committedVideoId ?? null : null,
+      upload.status === 'committed' ? upload.createdAt.toISOString() : null,
     );
 
     const created = await this.findByStagingId(upload.stagingId);
@@ -85,7 +85,7 @@ export class SqliteIngestStagedUploadRepositoryAdapter implements IngestStagedUp
   async delete(stagingId: string): Promise<void> {
     const database = await this.getDatabase();
     await database.prepare(`
-      DELETE FROM ingest_staged_uploads
+      DELETE FROM ingest_uploads
       WHERE staging_id = ?
     `).run(stagingId);
   }
@@ -97,17 +97,18 @@ export class SqliteIngestStagedUploadRepositoryAdapter implements IngestStagedUp
         staging_id,
         filename,
         mime_type,
-        size,
-        storage_path,
+        size_bytes,
+        storage_relpath,
         status,
         created_at,
         expires_at,
+        reserved_video_id,
         committed_video_id
-      FROM ingest_staged_uploads
+      FROM ingest_uploads
       WHERE staging_id = ?
     `).get(stagingId);
 
-    return row ? mapRowToStagedUpload(row) : null;
+    return row ? this.mapRowToStagedUpload(row) : null;
   }
 
   async listExpired(referenceTime: Date): Promise<IngestStagedUpload[]> {
@@ -117,19 +118,20 @@ export class SqliteIngestStagedUploadRepositoryAdapter implements IngestStagedUp
         staging_id,
         filename,
         mime_type,
-        size,
-        storage_path,
+        size_bytes,
+        storage_relpath,
         status,
         created_at,
         expires_at,
+        reserved_video_id,
         committed_video_id
-      FROM ingest_staged_uploads
+      FROM ingest_uploads
       WHERE expires_at < ?
         AND status != 'committed'
       ORDER BY created_at ASC
     `).all(referenceTime.toISOString());
 
-    return rows.map(mapRowToStagedUpload);
+    return rows.map(row => this.mapRowToStagedUpload(row));
   }
 
   async beginCommit(stagingId: string): Promise<'acquired' | 'already_committed' | 'already_committing' | 'missing'> {
@@ -138,7 +140,7 @@ export class SqliteIngestStagedUploadRepositoryAdapter implements IngestStagedUp
     return database.transaction(async (transactionDatabase) => {
       const row = await transactionDatabase.prepare<Pick<IngestStagedUploadRow, 'status'>>(`
         SELECT status
-        FROM ingest_staged_uploads
+        FROM ingest_uploads
         WHERE staging_id = ?
       `).get(stagingId);
 
@@ -155,10 +157,11 @@ export class SqliteIngestStagedUploadRepositoryAdapter implements IngestStagedUp
       }
 
       await transactionDatabase.prepare(`
-        UPDATE ingest_staged_uploads
-        SET status = 'committing'
+        UPDATE ingest_uploads
+        SET status = 'committing',
+            updated_at = ?
         WHERE staging_id = ?
-      `).run(stagingId);
+      `).run(new Date().toISOString(), stagingId);
 
       return 'acquired';
     });
@@ -168,9 +171,9 @@ export class SqliteIngestStagedUploadRepositoryAdapter implements IngestStagedUp
     const database = await this.getDatabase();
 
     return database.transaction(async (transactionDatabase) => {
-      const row = await transactionDatabase.prepare<Pick<IngestStagedUploadRow, 'committed_video_id'>>(`
-        SELECT committed_video_id
-        FROM ingest_staged_uploads
+      const row = await transactionDatabase.prepare<Pick<IngestStagedUploadRow, 'reserved_video_id'>>(`
+        SELECT reserved_video_id
+        FROM ingest_uploads
         WHERE staging_id = ?
       `).get(stagingId);
 
@@ -178,15 +181,16 @@ export class SqliteIngestStagedUploadRepositoryAdapter implements IngestStagedUp
         return null;
       }
 
-      if (row.committed_video_id) {
-        return row.committed_video_id;
+      if (row.reserved_video_id) {
+        return row.reserved_video_id;
       }
 
       await transactionDatabase.prepare(`
-        UPDATE ingest_staged_uploads
-        SET committed_video_id = ?
+        UPDATE ingest_uploads
+        SET reserved_video_id = ?,
+            updated_at = ?
         WHERE staging_id = ?
-      `).run(nextVideoId, stagingId);
+      `).run(nextVideoId, new Date().toISOString(), stagingId);
 
       return nextVideoId;
     });
@@ -201,16 +205,24 @@ export class SqliteIngestStagedUploadRepositoryAdapter implements IngestStagedUp
     }
 
     await database.prepare(`
-      UPDATE ingest_staged_uploads
+      UPDATE ingest_uploads
       SET
         status = ?,
+        updated_at = ?,
         expires_at = ?,
-        committed_video_id = ?
+        reserved_video_id = ?,
+        committed_video_id = ?,
+        committed_at = ?
       WHERE staging_id = ?
     `).run(
       input.status ?? current.status,
+      new Date().toISOString(),
       (input.expiresAt ?? current.expiresAt).toISOString(),
       input.committedVideoId ?? current.committedVideoId ?? null,
+      input.status === 'committed'
+        ? input.committedVideoId ?? current.committedVideoId ?? null
+        : null,
+      input.status === 'committed' ? new Date().toISOString() : null,
       stagingId,
     );
 
@@ -221,26 +233,33 @@ export class SqliteIngestStagedUploadRepositoryAdapter implements IngestStagedUp
     if (!this.databasePromise) {
       this.databasePromise = this.createDatabase({
         dbPath: this.dbPath,
-      }).then(async (database) => {
-        await database.exec(INGEST_STAGED_UPLOADS_SCHEMA);
-        return database;
       });
     }
 
     return this.databasePromise;
   }
-}
 
-function mapRowToStagedUpload(row: IngestStagedUploadRow): IngestStagedUpload {
-  return {
-    committedVideoId: row.committed_video_id ?? undefined,
-    createdAt: new Date(row.created_at),
-    expiresAt: new Date(row.expires_at),
-    filename: row.filename,
-    mimeType: row.mime_type,
-    size: row.size,
-    stagingId: row.staging_id,
-    status: row.status,
-    storagePath: row.storage_path,
-  };
+  private mapRowToStagedUpload(row: IngestStagedUploadRow): IngestStagedUpload {
+    return {
+      committedVideoId: row.committed_video_id ?? row.reserved_video_id ?? undefined,
+      createdAt: new Date(row.created_at),
+      expiresAt: new Date(row.expires_at),
+      filename: row.filename,
+      mimeType: row.mime_type,
+      size: row.size_bytes,
+      stagingId: row.staging_id,
+      status: row.status,
+      storagePath: path.join(this.storageDir, row.storage_relpath),
+    };
+  }
+
+  private toRelativeStoragePath(storagePath: string): string {
+    const relativePath = path.relative(this.storageDir, storagePath);
+
+    if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+      throw new Error(`Staged upload path must be inside storage root: ${storagePath}`);
+    }
+
+    return relativePath;
+  }
 }

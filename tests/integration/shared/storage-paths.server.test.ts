@@ -1,74 +1,112 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 const ORIGINAL_STORAGE_DIR = process.env.STORAGE_DIR;
-const ORIGINAL_VIDEO_METADATA_SQLITE_PATH = process.env.VIDEO_METADATA_SQLITE_PATH;
+const ORIGINAL_DATABASE_SQLITE_PATH = process.env.DATABASE_SQLITE_PATH;
+const workspaces: string[] = [];
+
+function createWorkspacePath(name: string) {
+  const workspace = mkdtempSync(path.join(tmpdir(), `local-streamer-${name}-`));
+  workspaces.push(workspace);
+  return workspace;
+}
+
+function clearPathEnv() {
+  delete process.env.DATABASE_SQLITE_PATH;
+  delete process.env.STORAGE_DIR;
+}
+
+beforeEach(() => {
+  vi.resetModules();
+  clearPathEnv();
+});
 
 afterEach(() => {
   vi.resetModules();
+  for (const workspace of workspaces.splice(0)) {
+    rmSync(workspace, { force: true, recursive: true });
+  }
 
   if (ORIGINAL_STORAGE_DIR === undefined) {
     delete process.env.STORAGE_DIR;
-    return;
+  }
+  else {
+    process.env.STORAGE_DIR = ORIGINAL_STORAGE_DIR;
   }
 
-  process.env.STORAGE_DIR = ORIGINAL_STORAGE_DIR;
-
-  if (ORIGINAL_VIDEO_METADATA_SQLITE_PATH === undefined) {
-    delete process.env.VIDEO_METADATA_SQLITE_PATH;
-    return;
+  if (ORIGINAL_DATABASE_SQLITE_PATH === undefined) {
+    delete process.env.DATABASE_SQLITE_PATH;
   }
-
-  process.env.VIDEO_METADATA_SQLITE_PATH = ORIGINAL_VIDEO_METADATA_SQLITE_PATH;
+  else {
+    process.env.DATABASE_SQLITE_PATH = ORIGINAL_DATABASE_SQLITE_PATH;
+  }
 });
 
 describe('shared storage paths', () => {
-  test('resolves staging and canonical metadata paths from STORAGE_DIR', async () => {
-    process.env.STORAGE_DIR = '/tmp/shared-storage-root';
+  test('resolves runtime storage paths from the primary storage config', async () => {
+    const storageRoot = createWorkspacePath('shared-storage-root');
+    process.env.STORAGE_DIR = storageRoot;
     const { getStoragePaths } = await import('../../../app/shared/config/storage-paths.server');
-    const { getVideoMetadataConfig } = await import('../../../app/shared/config/video-metadata.server');
+    const { getPrimaryStorageConfig } = await import('../../../app/modules/storage/infrastructure/config/storage-config.server');
 
     expect(getStoragePaths()).toEqual({
-      stagingDir: path.resolve('/tmp/shared-storage-root', 'data', 'staging'),
-      stagingTempDir: path.resolve('/tmp/shared-storage-root', 'data', 'staging', 'temp'),
-      storageDir: path.resolve('/tmp/shared-storage-root'),
-      videosDir: path.resolve('/tmp/shared-storage-root', 'data', 'videos'),
+      stagingDir: path.join(storageRoot, 'staging'),
+      stagingTempDir: path.join(storageRoot, 'staging', 'temp'),
+      storageDir: storageRoot,
+      videosDir: path.join(storageRoot, 'videos'),
     });
-    expect(getVideoMetadataConfig()).toEqual({
-      sqlitePath: path.resolve('/tmp/shared-storage-root', 'data', 'video-metadata.sqlite'),
+    expect(getPrimaryStorageConfig()).toEqual({
+      databasePath: path.join(storageRoot, 'db.sqlite'),
+      stagingDir: path.join(storageRoot, 'staging'),
+      stagingTempDir: path.join(storageRoot, 'staging', 'temp'),
+      storageDir: storageRoot,
+      videosDir: path.join(storageRoot, 'videos'),
     });
   });
 
-  test('falls back to the repository storage directory when STORAGE_DIR is absent', async () => {
+  test('falls back to the repository storage directory for runtime primary config', async () => {
     delete process.env.STORAGE_DIR;
     const { getStoragePaths } = await import('../../../app/shared/config/storage-paths.server');
-    const { getVideoMetadataConfig } = await import('../../../app/shared/config/video-metadata.server');
+    const { getPrimaryStorageConfig } = await import('../../../app/modules/storage/infrastructure/config/storage-config.server');
 
     expect(getStoragePaths()).toEqual({
-      stagingDir: path.resolve(process.cwd(), 'storage', 'data', 'staging'),
-      stagingTempDir: path.resolve(process.cwd(), 'storage', 'data', 'staging', 'temp'),
+      stagingDir: path.resolve(process.cwd(), 'storage', 'staging'),
+      stagingTempDir: path.resolve(process.cwd(), 'storage', 'staging', 'temp'),
       storageDir: path.resolve(process.cwd(), 'storage'),
-      videosDir: path.resolve(process.cwd(), 'storage', 'data', 'videos'),
+      videosDir: path.resolve(process.cwd(), 'storage', 'videos'),
     });
-    expect(getVideoMetadataConfig()).toEqual({
-      sqlitePath: path.resolve(process.cwd(), 'storage', 'data', 'video-metadata.sqlite'),
+    expect(getPrimaryStorageConfig()).toEqual({
+      databasePath: path.resolve(process.cwd(), 'storage', 'db.sqlite'),
+      stagingDir: path.resolve(process.cwd(), 'storage', 'staging'),
+      stagingTempDir: path.resolve(process.cwd(), 'storage', 'staging', 'temp'),
+      storageDir: path.resolve(process.cwd(), 'storage'),
+      videosDir: path.resolve(process.cwd(), 'storage', 'videos'),
     });
   });
 
-  test('respects an explicit VIDEO_METADATA_SQLITE_PATH override while keeping staging on STORAGE_DIR', async () => {
-    process.env.STORAGE_DIR = '/tmp/shared-storage-root';
-    process.env.VIDEO_METADATA_SQLITE_PATH = '/tmp/custom/video-metadata.sqlite';
+  test('respects an explicit DATABASE_SQLITE_PATH override while keeping primary media paths', async () => {
+    const storageRoot = createWorkspacePath('shared-storage-root');
+    const databaseRoot = createWorkspacePath('custom-db-root');
+    const databasePath = path.join(databaseRoot, 'db.sqlite');
+    process.env.STORAGE_DIR = storageRoot;
+    process.env.DATABASE_SQLITE_PATH = databasePath;
     const { getStoragePaths } = await import('../../../app/shared/config/storage-paths.server');
-    const { getVideoMetadataConfig } = await import('../../../app/shared/config/video-metadata.server');
+    const { getPrimaryStorageConfig } = await import('../../../app/modules/storage/infrastructure/config/storage-config.server');
 
     expect(getStoragePaths()).toEqual({
-      stagingDir: path.resolve('/tmp/shared-storage-root', 'data', 'staging'),
-      stagingTempDir: path.resolve('/tmp/shared-storage-root', 'data', 'staging', 'temp'),
-      storageDir: path.resolve('/tmp/shared-storage-root'),
-      videosDir: path.resolve('/tmp/shared-storage-root', 'data', 'videos'),
+      stagingDir: path.join(storageRoot, 'staging'),
+      stagingTempDir: path.join(storageRoot, 'staging', 'temp'),
+      storageDir: storageRoot,
+      videosDir: path.join(storageRoot, 'videos'),
     });
-    expect(getVideoMetadataConfig()).toEqual({
-      sqlitePath: path.resolve('/tmp/custom/video-metadata.sqlite'),
+    expect(getPrimaryStorageConfig()).toEqual({
+      databasePath,
+      stagingDir: path.join(storageRoot, 'staging'),
+      stagingTempDir: path.join(storageRoot, 'staging', 'temp'),
+      storageDir: storageRoot,
+      videosDir: path.join(storageRoot, 'videos'),
     });
   });
 });

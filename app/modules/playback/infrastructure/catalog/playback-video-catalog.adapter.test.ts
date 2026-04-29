@@ -1,11 +1,11 @@
-import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { seedLibraryVideoMetadata } from '../../../../../tests/support/seed-library-video-metadata';
+import { SqliteLibraryVideoMetadataRepository } from '~/modules/library/infrastructure/sqlite/sqlite-library-video-metadata.repository';
+import { createMigratedPrimarySqliteDatabase } from '~/modules/storage/infrastructure/sqlite/migrated-primary-sqlite.database';
 
 const ORIGINAL_STORAGE_DIR = process.env.STORAGE_DIR;
-const ORIGINAL_VIDEO_METADATA_SQLITE_PATH = process.env.VIDEO_METADATA_SQLITE_PATH;
 
 afterEach(() => {
   vi.resetModules();
@@ -15,13 +15,6 @@ afterEach(() => {
   }
   else {
     process.env.STORAGE_DIR = ORIGINAL_STORAGE_DIR;
-  }
-
-  if (ORIGINAL_VIDEO_METADATA_SQLITE_PATH === undefined) {
-    delete process.env.VIDEO_METADATA_SQLITE_PATH;
-  }
-  else {
-    process.env.VIDEO_METADATA_SQLITE_PATH = ORIGINAL_VIDEO_METADATA_SQLITE_PATH;
   }
 });
 
@@ -94,30 +87,73 @@ describe('PlaybackVideoCatalogAdapter', () => {
     await expect(adapter.getPlayerVideo('missing-video')).resolves.toBeNull();
   });
 
-  test('reads player video data from the active SQLite metadata store', async () => {
+  async function seedReadyVideo(dbPath: string, input: {
+    createdAt?: Date;
+    duration?: number;
+    id: string;
+    tags?: string[];
+    title: string;
+  }) {
+    const repository = new SqliteLibraryVideoMetadataRepository({ dbPath });
+    const database = await createMigratedPrimarySqliteDatabase({ dbPath });
+
+    await repository.create({
+      contentTypeSlug: 'movie',
+      createdAt: input.createdAt ?? new Date('2026-03-02T00:00:00.000Z'),
+      description: 'Playback source',
+      duration: input.duration ?? 120,
+      genreSlugs: [],
+      id: input.id,
+      sortIndex: Number(input.id.match(/\d+$/)?.[0] ?? 1),
+      tags: input.tags ?? [],
+      thumbnailUrl: `/api/thumbnail/${input.id}`,
+      title: input.title,
+      videoUrl: `/videos/${input.id}/manifest.mpd`,
+    });
+    await database.prepare(`
+      INSERT INTO video_media_assets (
+        video_id,
+        status,
+        layout_version,
+        preparation_strategy,
+        manifest_relpath,
+        key_relpath,
+        thumbnail_relpath,
+        video_init_relpath,
+        video_segment_glob,
+        audio_init_relpath,
+        audio_segment_glob,
+        prepared_at
+      ) VALUES (?, 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      input.id,
+      1,
+      'fixture',
+      `${input.id}/manifest.mpd`,
+      `${input.id}/key.bin`,
+      `${input.id}/thumbnail.jpg`,
+      `${input.id}/video/init.mp4`,
+      `${input.id}/video/segment-*.m4s`,
+      `${input.id}/audio/init.mp4`,
+      `${input.id}/audio/segment-*.m4s`,
+      '2026-03-02T00:00:00.000Z',
+    );
+  }
+
+  test('reads player video data from ready primary SQLite media assets', async () => {
     const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-catalog-'));
     const storageDir = path.join(rootDir, 'storage');
-    const dataDir = path.join(storageDir, 'data');
-    const sqlitePath = path.join(dataDir, 'video-metadata.sqlite');
+    const sqlitePath = path.join(storageDir, 'db.sqlite');
     process.env.STORAGE_DIR = storageDir;
-    process.env.VIDEO_METADATA_SQLITE_PATH = sqlitePath;
-    await mkdir(dataDir, { recursive: true });
-    await seedLibraryVideoMetadata(sqlitePath, [
-      {
-        createdAt: '2026-03-02T00:00:00.000Z',
-        description: 'Bootstrap source',
-        duration: 120,
-        id: 'video-1',
-        tags: ['Drama', 'Vault'],
-        thumbnailUrl: '/api/thumbnail/video-1',
-        title: 'Current video',
-        videoUrl: '/videos/video-1/manifest.mpd',
-      },
-    ]);
+    await seedReadyVideo(sqlitePath, {
+      id: 'video-1',
+      tags: ['Drama', 'Vault'],
+      title: 'Current video',
+    });
 
     try {
       const { PlaybackVideoCatalogAdapter } = await import('./playback-video-catalog.adapter');
-      const adapter = new PlaybackVideoCatalogAdapter();
+      const adapter = new PlaybackVideoCatalogAdapter({ dbPath: sqlitePath });
 
       await expect(adapter.getPlayerVideo('video-1')).resolves.toEqual({
         relatedVideos: [],
@@ -126,35 +162,56 @@ describe('PlaybackVideoCatalogAdapter', () => {
           title: 'Current video',
         }),
       });
-      await expect(readFile(sqlitePath)).resolves.toBeDefined();
     }
     finally {
       await rm(rootDir, { force: true, recursive: true });
     }
   });
 
-  test('preserves historical addedAt timestamps seeded into SQLite metadata', async () => {
+  test('does not expose videos without ready media assets to playback', async () => {
     const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-catalog-'));
     const storageDir = path.join(rootDir, 'storage');
-    const dataDir = path.join(storageDir, 'data');
-    const sqlitePath = path.join(dataDir, 'video-metadata.sqlite');
+    const sqlitePath = path.join(storageDir, 'db.sqlite');
     process.env.STORAGE_DIR = storageDir;
-    process.env.VIDEO_METADATA_SQLITE_PATH = sqlitePath;
-    await mkdir(dataDir, { recursive: true });
-    await seedLibraryVideoMetadata(sqlitePath, [
-      {
-        addedAt: '2025-01-02T03:04:05.000Z',
-        duration: 120,
-        id: 'video-1',
-        tags: ['Drama'],
-        title: 'Historical timestamp video',
-        videoUrl: '/videos/video-1/manifest.mpd',
-      },
-    ]);
+    const repository = new SqliteLibraryVideoMetadataRepository({ dbPath: sqlitePath });
+    await repository.create({
+      contentTypeSlug: 'movie',
+      createdAt: new Date('2026-03-02T00:00:00.000Z'),
+      duration: 120,
+      genreSlugs: [],
+      id: 'video-1',
+      sortIndex: 1,
+      tags: ['Drama'],
+      title: 'Unready video',
+      videoUrl: '/videos/video-1/manifest.mpd',
+    });
 
     try {
       const { PlaybackVideoCatalogAdapter } = await import('./playback-video-catalog.adapter');
-      const adapter = new PlaybackVideoCatalogAdapter();
+      const adapter = new PlaybackVideoCatalogAdapter({ dbPath: sqlitePath });
+
+      await expect(adapter.getPlayerVideo('video-1')).resolves.toBeNull();
+    }
+    finally {
+      await rm(rootDir, { force: true, recursive: true });
+    }
+  });
+
+  test('preserves createdAt timestamps from primary SQLite metadata', async () => {
+    const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-catalog-'));
+    const storageDir = path.join(rootDir, 'storage');
+    const sqlitePath = path.join(storageDir, 'db.sqlite');
+    process.env.STORAGE_DIR = storageDir;
+    await seedReadyVideo(sqlitePath, {
+      createdAt: new Date('2025-01-02T03:04:05.000Z'),
+      id: 'video-1',
+      tags: ['Drama'],
+      title: 'Historical timestamp video',
+    });
+
+    try {
+      const { PlaybackVideoCatalogAdapter } = await import('./playback-video-catalog.adapter');
+      const adapter = new PlaybackVideoCatalogAdapter({ dbPath: sqlitePath });
 
       await expect(adapter.getPlayerVideo('video-1')).resolves.toEqual({
         relatedVideos: [],
@@ -162,44 +219,6 @@ describe('PlaybackVideoCatalogAdapter', () => {
           createdAt: new Date('2025-01-02T03:04:05.000Z'),
           id: 'video-1',
           title: 'Historical timestamp video',
-        }),
-      });
-    }
-    finally {
-      await rm(rootDir, { force: true, recursive: true });
-    }
-  });
-
-  test('falls back to addedAt when createdAt is empty during SQLite seeding', async () => {
-    const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-catalog-'));
-    const storageDir = path.join(rootDir, 'storage');
-    const dataDir = path.join(storageDir, 'data');
-    const sqlitePath = path.join(dataDir, 'video-metadata.sqlite');
-    process.env.STORAGE_DIR = storageDir;
-    process.env.VIDEO_METADATA_SQLITE_PATH = sqlitePath;
-    await mkdir(dataDir, { recursive: true });
-    await seedLibraryVideoMetadata(sqlitePath, [
-      {
-        addedAt: '2025-01-02T03:04:05.000Z',
-        createdAt: '',
-        duration: 120,
-        id: 'video-1',
-        tags: ['Drama'],
-        title: 'Mixed historical timestamp video',
-        videoUrl: '/videos/video-1/manifest.mpd',
-      },
-    ]);
-
-    try {
-      const { PlaybackVideoCatalogAdapter } = await import('./playback-video-catalog.adapter');
-      const adapter = new PlaybackVideoCatalogAdapter();
-
-      await expect(adapter.getPlayerVideo('video-1')).resolves.toEqual({
-        relatedVideos: [],
-        video: expect.objectContaining({
-          createdAt: new Date('2025-01-02T03:04:05.000Z'),
-          id: 'video-1',
-          title: 'Mixed historical timestamp video',
         }),
       });
     }

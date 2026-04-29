@@ -3,108 +3,10 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { createMigratedPrimarySqliteDatabase } from '../../../app/modules/storage/infrastructure/sqlite/migrated-primary-sqlite.database';
 import { getCookieMap, toRequestCookieHeader } from '../../helpers/cookies';
 
 const VALID_JPEG_FIXTURE_PATH = join(process.cwd(), 'public', 'images', 'video-placeholder.jpg');
-
-interface AuthSessionRow {
-  created_at: string;
-  expires_at: string;
-  id: string;
-  ip_address: string | null;
-  is_revoked: number;
-  last_accessed_at: string;
-  user_agent: string | null;
-}
-
-class InMemorySqliteDatabase {
-  private readonly rows = new Map<string, AuthSessionRow>();
-
-  exec(_sql: string) {}
-
-  prepare<T>(sql: string) {
-    if (sql.includes('SELECT') && sql.includes('FROM auth_sessions')) {
-      return {
-        get: (...params: unknown[]) => this.rows.get(String(params[0])) as T | undefined,
-        run: () => {
-          throw new Error('run() is not supported for SELECT statements in this test adapter');
-        },
-      };
-    }
-
-    if (sql.includes('INSERT OR REPLACE INTO auth_sessions')) {
-      return {
-        get: () => {
-          throw new Error('get() is not supported for INSERT statements in this test adapter');
-        },
-        run: (...params: unknown[]) => {
-          const [
-            id,
-            createdAt,
-            expiresAt,
-            ipAddress,
-            isRevoked,
-            lastAccessedAt,
-            userAgent,
-          ] = params as [string, string, string, string | null, number, string, string | null];
-          this.rows.set(id, {
-            created_at: createdAt,
-            expires_at: expiresAt,
-            id,
-            ip_address: ipAddress,
-            is_revoked: isRevoked,
-            last_accessed_at: lastAccessedAt,
-            user_agent: userAgent,
-          });
-          return { changes: 1 };
-        },
-      };
-    }
-
-    if (sql.includes('SET is_revoked = 1')) {
-      return {
-        get: () => {
-          throw new Error('get() is not supported for UPDATE statements in this test adapter');
-        },
-        run: (...params: unknown[]) => {
-          const [id] = params as [string];
-          const row = this.rows.get(id);
-          if (row) {
-            this.rows.set(id, {
-              ...row,
-              is_revoked: 1,
-            });
-          }
-
-          return { changes: row ? 1 : 0 };
-        },
-      };
-    }
-
-    if (sql.includes('SET') && sql.includes('expires_at = ?') && sql.includes('last_accessed_at = ?')) {
-      return {
-        get: () => {
-          throw new Error('get() is not supported for UPDATE statements in this test adapter');
-        },
-        run: (...params: unknown[]) => {
-          const [expiresAt, lastAccessedAt, id] = params as [string, string, string];
-          const row = this.rows.get(id);
-          if (row) {
-            this.rows.set(id, {
-              ...row,
-              expires_at: expiresAt,
-              last_accessed_at: lastAccessedAt,
-            });
-          }
-
-          return { changes: row ? 1 : 0 };
-        },
-      };
-    }
-
-    throw new Error(`Unsupported SQL in test adapter: ${sql}`);
-  }
-}
 
 async function importLoginAction() {
   return import('../../../app/routes/api.auth.login');
@@ -162,10 +64,6 @@ async function importPlaylistsRoute() {
   return import('../../../app/routes/api.playlists');
 }
 
-async function writeJsonFile(filePath: string, value: unknown) {
-  await writeFile(filePath, JSON.stringify(value, null, 2));
-}
-
 const SEEDED_OWNER_EMAIL = 'admin@example.com';
 const SEEDED_OWNER_ID = 'seeded-owner-1';
 
@@ -186,16 +84,52 @@ function expectAdminViewerShape(viewer: unknown) {
 async function seedStorage(storageDir: string, overrides?: {
   playlists?: unknown[];
 }) {
-  await mkdir(join(storageDir, 'data'), { recursive: true });
+  await mkdir(join(storageDir, 'videos'), { recursive: true });
+  const database = await createMigratedPrimarySqliteDatabase({
+    dbPath: join(storageDir, 'db.sqlite'),
+  });
 
-  await writeJsonFile(join(storageDir, 'data', 'playlist-items.json'), []);
-  await writeJsonFile(join(storageDir, 'data', 'playlists.json'), overrides?.playlists ?? []);
-  await writeJsonFile(join(storageDir, 'data', 'sessions.json'), []);
+  for (const playlist of (overrides?.playlists ?? []) as Array<{
+    createdAt: string;
+    description?: string;
+    id: string;
+    isPublic: boolean;
+    name: string;
+    ownerId: string;
+    type: string;
+    updatedAt: string;
+  }>) {
+    await database.prepare(`
+      INSERT INTO playlists (
+        id,
+        owner_id,
+        name,
+        name_key,
+        description,
+        type,
+        is_public,
+        metadata_json,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO NOTHING
+    `).run(
+      playlist.id,
+      playlist.ownerId,
+      playlist.name,
+      playlist.name.trim().toLowerCase(),
+      playlist.description ?? null,
+      playlist.type,
+      playlist.isPublic ? 1 : 0,
+      null,
+      playlist.createdAt,
+      playlist.updatedAt,
+    );
+  }
 }
 
 describe('auth gate routes', () => {
-  let authDbPath: string;
-  let sqliteDatabaseByPath: Map<string, InMemorySqliteDatabase>;
+  let databasePath: string;
   let storageDir: string;
   let tempDir: string;
 
@@ -205,26 +139,13 @@ describe('auth gate routes', () => {
     await seedStorage(storageDir);
     process.env.AUTH_OWNER_EMAIL = SEEDED_OWNER_EMAIL;
     process.env.AUTH_OWNER_ID = SEEDED_OWNER_ID;
-    authDbPath = join(tempDir, 'auth.sqlite');
+    databasePath = join(storageDir, 'db.sqlite');
     process.env.AUTH_SHARED_PASSWORD = 'vault-password';
-    process.env.AUTH_SQLITE_PATH = authDbPath;
+    process.env.DATABASE_SQLITE_PATH = databasePath;
     process.env.STORAGE_DIR = storageDir;
     delete process.env.VIDEO_JWT_SECRET;
     delete process.env.VIDEO_MASTER_ENCRYPTION_SEED;
-    sqliteDatabaseByPath = new Map<string, InMemorySqliteDatabase>();
     vi.resetModules();
-    vi.doMock('../../../app/modules/auth/infrastructure/sqlite/bun-sqlite.database', () => ({
-      createBunSqliteDatabase: async ({ dbPath }: { dbPath: string }) => {
-        let database = sqliteDatabaseByPath.get(dbPath);
-
-        if (!database) {
-          database = new InMemorySqliteDatabase();
-          sqliteDatabaseByPath.set(dbPath, database);
-        }
-
-        return database;
-      },
-    }));
   });
 
   afterEach(async () => {
@@ -232,7 +153,7 @@ describe('auth gate routes', () => {
     delete process.env.AUTH_OWNER_ID;
     delete process.env.AUTH_SHARED_PASSWORD;
     delete process.env.AUTH_CLIENT_COOKIE_SECRET;
-    delete process.env.AUTH_SQLITE_PATH;
+    delete process.env.DATABASE_SQLITE_PATH;
     delete process.env.AUTH_TRUST_PROXY_HEADERS;
     delete process.env.STORAGE_DIR;
     delete process.env.VIDEO_JWT_SECRET;
@@ -1211,9 +1132,16 @@ describe('auth gate routes', () => {
     await expect(response.json()).resolves.toEqual(expect.objectContaining({
       success: true,
     }));
-    await expect(readFile(join(storageDir, 'data', 'playlists.json'), 'utf8')).resolves.toContain(
-      `"ownerId": "${SEEDED_VIEWER.id}"`,
-    );
+    const database = await createMigratedPrimarySqliteDatabase({
+      dbPath: databasePath,
+    });
+    const row = await database.prepare<{ owner_id: string }>(`
+      SELECT owner_id
+      FROM playlists
+      WHERE name = ?
+    `).get('Compat Playlist');
+
+    expect(row).toEqual({ owner_id: SEEDED_VIEWER.id });
   });
 
   test('playlist listing returns owner playlists for the seeded viewer identity after login', async () => {

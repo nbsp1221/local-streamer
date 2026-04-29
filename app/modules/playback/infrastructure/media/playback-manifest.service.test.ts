@@ -23,9 +23,9 @@ describe('PlaybackManifestService', () => {
     const { PlaybackManifestService } = await import('./playback-manifest.service');
     const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-manifest-'));
     process.env.STORAGE_DIR = rootDir;
-    await mkdir(path.join(rootDir, 'data', 'videos', validVideoId), { recursive: true });
-    await writeFile(path.join(rootDir, 'data', 'videos', validVideoId, 'manifest.mpd'), '<MPD />');
-    await writeFile(path.join(rootDir, 'data', 'videos', validVideoId, 'key.bin'), Buffer.alloc(16));
+    await mkdir(path.join(rootDir, 'videos', validVideoId), { recursive: true });
+    await writeFile(path.join(rootDir, 'videos', validVideoId, 'manifest.mpd'), '<MPD />');
+    await writeFile(path.join(rootDir, 'videos', validVideoId, 'key.bin'), Buffer.alloc(16));
 
     const service = new PlaybackManifestService();
 
@@ -57,7 +57,7 @@ describe('PlaybackManifestService', () => {
     const { PlaybackManifestService } = await import('./playback-manifest.service');
     const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-manifest-'));
     process.env.STORAGE_DIR = rootDir;
-    await mkdir(path.join(rootDir, 'data', 'videos', validVideoId), { recursive: true });
+    await mkdir(path.join(rootDir, 'videos', validVideoId), { recursive: true });
 
     const service = new PlaybackManifestService();
 
@@ -79,8 +79,8 @@ describe('PlaybackManifestService', () => {
     const { PlaybackManifestService } = await import('./playback-manifest.service');
     const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-manifest-'));
     process.env.STORAGE_DIR = rootDir;
-    await mkdir(path.join(rootDir, 'data', 'videos', validVideoId), { recursive: true });
-    await writeFile(path.join(rootDir, 'data', 'videos', validVideoId, 'manifest.mpd'), '<MPD />');
+    await mkdir(path.join(rootDir, 'videos', validVideoId), { recursive: true });
+    await writeFile(path.join(rootDir, 'videos', validVideoId, 'manifest.mpd'), '<MPD />');
 
     const service = new PlaybackManifestService();
 

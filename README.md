@@ -63,7 +63,9 @@ docker-compose up -d
 ### Volumes
 
 - `./storage` - Unified storage directory containing all application data
-  - `storage/data/` - Application data, staged uploads, SQLite metadata, and packaged video artifacts
+  - `storage/db.sqlite` - Primary SQLite database for auth, library metadata, playlists, and ingest state
+  - `storage/videos/` - Packaged video artifacts
+  - `storage/staging/` - In-progress browser uploads
 
 ### Commands
 
@@ -98,8 +100,7 @@ Required for the full vault feature set:
 Optional:
 
 - `KEY_SALT_PREFIX`: salt prefix used during playback key derivation
-- `VIDEO_METADATA_SQLITE_PATH`: override path for canonical video metadata SQLite storage
-- `AUTH_SQLITE_PATH`: path for the Bun SQLite auth/session database
+- `DATABASE_SQLITE_PATH`: override path for the primary SQLite database
 - `AUTH_CLIENT_COOKIE_NAME`: override the client identity cookie name
 - `AUTH_SESSION_COOKIE_NAME`: override the auth session cookie name
 - `AUTH_SESSION_TTL_MS`: session lifetime in milliseconds
@@ -134,7 +135,7 @@ For the current architecture and repo state, start here:
 - **Frontend**: React Router v7 with SSR
 - **Runtime**: Bun (pure Bun, no Node.js)
 - **Styling**: TailwindCSS v4
-- **Metadata/Auth Persistence**: SQLite for auth sessions and canonical video metadata, plus active-owned JSON persistence for playlists
+- **Persistence**: Primary SQLite database for auth sessions, canonical video metadata, playlists, and ingest state
 - **Video**: FFmpeg for thumbnails and streaming
 - **Streaming**: DASH with JWT token issuance, ClearKey license delivery, and encrypted media packaging
 

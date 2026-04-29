@@ -1,12 +1,12 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import type { SqliteDatabaseAdapter } from '~/modules/storage/infrastructure/sqlite/primary-sqlite.database';
+import { type CreateMigratedPrimarySqliteDatabase, createMigratedPrimarySqliteDatabase } from '~/modules/storage/infrastructure/sqlite/migrated-primary-sqlite.database';
 import type { AuthSessionRepository, TouchAuthSessionInput } from '../../application/ports/auth-session-repository.port';
 import type { AuthSession } from '../../domain/auth-session';
-import type { CreateSqliteDatabase, SqliteDatabaseAdapter } from './sqlite-database.adapter';
-import { createBunSqliteDatabase } from './bun-sqlite.database';
 
 interface SqliteSessionRepositoryOptions {
-  createDatabase?: CreateSqliteDatabase;
+  createDatabase?: CreateMigratedPrimarySqliteDatabase;
   dbPath: string;
 }
 
@@ -21,13 +21,13 @@ interface AuthSessionRow {
 }
 
 export class SqliteSessionRepository implements AuthSessionRepository {
-  private readonly createDatabase: CreateSqliteDatabase;
+  private readonly createDatabase: CreateMigratedPrimarySqliteDatabase;
   private readonly dbPath: string;
   private databasePromise: Promise<SqliteDatabaseAdapter> | null = null;
 
   constructor(options: SqliteSessionRepositoryOptions) {
     mkdirSync(dirname(options.dbPath), { recursive: true });
-    this.createDatabase = options.createDatabase ?? createBunSqliteDatabase;
+    this.createDatabase = options.createDatabase ?? createMigratedPrimarySqliteDatabase;
     this.dbPath = options.dbPath;
   }
 
@@ -43,7 +43,7 @@ export class SqliteSessionRepository implements AuthSessionRepository {
 
   async findById(id: string): Promise<AuthSession | null> {
     const database = await this.getDatabase();
-    const row = database
+    const row = await database
       .prepare(`
         SELECT
           id,
@@ -75,7 +75,7 @@ export class SqliteSessionRepository implements AuthSessionRepository {
 
   async revoke(id: string): Promise<void> {
     const database = await this.getDatabase();
-    database
+    await database
       .prepare(`
         UPDATE auth_sessions
         SET is_revoked = 1
@@ -86,7 +86,7 @@ export class SqliteSessionRepository implements AuthSessionRepository {
 
   async save(session: AuthSession): Promise<void> {
     const database = await this.getDatabase();
-    database
+    await database
       .prepare(`
         INSERT OR REPLACE INTO auth_sessions (
           id,
@@ -111,7 +111,7 @@ export class SqliteSessionRepository implements AuthSessionRepository {
 
   async touch(input: TouchAuthSessionInput): Promise<void> {
     const database = await this.getDatabase();
-    database
+    await database
       .prepare(`
         UPDATE auth_sessions
         SET

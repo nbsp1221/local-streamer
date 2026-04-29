@@ -22,9 +22,9 @@ describe('PlaybackClearKeyService', () => {
     const { PlaybackClearKeyService } = await import('./playback-clearkey.service');
     const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-clearkey-'));
     process.env.STORAGE_DIR = rootDir;
-    await mkdir(path.join(rootDir, 'data', 'videos', 'video-1'), { recursive: true });
+    await mkdir(path.join(rootDir, 'videos', 'video-1'), { recursive: true });
     const keyBuffer = Buffer.from('00112233445566778899aabbccddeeff', 'hex');
-    await writeFile(path.join(rootDir, 'data', 'videos', 'video-1', 'key.bin'), keyBuffer);
+    await writeFile(path.join(rootDir, 'videos', 'video-1', 'key.bin'), keyBuffer);
 
     const service = new PlaybackClearKeyService();
 
@@ -70,7 +70,7 @@ describe('PlaybackClearKeyService', () => {
     const { PlaybackClearKeyService } = await import('./playback-clearkey.service');
     const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-clearkey-'));
     process.env.STORAGE_DIR = rootDir;
-    await mkdir(path.join(rootDir, 'data', 'videos', 'video-1'), { recursive: true });
+    await mkdir(path.join(rootDir, 'videos', 'video-1'), { recursive: true });
 
     const service = new PlaybackClearKeyService();
 

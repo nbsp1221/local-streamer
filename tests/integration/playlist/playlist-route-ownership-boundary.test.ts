@@ -17,9 +17,7 @@ const ACTIVE_PLAYLIST_PAGE_ROUTE_FILES = [
 ] as const;
 
 const ACTIVE_PLAYLIST_INFRASTRUCTURE_FILES = [
-  'app/modules/playlist/infrastructure/json/json-playlist.repository.ts',
-  'app/modules/playlist/infrastructure/json/json-write-queue.ts',
-  'app/modules/playlist/infrastructure/json/playlist-storage-paths.server.ts',
+  'app/modules/playlist/infrastructure/sqlite/sqlite-playlist.repository.ts',
   'app/modules/playlist/infrastructure/video/sqlite-playlist-video-catalog.adapter.ts',
 ] as const;
 

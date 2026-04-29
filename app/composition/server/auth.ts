@@ -9,11 +9,11 @@ import { EnvSharedPasswordVerifier } from '~/modules/auth/infrastructure/passwor
 import { InMemoryLoginAttemptGuard } from '~/modules/auth/infrastructure/security/in-memory-login-attempt-guard';
 import { SqliteSessionRepository } from '~/modules/auth/infrastructure/sqlite/sqlite-session.repository';
 import { ConfigSiteViewerResolver } from '~/modules/auth/infrastructure/viewer/config-site-viewer.resolver';
+import { getPrimaryStorageConfig } from '~/modules/storage/infrastructure/config/storage-config.server';
 import {
   getAuthConfig,
   getAuthCookieConfig,
   getAuthRuntimeState,
-  getAuthSessionConfig,
 } from '~/shared/config/auth.server';
 import { getCookieValue, serializeCookie } from '~/shared/lib/http/cookies.server';
 
@@ -40,14 +40,14 @@ function getCachedServerSessionServices(): CachedServerSessionServices {
     return cachedSessionServices;
   }
 
-  const sessionConfig = getAuthSessionConfig();
+  const authCookieConfig = getAuthCookieConfig();
   const sessionRepository = new SqliteSessionRepository({
-    dbPath: sessionConfig.sqlitePath,
+    dbPath: getPrimaryStorageConfig().databasePath,
   });
   const siteViewerResolver = new ConfigSiteViewerResolver();
   const resolveAuthSession = new ResolveAuthSessionUseCase({
     sessionRepository,
-    sessionTtlMs: sessionConfig.sessionTtlMs,
+    sessionTtlMs: authCookieConfig.sessionTtlMs,
   });
 
   cachedSessionServices = {

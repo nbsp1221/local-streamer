@@ -34,7 +34,7 @@ describe('ThumbnailEncryptionService', () => {
       import('../../../app/modules/thumbnail/infrastructure/security/pbkdf2-thumbnail-key-manager'),
     ]);
     const videoId = '00000000-0000-4000-8000-000000000123';
-    const videoDir = join(storageDir, 'data', 'videos', videoId);
+    const videoDir = join(storageDir, 'videos', videoId);
     const thumbnailPath = join(videoDir, 'thumbnail.jpg');
     await mkdir(videoDir, { recursive: true });
     await writeFile(thumbnailPath, await readFile(VALID_JPEG_FIXTURE_PATH));
@@ -68,7 +68,7 @@ describe('ThumbnailEncryptionService', () => {
       import('node:fs/promises'),
     ]);
     const videoId = '00000000-0000-4000-8000-000000000126';
-    const videoDir = join(storageDir, 'data', 'videos', videoId);
+    const videoDir = join(storageDir, 'videos', videoId);
     const thumbnailPath = join(videoDir, 'thumbnail.jpg');
     await mkdir(videoDir, { recursive: true });
     await writeFile(thumbnailPath, await readFile(VALID_JPEG_FIXTURE_PATH));
@@ -110,7 +110,7 @@ describe('ThumbnailEncryptionService', () => {
     await expect(service.migrateExistingThumbnail(missingVideoId)).resolves.toBe(false);
 
     const videoId = '00000000-0000-4000-8000-000000000125';
-    const videoDir = join(storageDir, 'data', 'videos', videoId);
+    const videoDir = join(storageDir, 'videos', videoId);
     const thumbnailPath = join(videoDir, 'thumbnail.jpg');
     await mkdir(videoDir, { recursive: true });
     await keyManager.generateAndStoreKey(videoId);
@@ -127,7 +127,7 @@ describe('ThumbnailEncryptionService', () => {
       import('../../../app/modules/thumbnail/infrastructure/security/pbkdf2-thumbnail-key-manager'),
     ]);
     const videoId = '00000000-0000-4000-8000-000000000127';
-    const videoDir = join(storageDir, 'data', 'videos', videoId);
+    const videoDir = join(storageDir, 'videos', videoId);
     const thumbnailPath = join(videoDir, 'thumbnail.jpg');
     await mkdir(videoDir, { recursive: true });
     await writeFile(thumbnailPath, await readFile(VALID_JPEG_FIXTURE_PATH));

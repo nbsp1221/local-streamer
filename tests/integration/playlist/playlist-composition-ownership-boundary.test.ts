@@ -10,8 +10,8 @@ async function importPlaylistDetailApiRoute() {
 
 describe('playlist composition ownership boundary', () => {
   let cleanup: (() => Promise<void>) | undefined;
+  let databasePath = '';
   let storageDir = '';
-  let videoMetadataDbPath = '';
 
   beforeEach(async () => {
     const workspace = await createPlaylistRuntimeTestWorkspace({
@@ -42,10 +42,10 @@ describe('playlist composition ownership boundary', () => {
       ],
     });
     cleanup = workspace.cleanup;
+    databasePath = workspace.databasePath;
     storageDir = workspace.storageDir;
-    videoMetadataDbPath = workspace.videoMetadataDbPath;
+    process.env.DATABASE_SQLITE_PATH = databasePath;
     process.env.STORAGE_DIR = storageDir;
-    process.env.VIDEO_METADATA_SQLITE_PATH = videoMetadataDbPath;
 
     vi.resetModules();
     vi.clearAllMocks();
@@ -67,8 +67,8 @@ describe('playlist composition ownership boundary', () => {
   });
 
   afterEach(async () => {
+    delete process.env.DATABASE_SQLITE_PATH;
     delete process.env.STORAGE_DIR;
-    delete process.env.VIDEO_METADATA_SQLITE_PATH;
     vi.doUnmock('~/composition/server/auth');
     vi.resetModules();
     if (cleanup) {

@@ -21,8 +21,8 @@ describe('PlaybackMediaSegmentService', () => {
     const { PlaybackMediaSegmentService } = await import('./playback-media-segment.service');
     const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-segment-'));
     process.env.STORAGE_DIR = rootDir;
-    await mkdir(path.join(rootDir, 'data', 'videos', 'video-1', 'video'), { recursive: true });
-    await writeFile(path.join(rootDir, 'data', 'videos', 'video-1', 'video', 'segment-0001.m4s'), 'segment-data');
+    await mkdir(path.join(rootDir, 'videos', 'video-1', 'video'), { recursive: true });
+    await writeFile(path.join(rootDir, 'videos', 'video-1', 'video', 'segment-0001.m4s'), 'segment-data');
 
     const service = new PlaybackMediaSegmentService();
 
@@ -53,8 +53,8 @@ describe('PlaybackMediaSegmentService', () => {
     const { PlaybackMediaSegmentService } = await import('./playback-media-segment.service');
     const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-segment-'));
     process.env.STORAGE_DIR = rootDir;
-    await mkdir(path.join(rootDir, 'data', 'videos', 'video-1', 'video'), { recursive: true });
-    await writeFile(path.join(rootDir, 'data', 'videos', 'video-1', 'video', 'segment-0001.m4s'), 'segment-data');
+    await mkdir(path.join(rootDir, 'videos', 'video-1', 'video'), { recursive: true });
+    await writeFile(path.join(rootDir, 'videos', 'video-1', 'video', 'segment-0001.m4s'), 'segment-data');
 
     const service = new PlaybackMediaSegmentService();
 
@@ -88,7 +88,7 @@ describe('PlaybackMediaSegmentService', () => {
     const { PlaybackMediaSegmentService } = await import('./playback-media-segment.service');
     const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-segment-'));
     process.env.STORAGE_DIR = rootDir;
-    await mkdir(path.join(rootDir, 'data', 'videos', 'video-1', 'video'), { recursive: true });
+    await mkdir(path.join(rootDir, 'videos', 'video-1', 'video'), { recursive: true });
 
     const service = new PlaybackMediaSegmentService();
 
@@ -127,8 +127,8 @@ describe('PlaybackMediaSegmentService', () => {
     const { PlaybackMediaSegmentService } = await import('./playback-media-segment.service');
     const rootDir = await mkdtemp(path.join(tmpdir(), 'playback-segment-'));
     process.env.STORAGE_DIR = rootDir;
-    await mkdir(path.join(rootDir, 'data', 'videos', 'video-1', 'video'), { recursive: true });
-    await writeFile(path.join(rootDir, 'data', 'videos', 'video-1', 'video', 'segment-0001.m4s'), 'segment-data');
+    await mkdir(path.join(rootDir, 'videos', 'video-1', 'video'), { recursive: true });
+    await writeFile(path.join(rootDir, 'videos', 'video-1', 'video', 'segment-0001.m4s'), 'segment-data');
 
     const service = new PlaybackMediaSegmentService();
 

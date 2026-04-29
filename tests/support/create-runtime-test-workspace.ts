@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { copyPlaybackFixture } from './copy-playback-fixture';
@@ -7,6 +7,7 @@ import { seedLibraryVideoMetadata } from './seed-library-video-metadata';
 
 interface RuntimeTestWorkspace {
   authDbPath: string;
+  databasePath: string;
   cleanup: () => Promise<void>;
   rootDir: string;
   storageDir: string;
@@ -46,30 +47,24 @@ const SEEDED_VIDEOS = [
 export async function createRuntimeTestWorkspace(): Promise<RuntimeTestWorkspace> {
   const rootDir = await mkdtemp(join(tmpdir(), 'local-streamer-runtime-'));
   const storageDir = join(rootDir, 'storage');
-  const dataDir = join(storageDir, 'data');
-  const authDbPath = join(rootDir, 'auth.sqlite');
-  const videoMetadataDbPath = join(dataDir, 'video-metadata.sqlite');
+  const databasePath = join(storageDir, 'db.sqlite');
+  const authDbPath = databasePath;
+  const videoMetadataDbPath = databasePath;
 
-  await mkdir(join(dataDir, 'videos'), { recursive: true });
-  await mkdir(dataDir, { recursive: true });
-
-  await Promise.all([
-    writeFile(join(dataDir, 'playlist-items.json'), '[]'),
-    writeFile(join(dataDir, 'playlists.json'), '[]'),
-    writeFile(join(dataDir, 'sessions.json'), '[]'),
-  ]);
+  await mkdir(join(storageDir, 'videos'), { recursive: true });
 
   await Promise.all(
     REQUIRED_BROWSER_PLAYBACK_FIXTURE_IDS.map(videoId => copyPlaybackFixture({
-      targetVideosDir: join(dataDir, 'videos'),
+      targetVideosDir: join(storageDir, 'videos'),
       videoId,
     })),
   );
 
-  await seedLibraryVideoMetadata(videoMetadataDbPath, SEEDED_VIDEOS);
+  await seedLibraryVideoMetadata(databasePath, SEEDED_VIDEOS);
 
   return {
     authDbPath,
+    databasePath,
     cleanup: async () => {
       await rm(rootDir, { force: true, recursive: true });
     },

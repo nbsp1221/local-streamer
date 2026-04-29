@@ -1,12 +1,10 @@
-import path from 'node:path';
+import { getPrimaryStorageConfig } from '~/modules/storage/infrastructure/config/storage-config.server';
 
 export function getPlaybackStoragePaths() {
-  const storageDir = process.env.STORAGE_DIR
-    ? path.resolve(process.env.STORAGE_DIR)
-    : path.resolve(process.cwd(), 'storage');
+  const config = getPrimaryStorageConfig();
 
   return {
-    storageDir,
-    videosDir: path.join(storageDir, 'data', 'videos'),
+    storageDir: config.storageDir,
+    videosDir: config.videosDir,
   };
 }

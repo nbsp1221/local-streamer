@@ -48,7 +48,7 @@ describe('server ingest composition root', () => {
       tempFilePath: '/tmp/request-123/fixture-video.mp4',
     }));
     const promote = vi.fn(async () => ({
-      storagePath: '/storage/data/staging/staging-123/fixture-video.mp4',
+      storagePath: '/storage/staging/staging-123/fixture-video.mp4',
     }));
     const create = vi.fn(async upload => ({
       ...upload,
@@ -63,7 +63,7 @@ describe('server ingest composition root', () => {
       size: 1_024,
       stagingId: 'staging-123',
       status: input.status ?? 'uploaded',
-      storagePath: '/storage/data/staging/staging-123/fixture-video.mp4',
+      storagePath: '/storage/staging/staging-123/fixture-video.mp4',
       committedVideoId: input.committedVideoId,
     }));
     const prepareMedia = vi.fn(async () => ({
@@ -87,7 +87,7 @@ describe('server ingest composition root', () => {
           size: 1_024,
           stagingId: 'staging-123',
           status: 'uploaded' as const,
-          storagePath: '/storage/data/staging/staging-123/fixture-video.mp4',
+          storagePath: '/storage/staging/staging-123/fixture-video.mp4',
         })),
         listExpired: vi.fn(async () => []),
         reserveCommittedVideoId,
@@ -154,7 +154,7 @@ describe('server ingest composition root', () => {
       delete: vi.fn(async () => undefined),
       deleteTemp: vi.fn(async () => undefined),
       promote: vi.fn(async () => ({
-        storagePath: '/storage/data/staging/staging-123/fixture-video.mp4',
+        storagePath: '/storage/staging/staging-123/fixture-video.mp4',
       })),
     }));
     BunStreamingMultipartUploadAdapterMock.mockImplementation(() => ({

@@ -18,7 +18,7 @@ const FORBIDDEN_PATTERNS = [
     pattern: /process\.cwd\(\)\s*,\s*['"]storage['"]/,
   },
   {
-    message: 'Tests and support scripts must not resolve playback fixture inputs from storage/data/videos.',
+    message: 'Tests and support scripts must not resolve playback fixture inputs from retired repo-local storage paths.',
     pattern: /storage\/data\/videos\//,
   },
 ] as const;

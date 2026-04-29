@@ -18,7 +18,7 @@ function createPlaywrightWebServerEnv(portValue: number): Record<string, string>
   if (runtimeMode === 'hermetic-smoke' && runtimeWorkspace) {
     return createRuntimeTestEnv({
       AUTH_SHARED_PASSWORD: sharedPassword,
-      AUTH_SQLITE_PATH: runtimeWorkspace.authDbPath,
+      DATABASE_SQLITE_PATH: runtimeWorkspace.databasePath,
       PORT: String(portValue),
       STORAGE_DIR: runtimeWorkspace.storageDir,
     });

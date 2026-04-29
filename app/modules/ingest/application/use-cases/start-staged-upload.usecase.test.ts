@@ -4,7 +4,7 @@ import { StartStagedUploadUseCase } from './start-staged-upload.usecase';
 describe('StartStagedUploadUseCase', () => {
   test('promotes a validated temp upload into staging and creates an uploaded row', async () => {
     const promote = vi.fn(async () => ({
-      storagePath: '/storage/data/staging/staging-123/fixture-video.mp4',
+      storagePath: '/storage/staging/staging-123/fixture-video.mp4',
     }));
     const create = vi.fn(async upload => ({
       ...upload,
@@ -64,7 +64,7 @@ describe('StartStagedUploadUseCase', () => {
       size: 1_024,
       stagingId: 'staging-123',
       status: 'uploaded',
-      storagePath: '/storage/data/staging/staging-123/fixture-video.mp4',
+      storagePath: '/storage/staging/staging-123/fixture-video.mp4',
     });
   });
 
@@ -109,7 +109,7 @@ describe('StartStagedUploadUseCase', () => {
 
   test('deletes promoted staged bytes when row creation fails after promotion', async () => {
     const promote = vi.fn(async () => ({
-      storagePath: '/storage/data/staging/staging-123/fixture-video.mp4',
+      storagePath: '/storage/staging/staging-123/fixture-video.mp4',
     }));
     const deleteStorage = vi.fn(async () => undefined);
     const useCase = new StartStagedUploadUseCase({
@@ -146,6 +146,6 @@ describe('StartStagedUploadUseCase', () => {
       message: 'sqlite unavailable',
       reason: 'START_STAGED_UPLOAD_UNAVAILABLE',
     });
-    expect(deleteStorage).toHaveBeenCalledWith('/storage/data/staging/staging-123/fixture-video.mp4');
+    expect(deleteStorage).toHaveBeenCalledWith('/storage/staging/staging-123/fixture-video.mp4');
   });
 });

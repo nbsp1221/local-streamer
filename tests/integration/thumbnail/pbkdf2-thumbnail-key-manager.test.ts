@@ -34,9 +34,9 @@ describe('Pbkdf2ThumbnailKeyManager', () => {
     const storedKey = await manager.retrieveKey('video-123');
 
     expect(result.key).toHaveLength(16);
-    expect(result.keyInfoFile).toBe(join(storageDir, 'data', 'videos', 'video-123', 'keyinfo.txt'));
+    expect(result.keyInfoFile).toBe(join(storageDir, 'videos', 'video-123', 'keyinfo.txt'));
     expect(storedKey).toEqual(result.key);
-    await expect(readFile(join(storageDir, 'data', 'videos', 'video-123', 'key.bin'))).resolves.toEqual(result.key);
+    await expect(readFile(join(storageDir, 'videos', 'video-123', 'key.bin'))).resolves.toEqual(result.key);
     await expect(manager.keyExists('video-123')).resolves.toBe(true);
   });
 

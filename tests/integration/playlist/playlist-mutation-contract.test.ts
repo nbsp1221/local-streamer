@@ -1,6 +1,5 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { createMigratedPrimarySqliteDatabase } from '../../../app/modules/storage/infrastructure/sqlite/migrated-primary-sqlite.database';
 import { createPlaylistRuntimeTestWorkspace } from '../../support/create-playlist-runtime-test-workspace';
 
 async function importPlaylistDetailLoaderRoute() {
@@ -17,6 +16,45 @@ async function importPlaylistItemRoute() {
 
 async function importPlaylistDetailRoute() {
   return import('../../../app/routes/api.playlists.$id');
+}
+
+async function readPlaylistRows(databasePath: string) {
+  const database = await createMigratedPrimarySqliteDatabase({ dbPath: databasePath });
+
+  return database.prepare<{
+    description: string | null;
+    id: string;
+    name: string;
+    owner_id: string;
+  }>(`
+    SELECT id, name, description, owner_id
+    FROM playlists
+    ORDER BY id ASC
+  `).all();
+}
+
+async function readPlaylistItems(databasePath: string, playlistId: string) {
+  const database = await createMigratedPrimarySqliteDatabase({ dbPath: databasePath });
+  const rows = await database.prepare<{
+    episode_metadata_json: string | null;
+    playlist_id: string;
+    position: number;
+    video_id: string;
+  }>(`
+    SELECT playlist_id, video_id, position, episode_metadata_json
+    FROM playlist_items
+    WHERE playlist_id = ?
+    ORDER BY position ASC
+  `).all(playlistId);
+
+  return rows.map(row => ({
+    episodeMetadata: row.episode_metadata_json
+      ? JSON.parse(row.episode_metadata_json) as unknown
+      : undefined,
+    playlistId: row.playlist_id,
+    position: row.position + 1,
+    videoId: row.video_id,
+  }));
 }
 
 describe.sequential('playlist mutation contract', () => {
@@ -115,8 +153,7 @@ describe.sequential('playlist mutation contract', () => {
 
     try {
       const cookie = await workspace.login();
-      const playlistsPath = join(workspace.storageDir, 'data', 'playlists.json');
-      const playlistsBefore = await readFile(playlistsPath, 'utf8');
+      const playlistsBefore = await readPlaylistRows(workspace.databasePath);
 
       process.env.AUTH_OWNER_ID = 'intruder-owner';
       process.env.AUTH_OWNER_EMAIL = 'intruder@example.com';
@@ -144,8 +181,7 @@ describe.sequential('playlist mutation contract', () => {
         error: 'User "intruder-owner" does not have permission to update playlist "playlist-1"',
       });
 
-      const playlistsAfter = await readFile(playlistsPath, 'utf8');
-      expect(playlistsAfter).toBe(playlistsBefore);
+      await expect(readPlaylistRows(workspace.databasePath)).resolves.toEqual(playlistsBefore);
     }
     finally {
       await workspace.cleanup();
@@ -234,17 +270,7 @@ describe.sequential('playlist mutation contract', () => {
         videoTitle: 'vault companion',
       }));
 
-      const playlistItemsAfterAdd = JSON.parse(
-        await readFile(join(workspace.storageDir, 'data', 'playlist-items.json'), 'utf8'),
-      ) as Array<{
-        episodeMetadata?: {
-          episodeNumber?: number;
-          episodeTitle?: string;
-        };
-        playlistId: string;
-        position: number;
-        videoId: string;
-      }>;
+      const playlistItemsAfterAdd = await readPlaylistItems(workspace.databasePath, 'playlist-1');
 
       expect(playlistItemsAfterAdd).toEqual([
         expect.objectContaining({
@@ -319,13 +345,7 @@ describe.sequential('playlist mutation contract', () => {
         videosReordered: 2,
       }));
 
-      const playlistItemsAfterReorder = JSON.parse(
-        await readFile(join(workspace.storageDir, 'data', 'playlist-items.json'), 'utf8'),
-      ) as Array<{
-        playlistId: string;
-        position: number;
-        videoId: string;
-      }>;
+      const playlistItemsAfterReorder = await readPlaylistItems(workspace.databasePath, 'playlist-1');
 
       expect(playlistItemsAfterReorder).toEqual([
         expect.objectContaining({
@@ -362,13 +382,7 @@ describe.sequential('playlist mutation contract', () => {
         videoId: '01a5c843-7f3e-4af7-9f3d-8cb6a2691d55',
       }));
 
-      const playlistItemsAfterRemove = JSON.parse(
-        await readFile(join(workspace.storageDir, 'data', 'playlist-items.json'), 'utf8'),
-      ) as Array<{
-        playlistId: string;
-        position: number;
-        videoId: string;
-      }>;
+      const playlistItemsAfterRemove = await readPlaylistItems(workspace.databasePath, 'playlist-1');
 
       expect(playlistItemsAfterRemove).toEqual([
         expect.objectContaining({

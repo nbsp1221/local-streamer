@@ -13,7 +13,7 @@ import { FilesystemIngestStagedUploadStorageAdapter } from '~/modules/ingest/inf
 import { SqliteIngestStagedUploadRepositoryAdapter } from '~/modules/ingest/infrastructure/staging/sqlite-ingest-staged-upload-repository.adapter';
 import { BunStreamingMultipartUploadAdapter } from '~/modules/ingest/infrastructure/upload/bun-streaming-multipart-upload.adapter';
 import { SqliteCanonicalVideoMetadataAdapter } from '~/modules/library/infrastructure/sqlite/sqlite-canonical-video-metadata.adapter';
-import { getVideoMetadataConfig } from '~/shared/config/video-metadata.server';
+import { getPrimaryStorageConfig } from '~/modules/storage/infrastructure/config/storage-config.server';
 
 export interface ServerIngestServices {
   commitStagedUploadToLibrary: CommitStagedUploadToLibraryUseCase;
@@ -49,8 +49,10 @@ function createLazyValue<T>(factory: () => T): () => T {
 export function createServerIngestServices(
   overrides: Partial<ServerIngestServiceDependencies> = {},
 ): ServerIngestServices {
+  const primaryStorageConfig = getPrimaryStorageConfig();
   const getStagedUploadRepository = createLazyValue(() => overrides.stagedUploadRepository ?? new SqliteIngestStagedUploadRepositoryAdapter({
-    dbPath: getVideoMetadataConfig().sqlitePath,
+    dbPath: primaryStorageConfig.databasePath,
+    storageDir: primaryStorageConfig.storageDir,
   }));
   const getStagedUploadStorage = createLazyValue(() => overrides.stagedUploadStorage ?? new FilesystemIngestStagedUploadStorageAdapter());
   const getMediaPreparation = createLazyValue(() => overrides.mediaPreparation ?? new FfmpegMediaPreparationAdapter());

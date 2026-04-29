@@ -2,6 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { SqliteRunResult, SqliteStatement } from '~/modules/storage/infrastructure/sqlite/primary-sqlite.database';
 import { SessionPolicy } from '../../domain/policies/SessionPolicy';
 import { SqliteSessionRepository } from './sqlite-session.repository';
 
@@ -18,13 +19,17 @@ interface AuthSessionRow {
 class InMemorySqliteDatabase {
   private readonly rows = new Map<string, AuthSessionRow>();
 
-  exec(_sql: string) {}
+  async exec(_sql: string) {}
 
-  prepare<T>(sql: string) {
+  prepare<T>(sql: string): SqliteStatement<T> {
     if (sql.includes('SELECT') && sql.includes('FROM auth_sessions')) {
       return {
-        get: (...params: unknown[]) => this.rows.get(String(params[0])) as T | undefined,
-        run: () => {
+        all: async (...params: unknown[]) => {
+          const row = this.rows.get(String(params[0])) as T | undefined;
+          return row ? [row] : [];
+        },
+        get: async (...params: unknown[]) => this.rows.get(String(params[0])) as T | undefined,
+        run: async (): Promise<SqliteRunResult> => {
           throw new Error('run() is not supported for SELECT statements in this test adapter');
         },
       };
@@ -32,10 +37,13 @@ class InMemorySqliteDatabase {
 
     if (sql.includes('INSERT OR REPLACE INTO auth_sessions')) {
       return {
-        get: () => {
+        all: async () => {
+          throw new Error('all() is not supported for INSERT statements in this test adapter');
+        },
+        get: async () => {
           throw new Error('get() is not supported for INSERT statements in this test adapter');
         },
-        run: (...params: unknown[]) => {
+        run: async (...params: unknown[]) => {
           const [
             id,
             createdAt,
@@ -61,10 +69,13 @@ class InMemorySqliteDatabase {
 
     if (sql.includes('SET is_revoked = 1')) {
       return {
-        get: () => {
+        all: async () => {
+          throw new Error('all() is not supported for UPDATE statements in this test adapter');
+        },
+        get: async () => {
           throw new Error('get() is not supported for UPDATE statements in this test adapter');
         },
-        run: (...params: unknown[]) => {
+        run: async (...params: unknown[]) => {
           const [id] = params as [string];
           const row = this.rows.get(id);
           if (row) {
@@ -81,10 +92,13 @@ class InMemorySqliteDatabase {
 
     if (sql.includes('SET') && sql.includes('expires_at = ?') && sql.includes('last_accessed_at = ?')) {
       return {
-        get: () => {
+        all: async () => {
+          throw new Error('all() is not supported for UPDATE statements in this test adapter');
+        },
+        get: async () => {
           throw new Error('get() is not supported for UPDATE statements in this test adapter');
         },
-        run: (...params: unknown[]) => {
+        run: async (...params: unknown[]) => {
           const [expiresAt, lastAccessedAt, id] = params as [string, string, string];
           const row = this.rows.get(id);
           if (row) {
@@ -102,6 +116,10 @@ class InMemorySqliteDatabase {
 
     throw new Error(`Unsupported SQL in test adapter: ${sql}`);
   }
+
+  async transaction<T>(callback: (database: InMemorySqliteDatabase) => Promise<T>): Promise<T> {
+    return callback(this);
+  }
 }
 
 describe('SqliteSessionRepository', () => {
@@ -110,7 +128,7 @@ describe('SqliteSessionRepository', () => {
 
   beforeEach(async () => {
     tempDir = await mkdtemp(join(tmpdir(), 'local-streamer-auth-'));
-    dbPath = join(tempDir, 'auth.sqlite');
+    dbPath = join(tempDir, 'db.sqlite');
   });
 
   afterEach(async () => {

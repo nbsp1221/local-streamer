@@ -148,6 +148,10 @@ app/
       domain/
       application/
       infrastructure/
+    storage/
+      domain/
+      application/
+      infrastructure/
 ```
 
 ## 8. Bounded Contexts
@@ -188,6 +192,20 @@ app/
 - secondary domain
 - retained as an active bounded context after the migration
 - owns playlist reads, mutations, visibility rules, and page/API orchestration
+
+### `storage`
+
+- shared technical storage boundary for runtime persistence configuration
+- primary SQLite database path and lifecycle helpers
+- media artifact filesystem layout
+- schema bootstrapping and repository infrastructure shared by active modules
+- must not own user-facing business rules for auth, ingest, library, playback, or playlist
+
+Reference data exception:
+
+- storage may bootstrap static lookup rows that are required for relational integrity at cold start
+- the owning business context still defines the meaning, labels, visibility, and runtime behavior of those values
+- changing taxonomy policy remains a library-domain decision, even when the rows are inserted during primary schema bootstrapping
 
 ## 9. Playback Complexity Principle
 
@@ -236,6 +254,7 @@ It should not be split into separate top-level contexts unless maintenance prove
 - `domain` must not depend on frameworks or infrastructure
 - `application` may depend on domain and ports only
 - `infrastructure` may depend on domain, application, and shared
+- `modules/storage` may provide shared persistence infrastructure, but business policies remain in their owning bounded contexts
 - new code must not reintroduce an `app/legacy` dependency or namespace
 - `shared` is for truly shared concerns only
 - cross-context dependencies should be rare and explicit

@@ -3,20 +3,18 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
-import { createVideoMetadataSqliteDatabase } from './libsql-video-metadata.database';
+import { createMigratedPrimarySqliteDatabase } from '~/modules/storage/infrastructure/sqlite/migrated-primary-sqlite.database';
 import { SqliteLibraryVideoMetadataRepository } from './sqlite-library-video-metadata.repository';
 
 describe('SqliteLibraryVideoMetadataRepository', () => {
   let dbPath: string;
   let tempDir: string;
   const originalStorageDir = process.env.STORAGE_DIR;
-  const originalVideoMetadataSqlitePath = process.env.VIDEO_METADATA_SQLITE_PATH;
 
   beforeEach(async () => {
     tempDir = await mkdtemp(join(tmpdir(), 'local-streamer-video-metadata-'));
-    dbPath = join(tempDir, 'video-metadata.sqlite');
+    dbPath = join(tempDir, 'db.sqlite');
     process.env.STORAGE_DIR = tempDir;
-    process.env.VIDEO_METADATA_SQLITE_PATH = dbPath;
   });
 
   afterEach(async () => {
@@ -25,13 +23,6 @@ describe('SqliteLibraryVideoMetadataRepository', () => {
     }
     else {
       process.env.STORAGE_DIR = originalStorageDir;
-    }
-
-    if (originalVideoMetadataSqlitePath === undefined) {
-      delete process.env.VIDEO_METADATA_SQLITE_PATH;
-    }
-    else {
-      process.env.VIDEO_METADATA_SQLITE_PATH = originalVideoMetadataSqlitePath;
     }
 
     await rm(tempDir, { force: true, recursive: true });
@@ -61,7 +52,7 @@ describe('SqliteLibraryVideoMetadataRepository', () => {
       genreSlugs: ['action'],
       id: 'video-newest',
       sortIndex: 2,
-      tags: ['Action', 'vault'],
+      tags: ['action', 'vault'],
       thumbnailUrl: '/api/thumbnail/video-newest',
       title: 'Newest fixture',
       videoUrl: '/videos/video-newest/manifest.mpd',
@@ -114,9 +105,9 @@ describe('SqliteLibraryVideoMetadataRepository', () => {
       duration: 240,
       genreSlugs: ['documentary'],
       tags: ['Neo'],
-      thumbnailUrl: '/api/thumbnail/video-1-updated',
+      thumbnailUrl: '/api/thumbnail/video-1',
       title: 'Updated title',
-      videoUrl: '/videos/video-1-updated/manifest.mpd',
+      videoUrl: '/videos/video-1/manifest.mpd',
     });
 
     expect(updated).toEqual({
@@ -125,10 +116,10 @@ describe('SqliteLibraryVideoMetadataRepository', () => {
       description: 'Updated description',
       duration: 240,
       genreSlugs: ['documentary'],
-      tags: ['Neo'],
-      thumbnailUrl: '/api/thumbnail/video-1-updated',
+      tags: ['neo'],
+      thumbnailUrl: '/api/thumbnail/video-1',
       title: 'Updated title',
-      videoUrl: '/videos/video-1-updated/manifest.mpd',
+      videoUrl: '/videos/video-1/manifest.mpd',
     });
     await expect(repository.findByTitle('updated')).resolves.toEqual([
       expect.objectContaining({ id: 'video-1' }),
@@ -139,7 +130,7 @@ describe('SqliteLibraryVideoMetadataRepository', () => {
     await expect(repository.search('updated')).resolves.toEqual([
       expect.objectContaining({ id: 'video-1' }),
     ]);
-    await expect(repository.getAllTags()).resolves.toEqual(['Neo']);
+    await expect(repository.getAllTags()).resolves.toEqual(['neo']);
     await expect(repository.exists('video-1')).resolves.toBe(true);
     await expect(repository.count()).resolves.toBe(1);
 
@@ -148,8 +139,62 @@ describe('SqliteLibraryVideoMetadataRepository', () => {
     await expect(repository.count()).resolves.toBe(0);
   });
 
+  test('deletes videos that still have committed ingest upload rows', async () => {
+    const database = await createMigratedPrimarySqliteDatabase({ dbPath });
+    const repository = new SqliteLibraryVideoMetadataRepository({ dbPath });
+
+    await repository.create({
+      createdAt: new Date('2026-03-24T00:00:00.000Z'),
+      description: 'Uploaded fixture',
+      duration: 58,
+      genreSlugs: [],
+      id: 'uploaded-video',
+      sortIndex: 1,
+      tags: ['qa'],
+      title: 'Uploaded fixture',
+      videoUrl: '/videos/uploaded-video/manifest.mpd',
+    });
+    await database.prepare(`
+      INSERT INTO ingest_uploads (
+        staging_id,
+        reserved_video_id,
+        committed_video_id,
+        filename,
+        mime_type,
+        size_bytes,
+        storage_relpath,
+        status,
+        created_at,
+        updated_at,
+        expires_at,
+        committed_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      'staging-uploaded-video',
+      'uploaded-video',
+      'uploaded-video',
+      'uploaded-video.mp4',
+      'video/mp4',
+      1024,
+      'staging-uploaded-video/uploaded-video.mp4',
+      'committed',
+      '2026-03-24T00:00:00.000Z',
+      '2026-03-24T00:00:00.000Z',
+      '2026-03-25T00:00:00.000Z',
+      '2026-03-24T00:00:01.000Z',
+    );
+
+    await expect(repository.delete('uploaded-video')).resolves.toBe(true);
+    await expect(repository.findById('uploaded-video')).resolves.toBeNull();
+    await expect(database.prepare<{ count: number }>(`
+      SELECT COUNT(*) AS count
+      FROM ingest_uploads
+      WHERE committed_video_id = ?
+    `).get('uploaded-video')).resolves.toEqual({ count: 0 });
+  });
+
   test('lists active vocabulary rows without exposing inactive values', async () => {
-    const database = await createVideoMetadataSqliteDatabase({ dbPath });
+    const database = await createMigratedPrimarySqliteDatabase({ dbPath });
     const repository = new SqliteLibraryVideoMetadataRepository({ dbPath });
 
     await database.prepare(`

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from 'bun:test';
@@ -8,8 +8,8 @@ import { createRuntimeTestEnv } from '../support/create-runtime-test-env';
 
 const repoRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), 'local-streamer-dev-smoke-'));
-const authDbPath = join(tempDir, 'auth.sqlite');
 const storageDir = join(tempDir, 'storage');
+const databasePath = join(storageDir, 'db.sqlite');
 const port = 3400 + Math.floor(Math.random() * 200);
 const baseUrl = `http://127.0.0.1:${port}`;
 setDefaultTimeout(15_000);
@@ -70,11 +70,7 @@ function formatServerLogs() {
 }
 
 function seedSmokeStorage(rootDir: string) {
-  mkdirSync(join(rootDir, 'data'), { recursive: true });
-
-  writeFileSync(join(rootDir, 'data', 'playlist-items.json'), '[]');
-  writeFileSync(join(rootDir, 'data', 'playlists.json'), '[]');
-  writeFileSync(join(rootDir, 'data', 'sessions.json'), '[]');
+  mkdirSync(join(rootDir, 'videos'), { recursive: true });
 }
 
 async function waitForServerReady(url: string) {
@@ -137,7 +133,7 @@ beforeAll(async () => {
       AUTH_OWNER_EMAIL: 'admin@example.com',
       AUTH_OWNER_ID: 'seeded-owner-1',
       AUTH_SHARED_PASSWORD: 'vault-password',
-      AUTH_SQLITE_PATH: authDbPath,
+      DATABASE_SQLITE_PATH: databasePath,
       STORAGE_DIR: storageDir,
     }),
     stderr: 'pipe',

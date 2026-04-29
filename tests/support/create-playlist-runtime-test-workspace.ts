@@ -1,114 +1,9 @@
-import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import { vi } from 'vitest';
+import { createMigratedPrimarySqliteDatabase } from '../../app/modules/storage/infrastructure/sqlite/migrated-primary-sqlite.database';
 import { toRequestCookieHeader } from '../helpers/cookies';
 import { createRuntimeTestWorkspace } from './create-runtime-test-workspace';
 import { type SeedLibraryVideoInput, seedLibraryVideoMetadata } from './seed-library-video-metadata';
 
 export const PLAYLIST_OWNER_ID = 'seeded-owner-1';
-
-interface AuthSessionRow {
-  created_at: string;
-  expires_at: string;
-  id: string;
-  ip_address: string | null;
-  is_revoked: number;
-  last_accessed_at: string;
-  user_agent: string | null;
-}
-
-class InMemorySqliteDatabase {
-  private readonly rows = new Map<string, AuthSessionRow>();
-
-  exec(_sql: string) {}
-
-  prepare<T>(sql: string) {
-    if (sql.includes('SELECT') && sql.includes('FROM auth_sessions')) {
-      return {
-        get: (...params: unknown[]) => this.rows.get(String(params[0])) as T | undefined,
-        run: () => {
-          throw new Error('run() is not supported for SELECT statements in this test adapter');
-        },
-      };
-    }
-
-    if (sql.includes('INSERT OR REPLACE INTO auth_sessions')) {
-      return {
-        get: () => {
-          throw new Error('get() is not supported for INSERT statements in this test adapter');
-        },
-        run: (...params: unknown[]) => {
-          const [
-            id,
-            createdAt,
-            expiresAt,
-            ipAddress,
-            isRevoked,
-            lastAccessedAt,
-            userAgent,
-          ] = params as [string, string, string, string | null, number, string, string | null];
-
-          this.rows.set(id, {
-            created_at: createdAt,
-            expires_at: expiresAt,
-            id,
-            ip_address: ipAddress,
-            is_revoked: isRevoked,
-            last_accessed_at: lastAccessedAt,
-            user_agent: userAgent,
-          });
-
-          return { changes: 1 };
-        },
-      };
-    }
-
-    if (sql.includes('SET is_revoked = 1')) {
-      return {
-        get: () => {
-          throw new Error('get() is not supported for UPDATE statements in this test adapter');
-        },
-        run: (...params: unknown[]) => {
-          const [id] = params as [string];
-          const row = this.rows.get(id);
-
-          if (row) {
-            this.rows.set(id, {
-              ...row,
-              is_revoked: 1,
-            });
-          }
-
-          return { changes: row ? 1 : 0 };
-        },
-      };
-    }
-
-    if (sql.includes('SET') && sql.includes('expires_at = ?') && sql.includes('last_accessed_at = ?')) {
-      return {
-        get: () => {
-          throw new Error('get() is not supported for UPDATE statements in this test adapter');
-        },
-        run: (...params: unknown[]) => {
-          const [expiresAt, lastAccessedAt, id] = params as [string, string, string];
-          const row = this.rows.get(id);
-
-          if (row) {
-            this.rows.set(id, {
-              ...row,
-              expires_at: expiresAt,
-              last_accessed_at: lastAccessedAt,
-            });
-          }
-
-          return { changes: row ? 1 : 0 };
-        },
-      };
-    }
-
-    throw new Error(`Unsupported SQL in test adapter: ${sql}`);
-  }
-}
 
 interface PlaylistRuntimeWorkspaceOptions {
   playlistItems?: unknown[];
@@ -164,25 +59,9 @@ const DEFAULT_PLAYLISTS = [
   },
 ];
 
-const DEFAULT_PLAYLIST_ITEMS = [
-  {
-    addedAt: '2026-03-24T00:00:00.000Z',
-    addedBy: PLAYLIST_OWNER_ID,
-    playlistId: 'playlist-owned-private',
-    position: 1,
-    videoId: 'playlist-video-1',
-  },
-  {
-    addedAt: '2026-03-25T00:00:00.000Z',
-    addedBy: 'other-user',
-    playlistId: 'playlist-public',
-    position: 1,
-    videoId: 'playlist-video-2',
-  },
-];
-
 interface PlaylistRuntimeWorkspace {
   authDbPath: string;
+  databasePath: string;
   cleanup: () => Promise<void>;
   login: () => Promise<string>;
   rootDir: string;
@@ -190,60 +69,169 @@ interface PlaylistRuntimeWorkspace {
   videoMetadataDbPath: string;
 }
 
-async function writeJsonFile(filePath: string, value: unknown) {
-  await writeFile(filePath, JSON.stringify(value, null, 2));
+interface SeedPlaylistRow {
+  createdAt?: string;
+  description?: string;
+  id: string;
+  isPublic?: boolean;
+  metadata?: Record<string, unknown>;
+  name: string;
+  ownerId: string;
+  thumbnailUrl?: string;
+  type: string;
+  updatedAt?: string;
+  videoIds?: string[];
+}
+
+interface SeedPlaylistItemRow {
+  addedAt?: string;
+  addedBy?: string;
+  episodeMetadata?: Record<string, unknown>;
+  playlistId: string;
+  position?: number;
+  videoId: string;
+}
+
+function normalizePlaylistRows(value: unknown[] | undefined): SeedPlaylistRow[] {
+  return (value ?? DEFAULT_PLAYLISTS) as SeedPlaylistRow[];
+}
+
+function normalizePlaylistItemRows(
+  playlists: SeedPlaylistRow[],
+  value: unknown[] | undefined,
+): SeedPlaylistItemRow[] {
+  if (value) {
+    return value as SeedPlaylistItemRow[];
+  }
+
+  return playlists.flatMap(playlist => (playlist.videoIds ?? []).map((videoId, index) => ({
+    addedAt: playlist.updatedAt ?? playlist.createdAt,
+    addedBy: playlist.ownerId,
+    playlistId: playlist.id,
+    position: index + 1,
+    videoId,
+  })));
+}
+
+function collectReferencedVideoIds(playlists: SeedPlaylistRow[], playlistItems: SeedPlaylistItemRow[]) {
+  return Array.from(new Set([
+    ...playlists.flatMap(playlist => playlist.videoIds ?? []),
+    ...playlistItems.map(item => item.videoId),
+  ]));
+}
+
+async function seedPlaylists(databasePath: string, input: {
+  playlistItems?: unknown[];
+  playlists?: unknown[];
+}) {
+  const database = await createMigratedPrimarySqliteDatabase({ dbPath: databasePath });
+  const playlists = normalizePlaylistRows(input.playlists);
+  const playlistItems = normalizePlaylistItemRows(playlists, input.playlistItems);
+
+  await database.transaction(async (transaction) => {
+    for (const playlist of playlists) {
+      await transaction.prepare(`
+        INSERT INTO playlists (
+          id,
+          owner_id,
+          name,
+          name_key,
+          description,
+          type,
+          is_public,
+          thumbnail_path,
+          metadata_json,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        playlist.id,
+        playlist.ownerId,
+        playlist.name,
+        playlist.name.trim().toLowerCase(),
+        playlist.description ?? null,
+        playlist.type,
+        playlist.isPublic ? 1 : 0,
+        playlist.thumbnailUrl ?? null,
+        playlist.metadata ? JSON.stringify(playlist.metadata) : null,
+        playlist.createdAt ?? new Date(0).toISOString(),
+        playlist.updatedAt ?? playlist.createdAt ?? new Date(0).toISOString(),
+      );
+    }
+
+    for (const item of playlistItems) {
+      await transaction.prepare(`
+        INSERT INTO playlist_items (
+          playlist_id,
+          video_id,
+          position,
+          added_at,
+          added_by,
+          episode_metadata_json
+        ) VALUES (?, ?, ?, ?, ?, ?)
+      `).run(
+        item.playlistId,
+        item.videoId,
+        Math.max((item.position ?? 1) - 1, 0),
+        item.addedAt ?? new Date(0).toISOString(),
+        item.addedBy ?? PLAYLIST_OWNER_ID,
+        item.episodeMetadata ? JSON.stringify(item.episodeMetadata) : null,
+      );
+    }
+  });
 }
 
 export async function createPlaylistRuntimeTestWorkspace(
   options: PlaylistRuntimeWorkspaceOptions = {},
 ): Promise<PlaylistRuntimeWorkspace> {
   const workspace = await createRuntimeTestWorkspace();
-  const dataDir = join(workspace.storageDir, 'data');
-
-  await Promise.all([
-    writeJsonFile(join(dataDir, 'playlist-items.json'), options.playlistItems ?? DEFAULT_PLAYLIST_ITEMS),
-    writeJsonFile(join(dataDir, 'playlists.json'), options.playlists ?? DEFAULT_PLAYLISTS),
-  ]);
+  const playlists = normalizePlaylistRows(options.playlists);
+  const playlistItems = normalizePlaylistItemRows(playlists, options.playlistItems);
 
   process.env.AUTH_OWNER_EMAIL = 'admin@example.com';
   process.env.AUTH_OWNER_ID = PLAYLIST_OWNER_ID;
   process.env.AUTH_SHARED_PASSWORD = 'vault-password';
-  process.env.AUTH_SQLITE_PATH = workspace.authDbPath;
+  process.env.DATABASE_SQLITE_PATH = workspace.databasePath;
   process.env.STORAGE_DIR = workspace.storageDir;
-  process.env.VIDEO_METADATA_SQLITE_PATH = workspace.videoMetadataDbPath;
   delete process.env.VIDEO_JWT_SECRET;
   delete process.env.VIDEO_MASTER_ENCRYPTION_SEED;
 
   await seedLibraryVideoMetadata(
-    workspace.videoMetadataDbPath,
+    workspace.databasePath,
     options.videos ?? DEFAULT_VIDEOS,
   );
+  const seededVideoIds = new Set((options.videos ?? DEFAULT_VIDEOS).map(video => video.id));
+  const missingReferencedVideos = collectReferencedVideoIds(playlists, playlistItems)
+    .filter(videoId => !seededVideoIds.has(videoId))
+    .map((videoId, index) => ({
+      createdAt: '2026-03-21T00:00:00.000Z',
+      description: `Generated playlist fixture for ${videoId}`,
+      duration: 60 + index,
+      id: videoId,
+      tags: ['playlist'],
+      thumbnailUrl: `/api/thumbnail/${videoId}`,
+      title: videoId,
+      videoUrl: `/videos/${videoId}/manifest.mpd`,
+    }));
 
-  const sqliteDatabaseByPath = new Map<string, InMemorySqliteDatabase>();
-  vi.resetModules();
-  vi.doMock('../../app/modules/auth/infrastructure/sqlite/bun-sqlite.database', () => ({
-    createBunSqliteDatabase: async ({ dbPath }: { dbPath: string }) => {
-      let database = sqliteDatabaseByPath.get(dbPath);
+  if (missingReferencedVideos.length > 0) {
+    await seedLibraryVideoMetadata(workspace.databasePath, missingReferencedVideos);
+  }
 
-      if (!database) {
-        database = new InMemorySqliteDatabase();
-        sqliteDatabaseByPath.set(dbPath, database);
-      }
-
-      return database;
-    },
-  }));
+  await seedPlaylists(workspace.databasePath, {
+    playlistItems,
+    playlists,
+  });
 
   return {
     authDbPath: workspace.authDbPath,
+    databasePath: workspace.databasePath,
     cleanup: async () => {
-      vi.doUnmock('../../app/modules/auth/infrastructure/sqlite/bun-sqlite.database');
       delete process.env.AUTH_OWNER_EMAIL;
       delete process.env.AUTH_OWNER_ID;
       delete process.env.AUTH_SHARED_PASSWORD;
-      delete process.env.AUTH_SQLITE_PATH;
+      delete process.env.DATABASE_SQLITE_PATH;
       delete process.env.STORAGE_DIR;
-      delete process.env.VIDEO_METADATA_SQLITE_PATH;
       delete process.env.VIDEO_JWT_SECRET;
       delete process.env.VIDEO_MASTER_ENCRYPTION_SEED;
       await workspace.cleanup();

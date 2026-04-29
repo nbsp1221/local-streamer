@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
@@ -8,13 +8,18 @@ import { createRuntimeTestEnv } from '../support/create-runtime-test-env';
 
 const repoRoot = process.cwd();
 const tempDir = mkdtempSync(join(tmpdir(), 'local-streamer-bun-smoke-'));
-const authDbPath = join(tempDir, 'auth.sqlite');
 const storageDir = join(tempDir, 'storage');
+const databasePath = join(storageDir, 'db.sqlite');
 const port = 3200 + Math.floor(Math.random() * 200);
 const baseUrl = `http://127.0.0.1:${port}`;
 const syntheticVideoId = '00000000-0000-4000-8000-000000000001';
 
 let server: Bun.Subprocess | null = null;
+const serverLogState = {
+  stderr: '',
+  stdout: '',
+};
+const serverLogReaders: Promise<void>[] = [];
 
 function expectAdminViewerShape(viewer: unknown) {
   expect(viewer).toEqual(expect.objectContaining({
@@ -25,17 +30,55 @@ function expectAdminViewerShape(viewer: unknown) {
 }
 
 function seedSmokeStorage(rootDir: string) {
-  mkdirSync(join(rootDir, 'data'), { recursive: true });
+  mkdirSync(join(rootDir, 'videos'), { recursive: true });
+}
 
-  writeFileSync(join(rootDir, 'data', 'playlist-items.json'), '[]');
-  writeFileSync(join(rootDir, 'data', 'playlists.json'), '[]');
-  writeFileSync(join(rootDir, 'data', 'sessions.json'), '[]');
+function captureServerOutput(
+  stream: number | ReadableStream<Uint8Array> | null | undefined,
+  target: keyof typeof serverLogState,
+) {
+  if (!(stream instanceof ReadableStream)) {
+    return;
+  }
+
+  serverLogReaders.push((async () => {
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        serverLogState[target] += decoder.decode(value, { stream: true });
+      }
+
+      serverLogState[target] += decoder.decode();
+    }
+    finally {
+      reader.releaseLock();
+    }
+  })());
+}
+
+function formatServerLogs() {
+  return [
+    '=== SERVER STDERR ===',
+    serverLogState.stderr || '(empty)',
+    '=== SERVER STDOUT ===',
+    serverLogState.stdout || '(empty)',
+  ].join('\n');
 }
 
 async function waitForServerReady(url: string) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     if (server && server.exitCode !== null) {
-      throw new Error(`Bun smoke server exited early with code ${server.exitCode}`);
+      throw new Error(
+        `Bun smoke server exited early with code ${server.exitCode}\n${formatServerLogs()}`,
+      );
     }
 
     try {
@@ -51,7 +94,7 @@ async function waitForServerReady(url: string) {
     await Bun.sleep(100);
   }
 
-  throw new Error(`Timed out waiting for Bun smoke server at ${url}`);
+  throw new Error(`Timed out waiting for Bun smoke server at ${url}\n${formatServerLogs()}`);
 }
 
 async function loginAndGetCookie() {
@@ -65,8 +108,18 @@ async function loginAndGetCookie() {
 
   const setCookie = response.headers.get('set-cookie');
 
-  expect(response.status).toBe(200);
-  expect(setCookie).toContain('site_session=');
+  if (response.status !== 200 || !setCookie?.includes('site_session=')) {
+    const responseBody = await response.text();
+
+    throw new Error(
+      [
+        `Expected successful Bun login but received ${response.status}.`,
+        '=== LOGIN RESPONSE BODY ===',
+        responseBody || '(empty)',
+        formatServerLogs(),
+      ].join('\n'),
+    );
+  }
 
   return toRequestCookieHeader(setCookie);
 }
@@ -80,13 +133,18 @@ beforeAll(async () => {
       AUTH_OWNER_EMAIL: 'admin@example.com',
       AUTH_OWNER_ID: 'seeded-owner-1',
       AUTH_SHARED_PASSWORD: 'vault-password',
-      AUTH_SQLITE_PATH: authDbPath,
+      DATABASE_SQLITE_PATH: databasePath,
       PORT: String(port),
       STORAGE_DIR: storageDir,
     }),
     stderr: 'pipe',
     stdout: 'pipe',
   });
+  serverLogState.stdout = '';
+  serverLogState.stderr = '';
+  serverLogReaders.length = 0;
+  captureServerOutput(server.stdout, 'stdout');
+  captureServerOutput(server.stderr, 'stderr');
 
   await waitForServerReady(baseUrl);
 });
@@ -96,6 +154,8 @@ afterAll(async () => {
     server.kill();
     await server.exited;
   }
+
+  await Promise.all(serverLogReaders);
 
   rmSync(tempDir, { force: true, recursive: true });
 });

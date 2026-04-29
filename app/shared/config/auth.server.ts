@@ -1,4 +1,3 @@
-import path from 'node:path';
 import { normalizeSharedPassword } from '../lib/normalize-shared-password';
 
 const DEFAULT_FAILED_LOGIN_BLOCK_DURATION_MS = 5 * 60 * 1000;
@@ -11,15 +10,6 @@ const DEFAULT_AUTH_OWNER_ID = 'site-owner';
 const DEFAULT_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const DEFAULT_SESSION_COOKIE_NAME = 'site_session';
 
-export interface AuthSessionConfig {
-  clientCookieName: string;
-  sessionCookieName: string;
-  sessionCookiePath: string;
-  sessionCookieSecure: boolean;
-  sessionTtlMs: number;
-  sqlitePath: string;
-}
-
 export interface AuthConfig {
   failedLoginBlockDurationMs: number;
   failedLoginDelayMs: number;
@@ -30,7 +20,6 @@ export interface AuthConfig {
   sessionCookieSecure: boolean;
   sessionTtlMs: number;
   sharedPassword: string;
-  sqlitePath: string;
   trustProxyHeaders: boolean;
 }
 
@@ -117,13 +106,6 @@ export function getAuthCookieConfig(): AuthCookieConfig {
   };
 }
 
-export function getAuthSessionConfig(): AuthSessionConfig {
-  return {
-    ...getAuthCookieConfig(),
-    sqlitePath: process.env.AUTH_SQLITE_PATH || path.join(process.cwd(), 'storage', 'data', 'auth.sqlite'),
-  };
-}
-
 export function getAuthRateLimitConfig(): AuthRateLimitConfig {
   return {
     trustProxyHeaders: readBoolean(process.env.AUTH_TRUST_PROXY_HEADERS, false),
@@ -146,7 +128,7 @@ export function getAuthConfig(): AuthConfig {
   }
 
   return {
-    ...getAuthSessionConfig(),
+    ...getAuthCookieConfig(),
     failedLoginBlockDurationMs: readPositiveInteger(process.env.AUTH_FAILED_LOGIN_BLOCK_DURATION_MS, DEFAULT_FAILED_LOGIN_BLOCK_DURATION_MS),
     failedLoginDelayMs: readPositiveInteger(process.env.AUTH_FAILED_LOGIN_DELAY_MS, DEFAULT_FAILED_LOGIN_DELAY_MS),
     failedLoginWindowMs: readPositiveInteger(process.env.AUTH_FAILED_LOGIN_WINDOW_MS, DEFAULT_FAILED_LOGIN_WINDOW_MS),
