@@ -1,11 +1,17 @@
 # Data Storage Management Design
 
-Status: Ready for implementation planning
+Status: Historical pre-cutover design
+Last reviewed: 2026-04-30
 Date: 2026-04-27
 Owner: Codex planning pass
 Scope: Define the long-term data and media storage model for Local Streamer before operating on durable personal video data.
 
 Review state: Updated after third-party read-only review and owner decisions on 2026-04-28.
+
+> This document predates the accepted primary SQLite cutover.
+> Use it as design history only. Current storage runtime contracts live in
+> `docs/current-runtime-documentation-spec.md` and
+> `docs/roadmap/current-refactor-status.md`.
 
 ## 1. Summary
 
@@ -85,7 +91,7 @@ This design relies on these facts from SQLite documentation and media-storage pr
 - SQLite exposes database-level version metadata such as `user_version`; applications can also use their own schema migration table. See [SQLite database file format](https://www.sqlite.org/fileformat.html).
 - Copying a live SQLite database file directly can be unsafe, especially with journals or WAL files. Safe backups should use the backup API, `VACUUM INTO`, or an equivalent safe process. See [SQLite backup API](https://www.sqlite.org/backup.html) and [How to corrupt an SQLite database](https://www.sqlite.org/howtocorrupt.html).
 
-## 6. Current State
+## 6. Pre-Cutover State Snapshot
 
 ### 6.1 Current Durable Stores
 

@@ -1,11 +1,18 @@
 # Verification Contract
 
-The repo verification contract uses the standard script surface:
+The base verification authority is:
 
-- `bun run lint`
-- `bun run typecheck`
-- `bun run test`
-- `bun run build`
+- `bun run verify:base`
+
+The expanded base sequence is:
+
+```text
+bun run verify:hermetic-inputs
+bun run lint
+bun run typecheck
+bun run test
+bun run build
+```
 
 ## Required Verification Matrix
 
@@ -13,18 +20,16 @@ Use this matrix to decide what must run before reporting a task complete.
 
 | Change type | Required verification |
 | --- | --- |
-| Documentation-only | `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build` |
-| Pure module or non-runtime-sensitive server logic | `bun run lint`, `bun run typecheck`, `bun run test`, `bun run build` |
+| Documentation-only | `bun run verify:base` |
+| Pure module or non-runtime-sensitive server logic | `bun run verify:base` |
 | Browser-visible but not runtime-sensitive UI flow | base verification bundle + `bun run verify:e2e-smoke` |
+| Storage schema, media asset records, ingest commit visibility, media artifact paths, artifact deletion, or data-integrity reporting | `bun run verify:base` + `bun run verify:data-integrity` |
 | Auth, playback, route wiring, storage, or other runtime-sensitive behavior | base verification bundle + Docker CI-like verification |
 | Runtime-sensitive and browser-visible flow | base verification bundle + Docker CI-like verification + required browser smoke + Playwright MCP or equivalent isolated browser QA when HTTP checks are insufficient |
 
-The base verification bundle is:
-
-- `bun run lint`
-- `bun run typecheck`
-- `bun run test`
-- `bun run build`
+The base verification bundle is `bun run verify:base`. If a change is both
+storage-sensitive and Docker-sensitive, run both `bun run verify:data-integrity` and the
+appropriate Docker gate.
 
 ## Purpose of each command
 
@@ -61,13 +66,22 @@ The authoritative commands for the current repo state are:
 - `bun run typecheck`
 - `bun run test`
 - `bun run build`
-- `bun run verify:e2e-smoke`
-- `docker run --rm --user "$(id -u):$(id -g)" -e CI=true -e GITHUB_ACTIONS=true -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -e TZ=Etc/UTC -v "$PWD":/workspace -w /workspace oven/bun:<matching-packageManager-version> bash -lc 'bun install --frozen-lockfile && bun run lint && bun run typecheck && bun run test && bun run build'` as explanatory reference only
 
 The authoritative Docker verification surfaces are `bun run verify:ci-faithful:docker` and `bun run verify:ci-worktree:docker`.
 `bun run verify:ci-clean-export` is an authoritative clean-export parity command, but it is not Docker-backed.
 Use `bun run verify:ci-worktree:docker` only when you must prove the current dirty worktree in a CI-like container without leaving root-owned artifacts in the host repository.
-The raw Docker command above is explanatory reference only and must track the Bun version declared by `package.json` (`bun@1.3.5` at the time of writing) instead of drifting to an arbitrary image tag.
+
+Diagnostic reference only:
+
+```bash
+docker run --rm --user "$(id -u):$(id -g)" -e CI=true -e GITHUB_ACTIONS=true -e LANG=C.UTF-8 -e LC_ALL=C.UTF-8 -e TZ=Etc/UTC -v "$PWD":/workspace -w /workspace oven/bun:<matching-packageManager-version> bash -lc 'bun install --frozen-lockfile && bun run lint && bun run typecheck && bun run test && bun run build'
+```
+
+This raw Docker command is not equivalent to `bun run verify:ci-faithful:docker` or
+`bun run verify:ci-worktree:docker`, because those scripts own the current hermetic and
+browser-smoke contract. Use raw Docker commands only when investigating the harness
+itself, and keep the Bun image aligned with `package.json` (`bun@1.3.5` at the time of
+writing).
 
 ## CI contract
 
@@ -79,7 +93,8 @@ GitHub Actions should run dedicated jobs for:
 - `build`
 - `e2e-smoke`
 
-`test` should run the hermetic input guard before `bun run test`.
+CI and local base verification should use `bun run verify:base` so the hermetic input
+guard cannot be skipped.
 
 `e2e-smoke` should run `bun run verify:e2e-smoke`. If broader browser suites are added later, they can remain non-required under `bun run test:e2e` until they are deterministic.
 

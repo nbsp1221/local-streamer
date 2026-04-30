@@ -1,5 +1,11 @@
 # Video Metadata Implementation Plan
 
+Status: Historical implementation plan
+Last reviewed: 2026-04-30
+
+> This plan predates the primary SQLite storage cutover. Use it as implementation
+> history, not as the current code map for persistence or storage paths.
+
 **Goal:** Introduce the approved metadata model and discovery UX for the personal video vault without increasing upload friction or regressing current add/watch flows.
 
 **Architecture:** Extend the current library, ingest, and home-route ownership boundaries around three approved metadata axes: `contentType`, `genre`, and canonical `tags`. Keep taxonomy in SQLite reference tables, keep routes thin, and prefer shadcn-managed source or mature external libraries over bespoke controls.

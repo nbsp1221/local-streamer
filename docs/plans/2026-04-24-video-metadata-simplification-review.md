@@ -1,8 +1,12 @@
 # Video Metadata Simplification Review
 
-Date: 2026-04-24
 Status: Accepted follow-up plan
+Last reviewed: 2026-04-30
+Date: 2026-04-24
 Scope: Recently changed video metadata, tag/search/filter UI, persistence, and tests
+
+> Some follow-up items may still be open. Do not use this review as current
+> persistence or storage architecture guidance.
 
 ## 1. Purpose
 
@@ -332,4 +336,3 @@ If any runtime-visible filter or upload behavior changes during simplification, 
 If route/storage/runtime wiring changes beyond local type/helper simplification, also run:
 
 - `bun run verify:ci-worktree:docker`
-

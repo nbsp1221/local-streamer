@@ -62,10 +62,25 @@ docker-compose up -d
 
 ### Volumes
 
-- `./storage` - Unified storage directory containing all application data
-  - `storage/db.sqlite` - Primary SQLite database for auth, library metadata, playlists, and ingest state
-  - `storage/videos/` - Packaged video artifacts
-  - `storage/staging/` - In-progress browser uploads
+The app writes to `/app/storage` inside the container.
+
+By default, Docker Compose backs that path with the named volume
+`local-streamer-storage`. If you want the files to appear in this checkout, set
+`LOCAL_STREAMER_STORAGE_MOUNT=./storage` in `.env` before running Compose.
+
+- named volume: Docker-managed storage with fewer host permission issues
+- bind mount: host-visible files, but host ownership and write permissions matter
+
+Storage layout:
+
+```text
+storage/db.sqlite
+storage/videos/
+storage/staging/
+```
+
+The production image provisions FFmpeg, ffprobe, and Shaka Packager for browser upload
+commit and encrypted DASH packaging.
 
 ### Commands
 
@@ -97,10 +112,21 @@ Required for the full vault feature set:
 - `VIDEO_JWT_SECRET`: signing secret for protected playback token issuance
 - `VIDEO_MASTER_ENCRYPTION_SEED`: master seed for deriving per-video encryption keys
 
+Generate deployment-specific secret values before starting the full vault path. The
+encryption seed and playback JWT secret are free-form strings, but they should be
+cryptographically random. They do not need to be hex-encoded.
+
+```bash
+openssl rand -base64 32
+bun -e "const { randomBytes } = await import('node:crypto'); console.log(randomBytes(32).toString('base64url'))"
+```
+
 Optional:
 
 - `KEY_SALT_PREFIX`: salt prefix used during playback key derivation
-- `DATABASE_SQLITE_PATH`: override path for the primary SQLite database
+- `STORAGE_DIR`: override the unified storage root for `db.sqlite`, committed media, and staged uploads
+- `DATABASE_SQLITE_PATH`: override path for the primary SQLite database without moving media artifacts
+- `LOCAL_STREAMER_STORAGE_MOUNT`: Docker Compose storage mount source for `/app/storage`
 - `AUTH_CLIENT_COOKIE_NAME`: override the client identity cookie name
 - `AUTH_SESSION_COOKIE_NAME`: override the auth session cookie name
 - `AUTH_SESSION_TTL_MS`: session lifetime in milliseconds

@@ -69,6 +69,19 @@ interface PlaylistRuntimeWorkspace {
   videoMetadataDbPath: string;
 }
 
+const ENV_KEYS_TO_RESTORE = [
+  'AUTH_OWNER_EMAIL',
+  'AUTH_OWNER_ID',
+  'AUTH_SHARED_PASSWORD',
+  'DATABASE_SQLITE_PATH',
+  'STORAGE_DIR',
+  'VIDEO_JWT_SECRET',
+  'VIDEO_MASTER_ENCRYPTION_SEED',
+] as const;
+
+type RestorableEnvKey = typeof ENV_KEYS_TO_RESTORE[number];
+type PreviousEnvValues = Record<RestorableEnvKey, string | undefined>;
+
 interface SeedPlaylistRow {
   createdAt?: string;
   description?: string;
@@ -187,6 +200,20 @@ export async function createPlaylistRuntimeTestWorkspace(
   const workspace = await createRuntimeTestWorkspace();
   const playlists = normalizePlaylistRows(options.playlists);
   const playlistItems = normalizePlaylistItemRows(playlists, options.playlistItems);
+  const previousEnv = ENV_KEYS_TO_RESTORE.reduce<PreviousEnvValues>((values, key) => {
+    values[key] = process.env[key];
+    return values;
+  }, {} as PreviousEnvValues);
+
+  function restoreEnvValue(key: RestorableEnvKey): void {
+    const value = previousEnv[key];
+    if (value === undefined) {
+      delete process.env[key];
+      return;
+    }
+
+    process.env[key] = value;
+  }
 
   process.env.AUTH_OWNER_EMAIL = 'admin@example.com';
   process.env.AUTH_OWNER_ID = PLAYLIST_OWNER_ID;
@@ -227,13 +254,9 @@ export async function createPlaylistRuntimeTestWorkspace(
     authDbPath: workspace.authDbPath,
     databasePath: workspace.databasePath,
     cleanup: async () => {
-      delete process.env.AUTH_OWNER_EMAIL;
-      delete process.env.AUTH_OWNER_ID;
-      delete process.env.AUTH_SHARED_PASSWORD;
-      delete process.env.DATABASE_SQLITE_PATH;
-      delete process.env.STORAGE_DIR;
-      delete process.env.VIDEO_JWT_SECRET;
-      delete process.env.VIDEO_MASTER_ENCRYPTION_SEED;
+      for (const key of ENV_KEYS_TO_RESTORE) {
+        restoreEnvValue(key);
+      }
       await workspace.cleanup();
     },
     login: async () => {

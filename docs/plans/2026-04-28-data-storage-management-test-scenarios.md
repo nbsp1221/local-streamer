@@ -1,9 +1,15 @@
 # Data Storage Management Test Scenarios
 
-Status: Draft after subagent review
+Status: Superseded test scenario draft
+Last reviewed: 2026-04-30
 Date: 2026-04-28
 Owner: Codex planning pass
 Source spec: `docs/plans/2026-04-27-data-storage-management-design.md`
+
+> This file contains useful storage-testing principles, but scenarios that require
+> legacy import/apply/cleanup flows are superseded by the primary SQLite cutover and
+> demo seed direction. Current storage confidence should focus on primary schema,
+> demo seed, data integrity, and runtime wiring.
 
 ## 1. Purpose
 

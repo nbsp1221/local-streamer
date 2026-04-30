@@ -11,11 +11,11 @@ services:
     env_file:
       - .env
     environment:
-      - NODE_ENV=production
-      - PORT=3000
-      - STORAGE_DIR=./storage
+      NODE_ENV: production
+      PORT: "3000"
+      STORAGE_DIR: /app/storage
     volumes:
-      - ./storage:/app/storage
+      - ${LOCAL_STREAMER_STORAGE_MOUNT:-local-streamer-storage}:/app/storage
     networks:
       - local-streamer-network
     healthcheck:
@@ -24,13 +24,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu, video]
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -43,3 +36,6 @@ services:
 networks:
   local-streamer-network:
     driver: bridge
+
+volumes:
+  local-streamer-storage:

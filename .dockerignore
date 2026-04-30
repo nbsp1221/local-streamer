@@ -81,10 +81,17 @@ tmp/
 temp/
 *.tmp
 
-# Data and media files (will be mounted as volumes)
+# Legacy local data paths (retired runtime layout; never build into images)
 data/
 incoming/
+
+# Current local storage path (mounted at runtime)
 storage/
+
+# Generated media tool binaries (download inside Docker builds)
+binaries/
+.ffmpeg-download-temp/
+.shaka-download-temp/
 
 # Keep essential files for build process
 !package.json

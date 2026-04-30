@@ -148,6 +148,10 @@ app/
       domain/
       application/
       infrastructure/
+    thumbnail/
+      domain/
+      application/
+      infrastructure/
     storage/
       domain/
       application/
@@ -207,7 +211,17 @@ Reference data exception:
 - the owning business context still defines the meaning, labels, visibility, and runtime behavior of those values
 - changing taxonomy policy remains a library-domain decision, even when the rows are inserted during primary schema bootstrapping
 
-## 9. Playback Complexity Principle
+## 9. Supporting Technical Modules
+
+### `thumbnail`
+
+- active technical module for protected thumbnail encryption, decryption, and finalization
+- supports ingest and playback flows
+- does not own user-facing library behavior
+- does not own playback authorization policy
+- does not own storage persistence policy
+
+## 10. Playback Complexity Principle
 
 Streaming security is a core problem, not a feature to simplify away.
 
@@ -246,7 +260,7 @@ modules/
 
 It should not be split into separate top-level contexts unless maintenance proves that necessary.
 
-## 10. Dependency Rules
+## 11. Dependency Rules
 
 - `app/routes` must stay thin
 - `app/composition/server` is the only place where server-side dependencies are assembled
@@ -260,7 +274,7 @@ It should not be split into separate top-level contexts unless maintenance prove
 - cross-context dependencies should be rare and explicit
 - playback complexity must not leak into unrelated contexts
 
-## 11. Composition Root
+## 12. Composition Root
 
 The project should use an explicit server-side composition root at:
 
@@ -299,7 +313,7 @@ For a one-maintainer modular monolith, explicit composition is better than:
 
 This keeps startup and ownership legible without introducing unnecessary framework complexity.
 
-## 12. Policy Model
+## 13. Policy Model
 
 `auth` and `playback` should express authorization rules as explicit policy objects, not ad hoc boolean checks scattered across routes and helpers.
 

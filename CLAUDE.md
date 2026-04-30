@@ -559,11 +559,11 @@ export class GenerateVideoTokenUseCase {
       return { success: false, error: new UnauthorizedError() };
     }
 
-    // 2. Generate JWT token with expiration
+    // 2. Generate JWT token with the playback config contract
     const token = jwt.sign(
       { videoId: request.videoId, userId: request.userId },
-      process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      playbackConfig.jwtSecret,
+      { expiresIn: playbackConfig.jwtExpiry }
     );
 
     return { success: true, data: { token } };
@@ -573,7 +573,7 @@ export class GenerateVideoTokenUseCase {
 // ❌ WRONG - Insecure video access
 export async function videoHandler({ params }: Route.LoaderArgs) {
   // 🚨 No authentication check!
-  const videoPath = path.join('data/videos', params.videoId, 'manifest.mpd');
+  const videoPath = path.join(getStoragePaths().videosDir, params.videoId, 'manifest.mpd');
   return new Response(await fs.readFile(videoPath));
 }
 ```

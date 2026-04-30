@@ -2,7 +2,7 @@
 FROM oven/bun:1.3.5 AS base
 WORKDIR /app
 
-# Install dependencies needed for native modules and FFmpeg download
+# Install dependencies needed for native modules and media tool downloads
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     make \
@@ -15,18 +15,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     xz-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# Set NVIDIA driver capabilities environment variable for NVENC access
-ENV NVIDIA_DRIVER_CAPABILITIES=all
-
 # Stage 2: Development dependencies
 FROM base AS development-dependencies
 # Copy package files for better caching
 COPY package.json bun.lock ./
+COPY scripts/verify-bun-version.ts ./scripts/verify-bun-version.ts
 RUN bun install --frozen-lockfile
 
 # Stage 3: Production dependencies  
 FROM base AS production-dependencies
 COPY package.json bun.lock ./
+COPY scripts/verify-bun-version.ts ./scripts/verify-bun-version.ts
 RUN bun install --frozen-lockfile
 
 # Stage 4: Build stage
@@ -34,8 +33,8 @@ FROM base AS build
 COPY package.json bun.lock ./
 COPY --from=development-dependencies /app/node_modules ./node_modules
 COPY . .
-# Download FFmpeg binaries during build
-RUN bash scripts/download-ffmpeg.sh
+# Download media tool binaries during build
+RUN bash scripts/download-ffmpeg.sh && bash scripts/download-shaka-packager.sh
 RUN bun run build
 
 # Stage 5: Production image  
@@ -54,12 +53,12 @@ COPY --from=production-dependencies --chown=bun:bun /app/node_modules ./node_mod
 # Copy built application
 COPY --from=build --chown=bun:bun /app/build ./build
 
-# Copy FFmpeg binaries
+# Copy media tool binaries
 COPY --from=build --chown=bun:bun /app/binaries ./binaries
 
 # Create necessary directories with proper ownership
-RUN mkdir -p data incoming incoming/thumbnails && \
-    chown -R bun:bun data incoming
+RUN mkdir -p storage/videos storage/staging && \
+    chown -R bun:bun storage
 
 # Switch to non-root user
 USER bun
@@ -70,6 +69,7 @@ EXPOSE 3000
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV STORAGE_DIR=/app/storage
 
 # Health check using bun
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \

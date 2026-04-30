@@ -1,6 +1,15 @@
 # Ingest Media Preparation Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+Status: Historical implementation record
+Last reviewed: 2026-04-30
+
+> This document records the implemented codec-aware ingest media preparation work.
+> Do not treat it as a fresh execution plan. Use
+> `docs/current-runtime-documentation-spec.md` and
+> `docs/roadmap/current-refactor-status.md` for the current runtime contract.
+
+> Historical note: the original execution directive has been retired. Do not invoke
+> `executing-plans` from this document.
 
 **Goal:** Replace always-transcode ingest with a test-first media preparation pipeline that preserves H.264/HEVC video when possible, preserves AAC audio, converts only what is needed, and falls back to H.264/AAC when preserve preparation fails.
 

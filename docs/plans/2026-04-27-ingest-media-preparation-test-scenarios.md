@@ -1,9 +1,15 @@
 # Ingest Media Preparation Test Scenario Specification
 
-Status: Draft test scenario specification
+Status: Historical implementation record
+Last reviewed: 2026-04-30
 Date: 2026-04-27
 Owner: Codex planning pass
 Related design: [Ingest Media Preparation Design](./2026-04-27-ingest-media-preparation-design.md)
+
+> This document records the implemented codec-aware ingest media preparation work.
+> Do not treat it as a fresh execution plan. Use
+> `docs/current-runtime-documentation-spec.md` and
+> `docs/roadmap/current-refactor-status.md` for the current runtime contract.
 
 ## 1. Purpose
 

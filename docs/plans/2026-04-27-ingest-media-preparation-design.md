@@ -1,9 +1,15 @@
 # Ingest Media Preparation Design
 
-Status: Draft design for review
+Status: Historical implementation record
+Last reviewed: 2026-04-30
 Date: 2026-04-27
 Owner: Codex planning pass
 Scope: Replace the current always-transcode ingest behavior with allowlist-based media preparation while preserving the existing protected DASH playback model.
+
+> This document records the implemented codec-aware ingest media preparation work.
+> Do not treat it as a fresh execution plan. Use
+> `docs/current-runtime-documentation-spec.md` and
+> `docs/roadmap/current-refactor-status.md` for the current runtime contract.
 
 ## 1. Summary
 

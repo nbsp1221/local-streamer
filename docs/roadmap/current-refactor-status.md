@@ -1,7 +1,7 @@
 # Current Refactor Status
 
 Status: Current-state reference
-Last updated: 2026-04-19
+Last updated: 2026-04-30
 Owner: Project maintainer
 Depends on:
 
@@ -31,7 +31,7 @@ The product is currently a personal encrypted video vault with these owner-facin
 - quick-view metadata editing and deletion from home
 - browser-first upload at `/add-videos`
 - single-file staged upload with explicit `Add to Library` commit
-- encoding option selection during staged upload review
+- codec-aware automatic media preparation during staged upload commit
 - protected player route with DASH token, manifest, segment, and ClearKey routes
 - playlist listing, creation, detail navigation, and playlist item reads through the active playlist slice
 
@@ -72,7 +72,9 @@ The legacy tree is gone, and these current runtime contracts remain intentionall
 
 ### Active-owned SQLite persistence
 
-- playlists persist through the primary SQLite database under `storage/db.sqlite`
+- auth sessions, library metadata, taxonomy/tags, ingest upload state, media asset records, and playlists persist through the primary SQLite database under `storage/db.sqlite`
+- committed media artifacts live under `storage/videos/`
+- in-progress browser uploads live under `storage/staging/`
 - JSON playlist persistence has been retired with the legacy storage layout
 
 ### Playback fixture maintenance
@@ -100,3 +102,4 @@ The rearchitecture is no longer blocked on repository cleanup. The next useful w
 2. simplify remaining wrapper duplication in `app/composition/server/playlist.ts` only if it produces clearer route-facing contracts
 3. finish browser-visible playlist polish such as play-all, add-to-playlist entry points, and edit flows without reopening migration boundaries
 4. keep browser/runtime verification aligned as playback behavior evolves
+5. finish current documentation and deployment example alignment against `docs/current-runtime-documentation-spec.md`

@@ -27,6 +27,6 @@ This file is intentionally narrow. It is not the source of truth for overall pla
 
 ## Non-Goals For This Note
 
-- changing playlist persistence away from JSON
+- reopening playlist persistence decisions; playlist persistence is already primary SQLite
 - reopening migration ownership decisions
 - redefining playlist permissions or auth semantics

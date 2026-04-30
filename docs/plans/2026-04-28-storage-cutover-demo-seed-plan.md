@@ -1,5 +1,11 @@
 # Storage Cutover and Demo Seed Plan
 
+Status: Accepted cutover direction / implementation reference
+Last reviewed: 2026-04-30
+
+> This is the accepted direction for the primary storage cutover and demo seed work.
+> It should not be read as an unstarted proposal.
+
 **Goal:** Finish the storage rearchitecture by removing legacy storage datasets and one-time migration paths, then provide a small reproducible demo seed for new developer setups.
 
 **Decision:** Legacy local data is test data, not production data that must be fully recovered. Missing legacy media directories should not block the final architecture. The project should keep only the new primary storage model and generate demo data from small source fixtures.
