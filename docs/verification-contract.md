@@ -38,6 +38,7 @@ appropriate Docker gate.
 - `test` covers Vitest plus the Bun auth smoke layers under env-scrubbed conditions.
 - `build` verifies the production build succeeds.
 - `bun run verify:e2e-smoke` is the required browser smoke layer for browser-visible changes. It currently covers the home owner path, the add-videos owner upload flow, the playlist owner flow, player layout, and protected playback compatibility.
+  This required smoke command is the stability boundary and may use stricter worker settings than ad hoc `bun run test:e2e` runs. Parallel browser stress runs are diagnostic, not the default required gate, until the harness owns per-worker runtime isolation.
 
 ## Parity rules
 

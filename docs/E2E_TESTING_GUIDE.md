@@ -76,6 +76,7 @@ bun run verify:e2e-smoke
 ```
 
 with a `bun` matching the repo `packageManager` contract. The raw non-browser Docker reference above excludes browser smoke, but the Docker authority paths above already include this browser smoke layer because they run `bun run verify:ci-faithful`, which includes `bun run verify:e2e-smoke`.
+The required hermetic smoke command intentionally runs with one Playwright worker while it uses a single built server and a single temporary SQLite runtime workspace. Use explicit `bun run test:e2e -- ... --workers=N` invocations only for targeted stress investigation.
 The current required smoke set covers the home owner path, the add-videos owner upload flow, the playlist owner flow, player layout, and protected playback compatibility.
 When the change is both browser-visible and runtime-sensitive, follow `docs/browser-qa-contract.md` to decide whether Playwright MCP or equivalent isolated browser QA is additionally required.
 

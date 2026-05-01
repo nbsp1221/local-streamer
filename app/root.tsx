@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
   isRouteErrorResponse,
   Links,
@@ -49,6 +50,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  useEffect(() => {
+    document.documentElement.dataset.localStreamerHydrated = 'true';
+  }, []);
+
   return (
     <>
       <Outlet />

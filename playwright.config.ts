@@ -55,6 +55,7 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   reporter: 'list',
+  workers: runtimeMode === 'hermetic-smoke' ? 1 : undefined,
   use: {
     baseURL: `http://127.0.0.1:${port}`,
     locale: 'en-US',

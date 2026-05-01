@@ -1,8 +1,9 @@
 import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { Client, InValue, Transaction } from '@libsql/client';
 import { createClient } from '@libsql/client';
+import { Mutex } from 'async-mutex';
 
 export interface SqliteRunResult {
   changes: number;
@@ -25,13 +26,28 @@ export interface CreatePrimarySqliteDatabaseInput {
   dbPath: string;
 }
 
+const writeMutexes = new Map<string, Mutex>();
+
 interface StatementExecutor {
   execute: Client['execute'];
+}
+
+function getWriteMutex(dbPath: string): Mutex {
+  const key = resolve(dbPath);
+  let mutex = writeMutexes.get(key);
+
+  if (!mutex) {
+    mutex = new Mutex();
+    writeMutexes.set(key, mutex);
+  }
+
+  return mutex;
 }
 
 function createStatement<RowType>(
   executor: StatementExecutor,
   sql: string,
+  writeMutex?: Mutex,
 ): SqliteStatement<RowType> {
   return {
     async all(...params) {
@@ -49,15 +65,19 @@ function createStatement<RowType>(
     },
 
     async run(...params) {
-      const result = await executor.execute({
-        args: params,
-        sql,
-      });
+      const executeRun = async () => {
+        const result = await executor.execute({
+          args: params,
+          sql,
+        });
 
-      return {
-        changes: result.rowsAffected,
-        lastInsertRowid: result.lastInsertRowid,
+        return {
+          changes: result.rowsAffected,
+          lastInsertRowid: result.lastInsertRowid,
+        };
       };
+
+      return writeMutex ? writeMutex.runExclusive(executeRun) : executeRun();
     },
   };
 }
@@ -78,29 +98,33 @@ function createTransactionAdapter(transaction: Transaction): SqliteDatabaseAdapt
   };
 }
 
-function createLibsqlAdapter(client: Client): SqliteDatabaseAdapter {
+function createLibsqlAdapter(client: Client, writeMutex: Mutex): SqliteDatabaseAdapter {
   return {
     async exec(sql) {
-      await client.executeMultiple(sql);
+      await writeMutex.runExclusive(async () => {
+        await client.executeMultiple(sql);
+      });
     },
 
     prepare<RowType = unknown>(sql: string) {
-      return createStatement<RowType>(client, sql);
+      return createStatement<RowType>(client, sql, writeMutex);
     },
 
     async transaction<T>(callback: (database: SqliteDatabaseAdapter) => Promise<T>) {
-      const transaction = await client.transaction('write');
-      const transactionAdapter = createTransactionAdapter(transaction);
+      return writeMutex.runExclusive(async () => {
+        const transaction = await client.transaction('write');
+        const transactionAdapter = createTransactionAdapter(transaction);
 
-      try {
-        const result = await callback(transactionAdapter);
-        await transaction.commit();
-        return result;
-      }
-      catch (error) {
-        await transaction.rollback();
-        throw error;
-      }
+        try {
+          const result = await callback(transactionAdapter);
+          await transaction.commit();
+          return result;
+        }
+        catch (error) {
+          await transaction.rollback();
+          throw error;
+        }
+      });
     },
   };
 }
@@ -117,9 +141,10 @@ export async function createPrimarySqliteDatabase(
   const client = createClient({
     url: toFileDatabaseUrl(input.dbPath),
   });
-  const database = createLibsqlAdapter(client);
+  const database = createLibsqlAdapter(client, getWriteMutex(input.dbPath));
 
   await database.exec('PRAGMA foreign_keys = ON');
+  await database.exec('PRAGMA busy_timeout = 5000');
   await database.exec('PRAGMA journal_mode = WAL');
 
   return database;
